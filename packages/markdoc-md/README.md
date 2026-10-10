@@ -276,10 +276,10 @@ If the key is absent, the tag renders an empty value.
 | `renderUnit` | No | `false` | Appends `unit` to the rendered value when true. |
 | `source` | No | — | Source metadata, for example a `fhir://...` expression used by an upstream value-population flow. The renderer itself does not fetch it. |
 
-## `switch` and `case`
+## `switch`, `condition`, and `case`
 
-`switch` selects one immediate `case` whose `primary` value equals the current variable value. A
-`case` is only meaningful inside a `switch`.
+`switch` selects an immediate categorical `case`. `condition` selects numeric cases. A `case` is
+only meaningful inside one of those tags.
 
 ```markdoc
 {% switch "smoking" type="boolean" %}
@@ -293,7 +293,7 @@ If the key is absent, the tag renders an empty value.
 | Attribute | Required | Default | Meaning |
 | --- | --- | --- | --- |
 | `primary` | Yes | — | Variable/input key. It may be written as the first positional string. |
-| `type` | No | `string` | `string`, `boolean`, or `checkbox`. `checkbox` has the same rendering contract as `boolean`. |
+| `type` | No | `string` | `string`, `boolean`, or `checkbox`. Numeric and array switches are unsupported. |
 | `source` | No | — | Source metadata used by an upstream value-population flow. The renderer itself does not fetch it. |
 
 For `boolean` and `checkbox`, boolean values, `0`/`1`, and the strings `"false"`/`"true"` or
@@ -306,32 +306,65 @@ Only immediate `case` children are rendered; unrelated child tags are discarded 
 | --- | --- | --- |
 | `primary` | Yes | The value that must equal the enclosing switch value. It may be written as the first positional string. |
 
-The body may contain inline text and formatting.
+The body may contain inline text and formatting. Categorical cases may have a finite numeric `value`
+for calculations. Repeated switch occurrences merge these mappings globally by variable and case key,
+but each occurrence renders only its own matching body. Boolean cases default to true → 1 and false → 0
+only when no explicit mapping exists.
+
+### Numeric conditions
+
+`condition` accepts a scalar primary or an array of numeric field names; no `type` is needed. Array
+members are individual inputs, never a combined input name. Every comparison array has equal length;
+finite numbers compare that member and `null` skips it. All active comparisons in one case must
+match (AND). Ordered alternative cases provide OR behavior; only the first matching case renders.
+
+```markdoc
+{% condition ["ivsd", "lvpwd"] description="Wall measurements" unit="mm" %}
+{% case gt=[11,null] %}First measurement exceeds 11.{% /case %}
+{% case gt=[null,14] %}Second measurement exceeds 14.{% /case %}
+{% case default=true %}Neither condition matched.{% /case %}
+{% /condition %}
+```
+
+For asymmetric ranges, `gte=[8,7] lte=[11,14]` requires both 8 ≤ ivsd ≤ 11 and
+7 ≤ lvpwd ≤ 14. A missing constrained value fails; a skipped missing value has no effect.
+Fallback does not establish that measurements are complete or normal. Default must be last and
+have no comparisons. Identical sibling predicates, string bounds and all-null cases are errors;
+overlapping nonidentical predicates are allowed. Scalar conditions use scalar bounds such as
+`gte=18 lt=65`. Conditions never accept case `value`; mappings belong to categorical switches.
+
+Array-condition `description` and `unit` describe that occurrence, not its member field contracts.
+Declare member metadata on individual `info` tags. Group `source` is rejected: put a source on
+each individual field. Reordering members also reorders every comparison.
 
 ## `calc`
 
 Evaluates an `fparser` formula against the renderer's variables and displays the result. Boolean
 values and the strings `"true"`/`"false"` become `1`/`0`. Numeric results are rounded to at most two
 decimal places by default. Set `round` to another number of decimal places or to `false` to leave the
-result unrounded. An invalid or unevaluable formula renders `...` instead of throwing.
-
-Every variable referenced by the formula must be included as an `info` or `switch` child of that
-calculation. The children appear together below the calculated value in the Inputs panel but are ignored
-when rendering document content. Boolean and `checkbox` switches become `1` when checked and `0`
-when unchecked. String switches use the numeric `value` of their selected case:
+result unrounded. Named calculations publish a dependency-resolved, rounded result globally, even
+when nested in a hidden case. Dependents consume that rounded publication. Formula references need
+not be children: an undeclared reference becomes a numeric input. A calculation stays unset until
+every input is filled in (an unchecked checkbox counts as `false`), and so do calculations that
+depend on it; `calc` and `info` tags then show `CALC_PLACEHOLDER` (`…`, exported from
+`markdoc-md/config`), and conditions on it fall back to their default case. Non-finite results such
+as a division by zero are unset too. Every `info` a formula uses must have `type="number"`; a text
+or date field is reported as `calc-variable-not-numeric`, since its value would otherwise silently
+count as 0. A non-empty value for a named calculation overrides its formula and is rounded the same way; an
+empty value resumes calculation. Switch variables use globally merged case mappings:
 
 ```markdoc
 {% calc primary="risk_score" formula="[age] + [age_group] + [smoker]" unit="points" %}
-{% info "age" type="number" /%}
-{% switch "age_group" %}{% case "under-65" value=0 %}Under 65{% /case %}{% case "65-plus" value=2 %}65 or older{% /case %}{% /switch %}
-{% switch "smoker" type="checkbox" %}{% case "true" %}Yes{% /case %}{% case "false" %}No{% /case %}{% /switch %}
 {% /calc %}
+{% switch "age_group" %}{% case "under-65" value=0 %}Under 65{% /case %}{% /switch %}
+{% switch "age_group" %}{% case "65-plus" value=2 %}65 or older{% /case %}{% /switch %}
+{% switch "smoker" type="checkbox" %}{% case "true" value=1 %}Yes{% /case %}{% case "false" value=0 %}No{% /case %}{% /switch %}
 ```
 
 | Attribute | Required | Default | Meaning |
 | --- | --- | --- | --- |
 | `formula` | Yes | — | Formula evaluated by `fparser`; bracketed names refer to variables. |
-| `primary` | No | — | Stable name for the calculated value. Formula-only calculations are supported. |
+| `primary` | Yes | — | Non-empty stable name for the calculated value. Calculations without child declarations are supported. |
 | `unit` | No | — | Display unit. |
 | `round` | No | `2` | Number of decimal places, from `0` to `100`; `false` disables rounding. |
 | `renderUnit` | No | `false` | Appends `unit` to the result when true. |
@@ -343,10 +376,16 @@ Repeated occurrences may omit metadata, but their non-empty contract attributes 
 
 - `info`: `type`, `unit`, `description`, and `source`
 - `switch`: `type`, `source`, and numeric `value` for cases with the same key
-- named `calc`: `formula`
+- scalar `condition`: `unit`, `description`, and `source`
+- named `calc`: `formula` and `round` (omitted means 2)
 
-An `info` and a `switch` must not reuse the same `primary`. Presentation-only settings such as
-`round` and `renderUnit` may differ between occurrences.
+Numeric `info`, `condition`, and `calc` mentions can share a primary; a categorical `switch` cannot
+share its primary with a numeric variable. Info `round` and `renderUnit` are presentation-only and
+may differ; conflicting named calc round policies are errors.
+
+Named calculations are global rather than branch-owned: hiding a branch does not stop its calculation.
+A manual or AI value remains an override; resetting it resumes dependency updates. Multiple compatible
+calc mentions share one result.
 
 ## Rendering and validation
 

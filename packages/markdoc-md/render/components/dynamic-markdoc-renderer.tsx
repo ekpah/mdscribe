@@ -6,9 +6,11 @@ import { useMemo } from "react";
 
 import type { CitationRequest } from "../../citations/resolvers";
 import type { MarkdocComponentMap } from "../../markdoc-config/tags/helpers/components";
-import { buildVariableContracts } from "../../parse/validate-markdoc-tag-contracts";
+import { resolveCalculatedValues } from "../../parse/calculated-values";
+import { extractTemplateInputs } from "../../parse/parse-markdoc-to-inputs";
 import { MarkdocInteractionProvider } from "../context/markdoc-interaction-context";
 import { VariableProvider } from "../context/variable-context";
+import type { VariableMap } from "../context/variable-context";
 import { VariableContractProvider } from "../context/variable-contract-context";
 import { useCitationModifier } from "../hooks/use-citation-modifier";
 import renderMarkdocAsReact from "../utils/render-markdoc-as-react";
@@ -67,22 +69,22 @@ export const DynamicMarkdocRenderer = ({
 		() => renderMarkdocAsReact(markdocContent, { components, config, layout }),
 		[components, config, layout, markdocContent],
 	);
-	const variableContracts = useMemo(
-		() =>
-			buildVariableContracts(Markdoc.parse(sanitizeMarkdocForRendering(markdocContent))).contracts,
-		[markdocContent],
+	const { contracts: variableContracts, inputs } = useMemo(
+		() => extractTemplateInputs(Markdoc.parse(sanitizeMarkdocForRendering(markdocContent)), config),
+		[markdocContent, config],
 	);
-	const normalizedVariables = (variables ?? {}) as Record<
-		string,
-		string | number | boolean | null | undefined
-	>;
+	// Every named calculation, including hidden ones, resolves before tags read it.
+	const resolvedVariables = useMemo(
+		() => resolveCalculatedValues(inputs, variables ?? {}) as VariableMap,
+		[inputs, variables],
+	);
 
 	return (
 		<MarkdocInteractionProvider
 			value={{ activeTagName, areCitationsHighlighted, onCitationSelect, onTagSelect }}
 		>
 			<VariableContractProvider value={variableContracts}>
-				<VariableProvider value={normalizedVariables}>
+				<VariableProvider value={resolvedVariables}>
 					<div className={className}>{renderedContent}</div>
 				</VariableProvider>
 			</VariableContractProvider>

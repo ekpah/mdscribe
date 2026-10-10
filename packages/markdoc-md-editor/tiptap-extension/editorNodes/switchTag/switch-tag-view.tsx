@@ -37,7 +37,9 @@ export const SwitchTagView = ({ editor, node, getPos, selected }: NodeViewProps)
 				summary={
 					<>
 						<span className="max-w-[20ch] truncate font-mono text-foreground/80">
-							{node.attrs.primary || <span className="text-muted-foreground italic">leer</span>}
+							{(Array.isArray(node.attrs.primary)
+								? node.attrs.primary.join(", ")
+								: node.attrs.primary) || <span className="text-muted-foreground italic">leer</span>}
 						</span>
 						<span className="text-muted-foreground">· {cases.length} Optionen</span>
 					</>

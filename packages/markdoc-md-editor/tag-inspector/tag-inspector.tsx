@@ -6,10 +6,19 @@ import { ScrollArea } from "@repo/design-system/components/ui/scroll-area";
 import { cn } from "@repo/design-system/lib/utils";
 import type { Editor } from "@tiptap/react";
 import type { LucideIcon } from "lucide-react";
-import { Calculator, ChevronsDownUp, Code2, CornerDownRight, Info, X } from "lucide-react";
+import {
+	Calculator,
+	ChevronsDownUp,
+	Code2,
+	CornerDownRight,
+	GitBranch,
+	Info,
+	X,
+} from "lucide-react";
 
 import { CalcTagPanel } from "./calc-tag-panel";
 import { CaseTagPanel } from "./case-tag-panel";
+import { ConditionTagPanel } from "./condition-tag-panel";
 import { DetailsTagPanel } from "./details-tag-panel";
 import { TagInspectorHelp } from "./help-content";
 import { InfoTagPanel } from "./info-tag-panel";
@@ -34,6 +43,12 @@ export const TAG_PANEL_META: Record<
 		iconClassName: "text-solarized-cyan",
 		iconWrapClassName: "bg-solarized-cyan/15",
 		label: "Case",
+	},
+	conditionTag: {
+		icon: GitBranch,
+		iconClassName: "text-solarized-cyan",
+		iconWrapClassName: "bg-solarized-cyan/15",
+		label: "Condition",
 	},
 	detailsTag: {
 		icon: ChevronsDownUp,
@@ -74,6 +89,8 @@ export const TagPanelBody = ({
 			);
 		case "caseTag":
 			return <CaseTagPanel editor={editor} node={selectedTag.node} pos={selectedTag.pos} />;
+		case "conditionTag":
+			return <ConditionTagPanel editor={editor} node={selectedTag.node} pos={selectedTag.pos} />;
 		case "detailsTag":
 			return (
 				<DetailsTagPanel

@@ -1,6 +1,7 @@
 "use client";
 
 import { useResolvedVariable } from "../../render/hooks/use-resolved-variable";
+import { CALC_PLACEHOLDER } from "./helpers/config";
 import { InteractiveTag } from "./helpers/interactive-tag";
 import { roundNumber } from "./helpers/round";
 import type { RoundValue } from "./helpers/round";
@@ -28,9 +29,12 @@ export const Info = ({
 	// Resolve the value through the shared read path: a stored value wins;
 	// a computed variable (declared by a calc with the same name) derives its
 	// value from the formula.
-	const { value, isComputed } = useResolvedVariable(variableName);
+	const { contract, value, isComputed } = useResolvedVariable(variableName);
 	let renderedValue = value;
-	if (typeof value === "number" && (_type === "number" || isComputed)) {
+	if (value === undefined && contract?.roles.computed) {
+		// Shows a calculation's value, which waits for all of its inputs.
+		renderedValue = CALC_PLACEHOLDER;
+	} else if (typeof value === "number" && (_type === "number" || isComputed)) {
 		renderedValue = roundNumber(value, round, isComputed ? 2 : undefined);
 	} else if (typeof value === "boolean") {
 		renderedValue = String(value);
@@ -40,11 +44,12 @@ export const Info = ({
 
 	return (
 		<InteractiveTag tagName={variableName}>
-			<span className="rounded-md bg-solarized-blue px-1 text-white opacity-90">
-				<span className="inline-flex items-center gap-1">
-					{renderedValue}
-					{renderUnit && unit && ` ${unit}`}
-				</span>
+			<span
+				className="rounded-md bg-solarized-blue px-1 text-white opacity-90"
+				style={{ boxDecorationBreak: "clone", overflowWrap: "anywhere" }}
+			>
+				{renderedValue}
+				{renderUnit && unit && ` ${unit}`}
 			</span>
 		</InteractiveTag>
 	);

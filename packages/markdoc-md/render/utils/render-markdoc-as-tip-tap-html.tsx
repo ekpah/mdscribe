@@ -1,9 +1,45 @@
 import Markdoc from "@markdoc/markdoc";
-import type { Config } from "@markdoc/markdoc";
+import type { Config, RenderableTreeNode } from "@markdoc/markdoc";
 
 import { markdocConfig as config } from "../../markdoc-config";
 import { showDetailsGapsAsEmptyLines } from "../../markdoc-config/tags/helpers/details-line-flow";
 import { sanitizeMarkdocForRendering } from "./sanitize-markdoc-for-rendering";
+
+const CASE_LITERAL_ATTRIBUTES = new Set(["eq", "gt", "gte", "lt", "lte", "value"]);
+
+/**
+ * HTML attributes are strings, so literals that strings cannot express are
+ * JSON-encoded: case values and comparisons always (to tell `"1"` from `1`),
+ * and non-string primaries (condition arrays) behind `data-primary-json`. Even
+ * invalid literals then survive an editor roundtrip for validation to report.
+ */
+const encodeLiteralAttributes = (node: RenderableTreeNode): void => {
+	if (Array.isArray(node)) {
+		for (const child of node) {
+			encodeLiteralAttributes(child);
+		}
+		return;
+	}
+	if (!Markdoc.Tag.isTag(node)) {
+		return;
+	}
+	for (const [key, value] of Object.entries(node.attributes)) {
+		if (node.name === "Case" && CASE_LITERAL_ATTRIBUTES.has(key)) {
+			node.attributes[key] = JSON.stringify(value);
+		} else if (
+			key === "primary" &&
+			(node.name === "Condition" || node.name === "Switch") &&
+			typeof value !== "string" &&
+			value !== undefined
+		) {
+			node.attributes[key] = JSON.stringify(value);
+			node.attributes["data-primary-json"] = "true";
+		}
+	}
+	for (const child of node.children) {
+		encodeLiteralAttributes(child);
+	}
+};
 
 /**
  * Renders a Markdoc string into HTML to be used in TipTap. This could also be used to render the content in just HTML, but is most useful for TipTap, as it allows for the use of the components defined in your Markdoc config.
@@ -47,5 +83,6 @@ export const renderTipTapHTML = (
 		},
 	});
 	showDetailsGapsAsEmptyLines(content);
+	encodeLiteralAttributes(content);
 	return Markdoc.renderers.html(content);
 };

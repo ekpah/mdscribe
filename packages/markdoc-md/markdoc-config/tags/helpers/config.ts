@@ -2,6 +2,7 @@ import type { Config, Node, SchemaAttribute } from "@markdoc/markdoc";
 import Markdoc from "@markdoc/markdoc";
 
 import { isValidFormula } from "../../../parse/formula";
+import { immediateCases } from "./cases";
 import { readDetailsLineFlow } from "./details-line-flow";
 
 /**
@@ -10,6 +11,9 @@ import { readDetailsLineFlow } from "./details-line-flow";
  * editor node view cannot drift apart.
  */
 export const DEFAULT_DETAILS_SUMMARY = "Details";
+
+/** Shown in place of a calculated value until all of its inputs are filled in. */
+export const CALC_PLACEHOLDER = "…";
 
 const roundAttribute: SchemaAttribute = {
 	type: [Number, Boolean],
@@ -49,7 +53,21 @@ const calcTag: NonNullable<Config["tags"]>[string] = {
 				];
 			},
 		},
-		primary: { required: false, type: String },
+		primary: {
+			required: true,
+			type: String,
+			validate(value) {
+				return typeof value === "string" && !value.trim()
+					? [
+							{
+								id: "calc-primary-invalid",
+								level: "error",
+								message: "Calc requires a non-empty primary name.",
+							},
+						]
+					: [];
+			},
+		},
 		renderUnit: {
 			default: false,
 			type: Boolean,
@@ -62,23 +80,48 @@ const calcTag: NonNullable<Config["tags"]>[string] = {
 	render: "Calc",
 };
 
+/**
+ * Keeps only a switch's or condition's own cases and gives each its position,
+ * so first-match selection is stable in every renderer.
+ */
+const transformBranchingTag = (render: "Condition" | "Switch") => (node: Node, config: Config) => {
+	node.children = immediateCases(node);
+	for (const [index, caseNode] of node.children.entries()) {
+		caseNode.attributes.index = index;
+	}
+	return new Markdoc.Tag(render, node.transformAttributes(config), node.transformChildren(config));
+};
+
 const tags: NonNullable<Config["tags"]> = {
 	calc: calcTag,
+	condition: {
+		attributes: {
+			description: { required: false, type: String },
+			primary: { required: true, type: [String, Array] },
+			source: { required: false, type: String },
+			unit: { required: false, type: String },
+		},
+		children: ["tag", "text", "paragraph", "inline"],
+		render: "Condition",
+		selfClosing: false,
+		transform: transformBranchingTag("Condition"),
+	},
 	case: {
 		attributes: {
-			// Marks the fallback case of a number switch. Matches when no
-			// previous condition matched, including an unset value.
+			// Marks the fallback case. Matches when no previous case matched,
+			// including an unset value.
 			default: { required: false, type: Boolean },
-			// Structured numeric conditions for number switches. Multiple
-			// operators on one case combine conjunctively (gte=4 lt=10).
-			eq: { required: false, type: Number },
-			gt: { required: false, type: Number },
-			gte: { required: false, type: Number },
-			// Internal: position within the parent switch, injected by the
-			// switch transform so first-match-wins selection is stable.
+			// Numeric comparisons of condition cases. Multiple operators on one
+			// case combine conjunctively (gte=4 lt=10); arrays align with an
+			// array primary, with null skipping a member (gt=[11,null]).
+			eq: { required: false, type: [Number, Array] },
+			gt: { required: false, type: [Number, Array] },
+			gte: { required: false, type: [Number, Array] },
+			// Internal: position within the parent switch or condition, injected
+			// by its transform so first-match selection is stable.
 			index: { required: false, type: Number },
-			lt: { required: false, type: Number },
-			lte: { required: false, type: Number },
+			lt: { required: false, type: [Number, Array] },
+			lte: { required: false, type: [Number, Array] },
 			primary: { render: true, type: String },
 			value: { required: false, type: Number },
 		},
@@ -166,66 +209,19 @@ const tags: NonNullable<Config["tags"]> = {
 	switch: {
 		attributes: {
 			description: { required: false, type: String },
-			primary: { required: true, type: String },
+			primary: { required: true, type: [String, Array] },
 			source: { required: false, type: String },
 			type: {
-				matches: ["string", "boolean", "checkbox", "number"],
+				matches: ["string", "boolean", "checkbox"],
 				required: false,
 				type: String,
 			},
 			unit: { required: false, type: String },
 		},
-		children: ["tag", "text"],
+		children: ["tag", "text", "paragraph", "inline"],
 		render: "Switch",
 		selfClosing: false,
-		// this transform is necessary to only allow case tags inside switch tags to render
-		// switch tags should not contain breaks, as this will not be rendered correctly (markdoc only recognizes inline tags or full paragraphs)
-		transform(node: Node, config: Config) {
-			const collectCaseTagsFromWrapper = (candidate: Node): Node[] => {
-				if (candidate.type === "tag") {
-					return candidate.tag === "case" ? [candidate] : [];
-				}
-
-				// Markdoc can wrap tags inside paragraph/inline helper nodes.
-				// We unwrap those wrappers but intentionally do not traverse into
-				// non-case tags to preserve nested switch scoping.
-				if (
-					(candidate.type === "document" ||
-						candidate.type === "inline" ||
-						candidate.type === "paragraph") &&
-					candidate.children
-				) {
-					const collectedCases: Node[] = [];
-					for (const child of candidate.children) {
-						collectedCases.push(...collectCaseTagsFromWrapper(child));
-					}
-					return collectedCases;
-				}
-
-				return [];
-			};
-
-			const getImmediateCaseTags = (nodes: Node[]): Node[] => {
-				const immediateCaseTags: Node[] = [];
-
-				for (const childNode of nodes) {
-					immediateCaseTags.push(...collectCaseTagsFromWrapper(childNode));
-				}
-
-				return immediateCaseTags;
-			};
-			node.children = getImmediateCaseTags(node.children);
-			// Inject each case's position so first-match-wins selection is
-			// stable for number switches. Scalar attributes stay serializable
-			// through both the React and HTML renderers.
-			for (const [index, caseNode] of node.children.entries()) {
-				caseNode.attributes.index = index;
-			}
-			const attributes = node.transformAttributes(config);
-			const children = node.transformChildren(config);
-
-			return new Markdoc.Tag("Switch", attributes, children);
-		},
+		transform: transformBranchingTag("Switch"),
 	},
 };
 

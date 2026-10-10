@@ -1,7 +1,13 @@
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import type { EditorState } from "@tiptap/pm/state";
 
-const MARKDOC_TAG_NODE_NAMES = new Set(["calcTag", "caseTag", "infoTag", "switchTag"]);
+const MARKDOC_TAG_NODE_NAMES = new Set([
+	"calcTag",
+	"caseTag",
+	"conditionTag",
+	"infoTag",
+	"switchTag",
+]);
 
 const getMarkdocTagPrimary = (node: ProseMirrorNode): string => {
 	if (!MARKDOC_TAG_NODE_NAMES.has(node.type.name)) {

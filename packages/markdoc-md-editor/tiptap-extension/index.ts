@@ -1,12 +1,14 @@
 // Custom TipTap extension that adds Markdoc tags to the editor.
 
 import { Extension } from "@tiptap/core";
+import type { AnyExtension } from "@tiptap/core";
 import type { EditorState } from "@tiptap/pm/state";
 
 import { CalcTag } from "./editorNodes/calcTag/calc-tag";
 import type { CalcTagAttrs } from "./editorNodes/calcTag/calc-tag";
 import { CaseTag } from "./editorNodes/caseTag/case-tag";
 import type { CaseTagOptions } from "./editorNodes/caseTag/case-tag";
+import { ConditionTag } from "./editorNodes/conditionTag/condition-tag";
 import { DetailsTag } from "./editorNodes/detailsTag/details-tag";
 import type { DetailsTagAttrs } from "./editorNodes/detailsTag/details-tag";
 import { InfoTag } from "./editorNodes/infoTag/info-tag";
@@ -80,7 +82,7 @@ export const MarkdocMD = Extension.create<MarkdocExtensionOptions>({
 	},
 
 	addExtensions() {
-		const extensions = [];
+		const extensions: AnyExtension[] = [ConditionTag];
 
 		if (this.options.caseTag !== false) {
 			extensions.push(CaseTag.configure(this.options.caseTag));

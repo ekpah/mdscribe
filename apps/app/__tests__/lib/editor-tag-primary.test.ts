@@ -8,7 +8,10 @@ import {
 	FOCUS_INSERTED_TAG_PRIMARY_META,
 	selectInsertedInlineTag,
 } from "markdoc-md-editor/editor-helpers/select-inserted-inline-tag";
-import { updateMarkdocTagAttributesInTransaction } from "markdoc-md-editor/tag-inspector/use-selected-markdoc-tag";
+import {
+	ensureSharedSwitchCaseAttributes,
+	updateMarkdocTagAttributesInTransaction,
+} from "markdoc-md-editor/tag-inspector/use-selected-markdoc-tag";
 import { shouldInsertLineBreak } from "markdoc-md-editor/tiptap-extension";
 import { ensureCalcFormulaComponents } from "markdoc-md-editor/tiptap-extension/editorNodes/calcTag/calc-tag";
 
@@ -173,6 +176,16 @@ describe("shared Markdoc tag settings", () => {
 	test("silently adds missing formula components to calc tags", () => {
 		const schema = new Schema({
 			nodes: {
+				calcTag: {
+					atom: true,
+					attrs: {
+						components: { default: [] },
+						formula: { default: null },
+						primary: { default: null },
+					},
+					group: "inline",
+					inline: true,
+				},
 				doc: { content: "inline*" },
 				infoTag: {
 					atom: true,
@@ -183,16 +196,6 @@ describe("shared Markdoc tag settings", () => {
 						source: { default: null },
 						type: { default: null },
 						unit: { default: null },
-					},
-					group: "inline",
-					inline: true,
-				},
-				calcTag: {
-					atom: true,
-					attrs: {
-						components: { default: [] },
-						formula: { default: null },
-						primary: { default: null },
 					},
 					group: "inline",
 					inline: true,
@@ -236,6 +239,16 @@ describe("shared Markdoc tag settings", () => {
 	test("updates required shared attributes on every duplicate and contained calc component", () => {
 		const schema = new Schema({
 			nodes: {
+				calcTag: {
+					atom: true,
+					attrs: {
+						components: { default: [] },
+						formula: { default: null },
+						primary: { default: null },
+					},
+					group: "inline",
+					inline: true,
+				},
 				doc: { content: "inline*" },
 				infoTag: {
 					atom: true,
@@ -246,16 +259,6 @@ describe("shared Markdoc tag settings", () => {
 						source: { default: null },
 						type: { default: null },
 						unit: { default: null },
-					},
-					group: "inline",
-					inline: true,
-				},
-				calcTag: {
-					atom: true,
-					attrs: {
-						components: { default: [] },
-						formula: { default: null },
-						primary: { default: null },
 					},
 					group: "inline",
 					inline: true,
@@ -338,7 +341,6 @@ describe("shared Markdoc tag settings", () => {
 	test("updates shared calc settings without changing instance presentation", () => {
 		const schema = new Schema({
 			nodes: {
-				doc: { content: "inline*" },
 				calcTag: {
 					atom: true,
 					attrs: {
@@ -353,6 +355,7 @@ describe("shared Markdoc tag settings", () => {
 					group: "inline",
 					inline: true,
 				},
+				doc: { content: "inline*" },
 				text: { group: "inline" },
 			},
 		});
@@ -401,7 +404,6 @@ describe("shared Markdoc tag settings", () => {
 	test("updates switch case values from a calc component everywhere", () => {
 		const schema = new Schema({
 			nodes: {
-				doc: { content: "inline*" },
 				calcTag: {
 					atom: true,
 					attrs: {
@@ -412,6 +414,7 @@ describe("shared Markdoc tag settings", () => {
 					group: "inline",
 					inline: true,
 				},
+				doc: { content: "inline*" },
 				switchTag: {
 					atom: true,
 					attrs: {
@@ -433,7 +436,7 @@ describe("shared Markdoc tag settings", () => {
 		const component = { cases, kind: "switch", primary: "riskLevel", type: "string" };
 		const switchTag = schema.node("switchTag", { cases, primary: "riskLevel", type: "string" });
 		const firstCalc = schema.node("calcTag", {
-			components: [component],
+			components: [{ ...component, cases: cases.map(({ primary }) => ({ primary })) }],
 			formula: "[riskLevel]",
 			primary: "risk",
 		});
@@ -442,7 +445,8 @@ describe("shared Markdoc tag settings", () => {
 			formula: "[riskLevel] * 2",
 			primary: "otherRisk",
 		});
-		const doc = schema.node("doc", null, [switchTag, firstCalc, secondCalc]);
+		const unrelated = schema.node("switchTag", { cases, primary: "otherLevel", type: "string" });
+		const doc = schema.node("doc", null, [switchTag, firstCalc, secondCalc, unrelated]);
 		let firstCalcPos = -1;
 		doc.descendants((node, pos) => {
 			if (node.type.name === "calcTag" && firstCalcPos === -1) {
@@ -451,6 +455,17 @@ describe("shared Markdoc tag settings", () => {
 		});
 		const state = EditorState.create({ doc, schema });
 		const transaction = state.tr;
+		// Editing local text before normalization must not erase a mapping declared elsewhere.
+		updateMarkdocTagAttributesInTransaction(transaction, firstCalcPos, {
+			components: [
+				{ ...component, cases: cases.map(({ primary }) => ({ primary, text: "New text" })) },
+			],
+		});
+		expect(transaction.doc.nodeAt(0)?.attrs.cases[1].value).toBe(2);
+		expect(ensureSharedSwitchCaseAttributes(transaction)).toBe(true);
+		expect(ensureSharedSwitchCaseAttributes(transaction)).toBe(false);
+		expect(transaction.doc.nodeAt(firstCalcPos)?.attrs.components[0].cases[0].value).toBe(0);
+		expect(transaction.doc.nodeAt(firstCalcPos)?.attrs.components[0].cases[1].value).toBe(2);
 		expect(
 			updateMarkdocTagAttributesInTransaction(transaction, firstCalcPos, {
 				components: [
@@ -475,6 +490,25 @@ describe("shared Markdoc tag settings", () => {
 				highValues.push(node.attrs.components[0]?.cases[1]?.value);
 			}
 		});
-		expect(highValues).toEqual([4, 4, 4]);
+		expect(highValues).toEqual([4, 4, 4, 2]);
+
+		// Clear is an intentional shared edit, unlike an omitted value on a text edit.
+		const clear = nextState.tr;
+		updateMarkdocTagAttributesInTransaction(clear, 0, {
+			cases: [
+				{ primary: "low", value: 0 },
+				{ primary: "high", value: undefined },
+			],
+		});
+		expect(ensureSharedSwitchCaseAttributes(clear)).toBe(false);
+		expect(clear.doc.nodeAt(firstCalcPos)?.attrs.components[0].cases[1].value).toBeUndefined();
+		expect(clear.doc.lastChild?.attrs.cases[1].value).toBe(2);
+		const valuesAfterClear: unknown[] = [];
+		clear.doc.descendants((node) => {
+			if (node.type.name === "calcTag") {
+				valuesAfterClear.push(node.attrs.components[0].cases[1].value);
+			}
+		});
+		expect(valuesAfterClear).toEqual([undefined, undefined]);
 	});
 });

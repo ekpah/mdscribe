@@ -2,12 +2,9 @@ import { tool } from "ai";
 import { validateMarkdocTemplate } from "markdoc-md";
 
 import { templateSectionUpdateSchema } from "@/lib/template-section-update";
+import { formatMarkdocTagDiagnostic } from "@/lib/user-messages";
 
 import type { TemplateSections } from "./types";
-
-const formatDiagnostic = (
-	diagnostic: ReturnType<typeof validateMarkdocTemplate>[number],
-): string => ("message" in diagnostic ? diagnostic.message : diagnostic.code);
 
 /**
  * The agent can converse freely; this is the only path that mutates the live
@@ -30,11 +27,8 @@ export const createUpdateTemplateTool = () =>
 				parsed.data.content === undefined ? [] : validateMarkdocTemplate(parsed.data.content)
 			).filter((diagnostic) => diagnostic.severity === "error");
 			if (errors.length > 0) {
-				const [firstError] = errors;
-				return {
-					error: firstError ? formatDiagnostic(firstError) : "Ungültige Markdoc-Vorlage.",
-					ok: false as const,
-				};
+				// Every problem with its tag name, so the agent can fix all of them at once.
+				return { error: errors.map(formatMarkdocTagDiagnostic).join("\n"), ok: false as const };
 			}
 
 			return { ...parsed.data, ok: true as const };

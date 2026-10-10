@@ -6,6 +6,15 @@ const codes = (content: string) =>
 	validateMarkdocTemplate(content).map((diagnostic) => diagnostic.code);
 
 describe("complete Markdoc template validation", () => {
+	test("requires a non-empty calc primary, including the score alias", () => {
+		for (const tag of ["calc", "score"]) {
+			for (const primary of ["", 'primary=""', 'primary="   "']) {
+				expect(codes(`{% ${tag} ${primary} formula="[x]*2" /%}`)).toContain("markdoc-schema");
+			}
+			expect(validateMarkdocTemplate(`{% ${tag} "result" formula="[x]*2" /%}`)).toEqual([]);
+		}
+	});
+
 	test("accepts a valid inline citation", () => {
 		expect(
 			validateMarkdocTemplate(
@@ -53,18 +62,12 @@ describe("complete Markdoc template validation", () => {
 		);
 	});
 
-	test("requires every calc formula component to be contained by the calc", () => {
+	test("accepts undeclared numeric formula dependencies as generated inputs", () => {
 		const diagnostics = validateMarkdocTemplate(
 			`{% info "age" type="number" /%}{% calc primary="risk" formula="[age]+[missing]" %}{% info "age" type="number" /%}{% /calc %}`,
 		);
 
-		expect(diagnostics).toContainEqual(
-			expect.objectContaining({
-				calc: "risk",
-				code: "calc-components-missing",
-				missingComponents: ["missing"],
-			}),
-		);
+		expect(diagnostics).toEqual([]);
 	});
 
 	test("requires and verifies numeric values for calc switch cases", () => {

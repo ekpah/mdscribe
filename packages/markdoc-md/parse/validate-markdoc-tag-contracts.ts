@@ -1,13 +1,19 @@
 import type { Location, Node } from "@markdoc/markdoc";
 import Markdoc from "@markdoc/markdoc";
 
+import { immediateCases } from "../markdoc-config/tags/helpers/cases";
 import type { CaseCondition } from "./case-conditions";
-import { hasCaseCondition, serializeCaseCondition, toCaseCondition } from "./case-conditions";
+import {
+	CASE_CONDITION_OPERATORS,
+	parseConditionCase,
+	toConditionMembers,
+} from "./case-conditions";
 import { getFormulaVariables } from "./formula";
 
 /**
- * Every named `info`, `switch`, and `calc` tag declares or uses one shared
- * variable identified by its `primary` name. A variable has exactly one
+ * Every named `info`, `switch`, `condition`, and `calc` tag declares or uses
+ * one shared variable identified by its `primary` name (each member of an
+ * array `condition` primary is one variable). A variable has exactly one
  * contract: a value domain, identity settings that must agree across all
  * mentions, and the roles the template uses it in.
  */
@@ -18,7 +24,7 @@ export interface VariableRoles {
 	computed: boolean;
 	/** Declared by `info`: user-editable and rendered verbatim. */
 	field: boolean;
-	/** Declared by `switch`: drives case selection. */
+	/** Declared by `switch` or `condition`: drives case selection. */
 	selector: boolean;
 }
 
@@ -26,6 +32,8 @@ export interface VariableContract {
 	description?: string;
 	domain: VariableDomain;
 	formula?: string;
+	/** Canonical shared calc rounding policy; omitted calc round means 2. */
+	round?: string;
 	location?: Location;
 	name: string;
 	roles: VariableRoles;
@@ -34,7 +42,7 @@ export interface VariableContract {
 }
 
 /** Identity settings that must agree across all mentions of a variable. */
-export type MarkdocContractAttribute = "description" | "formula" | "source" | "unit";
+export type MarkdocContractAttribute = "description" | "formula" | "round" | "source" | "unit";
 
 export interface MarkdocSettingConflict {
 	attribute: MarkdocContractAttribute;
@@ -44,11 +52,20 @@ export interface MarkdocSettingConflict {
 }
 
 export type CaseConditionIssue =
+	| "invalid-literal"
+	| "duplicate-predicate"
+	| "invalid-members"
+	| "group-source-unsupported"
+	| "invalid-case-value"
+	| "condition-case-value"
 	| "conflicting-operators"
 	| "empty-range"
 	| "missing-condition"
 	| "primary-and-condition"
-	| "requires-number-switch";
+	| "comparison-in-switch"
+	| "missing-option"
+	| "number-switch-unsupported"
+	| "array-switch-unsupported";
 
 export type MarkdocTagDiagnostic =
 	| {
@@ -87,11 +104,12 @@ export type MarkdocTagDiagnostic =
 			severity: "error";
 	  }
 	| {
-			code: "calc-components-missing";
-			location?: Location;
-			missingComponents: string[];
 			calc: string;
+			code: "calc-variable-not-numeric";
+			domain: "date" | "text";
+			location?: Location;
 			severity: "error";
+			variable: string;
 	  }
 	| {
 			caseKeys: string[];
@@ -100,6 +118,12 @@ export type MarkdocTagDiagnostic =
 			calc: string;
 			severity: "error";
 			switch: string;
+	  }
+	| {
+			calc: string;
+			code: "calc-cycle";
+			location?: Location;
+			severity: "error";
 	  }
 	| {
 			caseKey: string;
@@ -118,46 +142,9 @@ const toOptionalString = (value: unknown): string | undefined =>
 const isTagNode = (node: Node): boolean => node.type === "tag" && typeof node.tag === "string";
 const isCalcTag = (node: Node): boolean => node.tag === "calc" || node.tag === "score";
 
-const collectImmediateTags = (nodes: Node[], tags: Set<string>): Node[] => {
-	const result: Node[] = [];
-	for (const node of nodes) {
-		if (node.type === "tag") {
-			if (node.tag && tags.has(node.tag)) {
-				result.push(node);
-			}
-			continue;
-		}
-		result.push(...collectImmediateTags(node.children, tags));
-	}
-	return result;
-};
-
-const getImmediateCases = (node: Node): Node[] =>
-	collectImmediateTags(node.children, new Set(["case"]));
-
-/**
- * Derives the value domain a single switch occurrence declares. A switch
- * without an explicit `type` whose cases carry condition attributes is
- * inferred to be a number switch.
- */
-export const deriveSwitchDomain = (node: Node): VariableDomain => {
-	const type = node.attributes.type;
-	if (type === "boolean" || type === "checkbox") {
-		return "boolean";
-	}
-	if (type === "number") {
-		return "number";
-	}
-	if (type === undefined || type === null) {
-		const hasConditionCase = getImmediateCases(node).some((caseNode) =>
-			hasCaseCondition(caseNode.attributes),
-		);
-		if (hasConditionCase) {
-			return "number";
-		}
-	}
-	return "enum";
-};
+/** Derives the value domain a single (categorical) switch occurrence declares. */
+export const deriveSwitchDomain = (node: Node): VariableDomain =>
+	node.attributes.type === "boolean" || node.attributes.type === "checkbox" ? "boolean" : "enum";
 
 const deriveInfoDomain = (node: Node): VariableDomain => {
 	const type = node.attributes.type;
@@ -177,56 +164,62 @@ interface VariableOccurrence {
 	settings: Partial<Record<MarkdocContractAttribute, string>>;
 }
 
-const toOccurrence = (node: Node): { name: string; occurrence: VariableOccurrence } | null => {
-	const name = toOptionalString(node.attributes.primary);
+const identitySettings = (node: Node) => ({
+	description: toOptionalString(node.attributes.description),
+	source: toOptionalString(node.attributes.source),
+	unit: toOptionalString(node.attributes.unit),
+});
+
+const toOccurrences = (node: Node): { name: string; occurrence: VariableOccurrence }[] => {
+	const { location, attributes } = node;
+	// Each member of an array condition is a numeric variable; group metadata stays local.
+	if (node.tag === "condition" && Array.isArray(attributes.primary)) {
+		return attributes.primary
+			.filter((name): name is string => typeof name === "string" && name.trim() !== "")
+			.map((name) => ({
+				name,
+				occurrence: { domain: "number", location, role: "selector", settings: {} },
+			}));
+	}
+	const name = toOptionalString(attributes.primary);
 	if (!name) {
-		return null;
+		return [];
 	}
-	if (node.tag === "info") {
-		return {
-			name,
-			occurrence: {
+	const occurrence = ((): VariableOccurrence | null => {
+		if (node.tag === "info") {
+			return {
 				domain: deriveInfoDomain(node),
-				location: node.location,
+				location,
 				role: "field",
-				settings: {
-					description: toOptionalString(node.attributes.description),
-					source: toOptionalString(node.attributes.source),
-					unit: toOptionalString(node.attributes.unit),
-				},
-			},
-		};
-	}
-	if (node.tag === "switch") {
-		return {
-			name,
-			occurrence: {
+				settings: identitySettings(node),
+			};
+		}
+		if (node.tag === "switch") {
+			return {
 				domain: deriveSwitchDomain(node),
-				location: node.location,
+				location,
 				role: "selector",
-				settings: {
-					description: toOptionalString(node.attributes.description),
-					source: toOptionalString(node.attributes.source),
-					unit: toOptionalString(node.attributes.unit),
-				},
-			},
-		};
-	}
-	if (isCalcTag(node)) {
-		return {
-			name,
-			occurrence: {
+				settings: identitySettings(node),
+			};
+		}
+		if (node.tag === "condition") {
+			return { domain: "number", location, role: "selector", settings: identitySettings(node) };
+		}
+		if (isCalcTag(node)) {
+			return {
 				domain: "number",
-				location: node.location,
+				location,
 				role: "computed",
 				settings: {
-					formula: toOptionalString(node.attributes.formula),
-					unit: toOptionalString(node.attributes.unit),
+					formula: toOptionalString(attributes.formula),
+					round: String(attributes.round ?? 2),
+					unit: toOptionalString(attributes.unit),
 				},
-			},
-		};
-	}
-	return null;
+			};
+		}
+		return null;
+	})();
+	return occurrence ? [{ name, occurrence }] : [];
 };
 
 interface CanonicalVariable {
@@ -295,8 +288,8 @@ const mergeOccurrence = (
 
 /**
  * Builds the unified variable-contract registry for a parsed template. Every
- * named `info`, `switch`, and `calc` mention contributes to one contract per
- * variable name. Tolerant: never throws for malformed templates.
+ * named mention contributes to one contract per variable name. Tolerant:
+ * never throws for malformed templates.
  */
 export const buildVariableContracts = (ast: Node): VariableContractsResult => {
 	const canonicals = new Map<string, CanonicalVariable>();
@@ -306,24 +299,19 @@ export const buildVariableContracts = (ast: Node): VariableContractsResult => {
 		if (!isTagNode(node)) {
 			continue;
 		}
-		const entry = toOccurrence(node);
-		if (!entry) {
-			continue;
-		}
-		const canonical = canonicals.get(entry.name);
-		if (!canonical) {
-			const contract: VariableContract = {
-				domain: entry.occurrence.domain,
-				location: entry.occurrence.location,
-				name: entry.name,
-				roles: { computed: false, field: false, selector: false },
+		for (const { name, occurrence } of toOccurrences(node)) {
+			const canonical = canonicals.get(name) ?? {
+				contract: {
+					domain: occurrence.domain,
+					location: occurrence.location,
+					name,
+					roles: { computed: false, field: false, selector: false },
+				},
+				settingLocations: {},
 			};
-			const created: CanonicalVariable = { contract, settingLocations: {} };
-			mergeOccurrence(created, entry.occurrence, diagnostics);
-			canonicals.set(entry.name, created);
-			continue;
+			mergeOccurrence(canonical, occurrence, diagnostics);
+			canonicals.set(name, canonical);
 		}
-		mergeOccurrence(canonical, entry.occurrence, diagnostics);
 	}
 
 	const contracts = new Map<string, VariableContract>();
@@ -333,19 +321,12 @@ export const buildVariableContracts = (ast: Node): VariableContractsResult => {
 	return { contracts, diagnostics };
 };
 
+/** Issues of one member's comparisons that parsing alone does not detect. */
 const validateCaseCondition = (condition: CaseCondition): CaseConditionIssue | null => {
-	const hasRange =
-		condition.gt !== undefined ||
-		condition.gte !== undefined ||
-		condition.lt !== undefined ||
-		condition.lte !== undefined;
-	if (condition.default && (condition.eq !== undefined || hasRange)) {
-		return "conflicting-operators";
-	}
-	if (condition.eq !== undefined && hasRange) {
-		return "conflicting-operators";
-	}
+	const hasLower = condition.gt !== undefined || condition.gte !== undefined;
+	const hasUpper = condition.lt !== undefined || condition.lte !== undefined;
 	if (
+		(condition.eq !== undefined && (hasLower || hasUpper)) ||
 		(condition.gt !== undefined && condition.gte !== undefined) ||
 		(condition.lt !== undefined && condition.lte !== undefined)
 	) {
@@ -362,157 +343,200 @@ const validateCaseCondition = (condition: CaseCondition): CaseConditionIssue | n
 	return null;
 };
 
-const validateSwitchCases = (
+type CaseIssueReporter = (reason: CaseConditionIssue, target?: Node) => void;
+
+const caseIssueReporter =
+	(node: Node, name: string, diagnostics: MarkdocTagDiagnostic[]): CaseIssueReporter =>
+	(reason, target = node) =>
+		diagnostics.push({
+			code: "case-condition-invalid",
+			location: target.location,
+			reason,
+			severity: "error",
+			switch: name,
+		});
+
+const reportUnreachableCases = (
 	node: Node,
-	contracts: Map<string, VariableContract>,
-	caseValues: Map<string, { location?: Location; value: number }>,
+	name: string,
 	diagnostics: MarkdocTagDiagnostic[],
 ): void => {
-	const switchPrimary = toOptionalString(node.attributes.primary);
-	const domain = switchPrimary
-		? (contracts.get(switchPrimary)?.domain ?? deriveSwitchDomain(node))
-		: deriveSwitchDomain(node);
-	const switchName = switchPrimary ?? "";
 	let seenDefault = false;
-
-	for (const caseNode of getImmediateCases(node)) {
-		const condition = toCaseCondition(caseNode.attributes);
-		const caseKey = toOptionalString(caseNode.attributes.primary);
-
+	for (const caseNode of immediateCases(node)) {
 		if (seenDefault) {
 			diagnostics.push({
 				code: "case-unreachable",
 				location: caseNode.location,
 				severity: "error",
-				switch: switchName,
+				switch: name,
 			});
 		}
+		seenDefault ||= caseNode.attributes.default === true;
+	}
+};
 
-		if (condition) {
-			if (domain !== "number") {
-				diagnostics.push({
-					code: "case-condition-invalid",
-					location: caseNode.location,
-					reason: "requires-number-switch",
-					severity: "error",
-					switch: switchName,
-				});
-			}
-			if (caseKey) {
-				diagnostics.push({
-					code: "case-condition-invalid",
-					location: caseNode.location,
-					reason: "primary-and-condition",
-					severity: "error",
-					switch: switchName,
-				});
-			}
-			const issue = validateCaseCondition(condition);
+/** Numeric `condition` cases: well-formed, satisfiable, and distinct comparisons. */
+const validateConditionCases = (node: Node, diagnostics: MarkdocTagDiagnostic[]): void => {
+	const { primary } = node.attributes;
+	const name = Array.isArray(primary) ? primary.join(", ") : String(primary ?? "");
+	const report = caseIssueReporter(node, name, diagnostics);
+	if (!toConditionMembers(primary)) {
+		report("invalid-members");
+	}
+	if (Array.isArray(primary) && node.attributes.source !== undefined) {
+		report("group-source-unsupported");
+	}
+	reportUnreachableCases(node, name, diagnostics);
+	const predicates = new Set<string>();
+	for (const caseNode of immediateCases(node)) {
+		if (caseNode.attributes.primary !== undefined) {
+			report("primary-and-condition", caseNode);
+		}
+		if (caseNode.attributes.value !== undefined) {
+			report("condition-case-value", caseNode);
+		}
+		const condition = parseConditionCase(caseNode.attributes, primary);
+		if (typeof condition === "string") {
+			report(condition, caseNode);
+			continue;
+		}
+		for (const member of condition.members) {
+			const issue = member && validateCaseCondition(member);
 			if (issue) {
-				diagnostics.push({
-					code: "case-condition-invalid",
-					location: caseNode.location,
-					reason: issue,
-					severity: "error",
-					switch: switchName,
-				});
+				report(issue, caseNode);
 			}
-			if (condition.default) {
-				seenDefault = true;
-			}
-		} else if (domain === "number") {
-			diagnostics.push({
-				code: "case-condition-invalid",
-				location: caseNode.location,
-				reason: "missing-condition",
-				severity: "error",
-				switch: switchName,
-			});
 		}
+		const predicate = JSON.stringify(condition);
+		if (predicates.has(predicate)) {
+			report("duplicate-predicate", caseNode);
+		}
+		predicates.add(predicate);
+	}
+};
 
-		// Numeric calc-value mapping consistency for equality cases.
-		if (switchPrimary && caseKey && typeof caseNode.attributes.value === "number") {
-			const contractKey = `${switchPrimary}\u0000${caseKey}`;
-			const first = caseValues.get(contractKey);
-			if (!first) {
-				caseValues.set(contractKey, {
-					location: caseNode.location,
-					value: caseNode.attributes.value,
-				});
-			} else if (first.value !== caseNode.attributes.value) {
-				diagnostics.push({
-					caseKey,
-					code: "case-value-conflict",
-					conflictingLocation: caseNode.location,
-					conflictingValue: caseNode.attributes.value,
-					firstLocation: first.location,
-					firstValue: first.value,
-					severity: "error",
-					switch: switchPrimary,
-				});
+/** Categorical `switch` cases: distinct option keys with consistent global numeric values. */
+const validateSwitchCases = (
+	node: Node,
+	caseValues: Map<string, { location?: Location; value: number }>,
+	diagnostics: MarkdocTagDiagnostic[],
+): void => {
+	const { primary } = node.attributes;
+	const name = Array.isArray(primary) ? primary.join(", ") : String(primary ?? "");
+	const report = caseIssueReporter(node, name, diagnostics);
+	if (Array.isArray(primary)) {
+		report("array-switch-unsupported");
+	}
+	if (node.attributes.type === "number") {
+		report("number-switch-unsupported");
+	}
+	// A switch default is a fallback wherever it stands, so later keyed cases stay reachable.
+
+	const keys = new Set<string>();
+	for (const caseNode of immediateCases(node)) {
+		const isDefault = caseNode.attributes.default === true;
+		const caseKey = toOptionalString(caseNode.attributes.primary);
+		const { value } = caseNode.attributes;
+		const hasComparison = CASE_CONDITION_OPERATORS.some(
+			(operator) => caseNode.attributes[operator] !== undefined,
+		);
+		if (hasComparison) {
+			report(isDefault ? "conflicting-operators" : "comparison-in-switch", caseNode);
+		}
+		if (isDefault && caseKey) {
+			report("primary-and-condition", caseNode);
+		}
+		if (
+			value !== undefined &&
+			(isDefault || typeof value !== "number" || !Number.isFinite(value))
+		) {
+			report("invalid-case-value", caseNode);
+		}
+		if (!caseKey) {
+			// Only the rendering fallback has no option key.
+			if (!isDefault && !hasComparison) {
+				report("missing-option", caseNode);
 			}
+			continue;
+		}
+		if (keys.has(caseKey)) {
+			report("duplicate-predicate", caseNode);
+		}
+		keys.add(caseKey);
+
+		// A numeric mapping is shared by every switch with this primary.
+		if (typeof primary !== "string" || typeof value !== "number") {
+			continue;
+		}
+		const contractKey = `${primary}\u0000${caseKey}`;
+		const first = caseValues.get(contractKey);
+		if (!first) {
+			caseValues.set(contractKey, { location: caseNode.location, value });
+		} else if (first.value !== value) {
+			diagnostics.push({
+				caseKey,
+				code: "case-value-conflict",
+				conflictingLocation: caseNode.location,
+				conflictingValue: value,
+				firstLocation: first.location,
+				firstValue: first.value,
+				severity: "error",
+				switch: primary,
+			});
 		}
 	}
 };
 
-const validateCalcComponents = (
+/**
+ * A formula needs numbers: a text or date field it uses (an info without
+ * `type="number"`) would silently count as 0, and every option of an enum
+ * switch it uses needs a numeric value somewhere.
+ */
+const validateCalcVariables = (
 	node: Node,
 	contracts: Map<string, VariableContract>,
+	switches: Map<string, Node[]>,
 ): MarkdocTagDiagnostic[] => {
 	const formula = toOptionalString(node.attributes.formula);
-	if (!formula) {
-		return [];
-	}
-	let formulaVariables: string[];
+	let formulaVariables: string[] = [];
 	try {
-		formulaVariables = getFormulaVariables(formula);
+		formulaVariables = formula ? getFormulaVariables(formula) : [];
 	} catch {
 		return [];
 	}
 
-	const calc = toOptionalString(node.attributes.primary) ?? formula;
-	const components = collectImmediateTags(node.children, new Set(["info", "switch"]));
-	const componentsByPrimary = new Map(
-		components
-			.map((component) => [toOptionalString(component.attributes.primary), component] as const)
-			.filter((entry): entry is readonly [string, Node] => Boolean(entry[0])),
-	);
-	const missingComponents = formulaVariables.filter(
-		(variable) => !componentsByPrimary.has(variable),
-	);
+	const calc = toOptionalString(node.attributes.primary) ?? formula ?? "";
 	const diagnostics: MarkdocTagDiagnostic[] = [];
-	if (missingComponents.length > 0) {
-		diagnostics.push({
-			calc,
-			code: "calc-components-missing",
-			location: node.location,
-			missingComponents,
-			severity: "error",
-		});
-	}
-
 	for (const variable of formulaVariables) {
-		const component = componentsByPrimary.get(variable);
-		if (component?.tag !== "switch") {
+		const contract = contracts.get(variable);
+		if (contract?.domain === "text" || contract?.domain === "date") {
+			diagnostics.push({
+				calc,
+				code: "calc-variable-not-numeric",
+				domain: contract.domain,
+				location: contract.location,
+				severity: "error",
+				variable,
+			});
 			continue;
 		}
-		// Only enum switches map options to numbers through case values.
-		// Boolean switches contribute 1/0 and number switches contribute the
-		// value itself, so neither requires a mapping.
-		const domain = contracts.get(variable)?.domain ?? deriveSwitchDomain(component);
-		if (domain !== "enum") {
+		if (contract?.domain !== "enum") {
 			continue;
 		}
-		const caseKeys = getImmediateCases(component)
-			.filter((caseNode) => typeof caseNode.attributes.value !== "number")
-			.map((caseNode) => toOptionalString(caseNode.attributes.primary))
-			.filter((caseKey): caseKey is string => Boolean(caseKey));
+		const occurrences = switches.get(variable) ?? [];
+		const mapped = new Map<string, boolean>();
+		for (const caseNode of occurrences.flatMap(immediateCases)) {
+			const key = toOptionalString(caseNode.attributes.primary);
+			if (key) {
+				mapped.set(key, mapped.get(key) || typeof caseNode.attributes.value === "number");
+			}
+		}
+		const caseKeys = [...mapped].filter(([, hasValue]) => !hasValue).map(([key]) => key);
 		if (caseKeys.length > 0) {
 			diagnostics.push({
 				caseKeys,
 				calc,
 				code: "calc-case-values-missing",
-				location: component.location,
+				location: occurrences[0]?.location,
 				severity: "error",
 				switch: variable,
 			});
@@ -521,34 +545,93 @@ const validateCalcComponents = (
 	return diagnostics;
 };
 
+/** Named calculations that depend on themselves, directly or through other calcs. */
+const validateCalcCycles = (calcs: Node[]): MarkdocTagDiagnostic[] => {
+	const dependencies = new Map<string, { location?: Location; names: string[] }>();
+	for (const node of calcs) {
+		const name = toOptionalString(node.attributes.primary);
+		if (!name || dependencies.has(name)) {
+			continue;
+		}
+		let names: string[] = [];
+		try {
+			names = getFormulaVariables(toOptionalString(node.attributes.formula) ?? "");
+		} catch {
+			/* Malformed formulas are reported by the calc schema. */
+		}
+		dependencies.set(name, { location: node.location, names });
+	}
+	const cyclic = new Set<string>();
+	const finished = new Set<string>();
+	const path: string[] = [];
+	const visit = (name: string) => {
+		if (finished.has(name) || !dependencies.has(name)) {
+			return;
+		}
+		const start = path.indexOf(name);
+		if (start >= 0) {
+			for (const member of path.slice(start)) {
+				cyclic.add(member);
+			}
+			return;
+		}
+		path.push(name);
+		for (const dependency of dependencies.get(name)?.names ?? []) {
+			visit(dependency);
+		}
+		path.pop();
+		finished.add(name);
+	};
+	for (const name of dependencies.keys()) {
+		visit(name);
+	}
+	return [...cyclic].map((calc) => ({
+		calc,
+		code: "calc-cycle",
+		location: dependencies.get(calc)?.location,
+		severity: "error",
+	}));
+};
+
 export const validateMarkdocTagContractsInAst = (ast: Node): MarkdocTagDiagnostic[] => {
 	const { contracts, diagnostics } = buildVariableContracts(ast);
 	const caseValues = new Map<string, { location?: Location; value: number }>();
 	const attachedCases = new Set<Node>();
+	const switches = new Map<string, Node[]>();
+	const calcs: Node[] = [];
 
 	for (const node of ast.walk()) {
 		if (!isTagNode(node)) {
 			continue;
 		}
-		if (node.tag === "switch") {
-			for (const caseNode of getImmediateCases(node)) {
+		if (node.tag === "switch" || node.tag === "condition") {
+			for (const caseNode of immediateCases(node)) {
 				attachedCases.add(caseNode);
 			}
-			validateSwitchCases(node, contracts, caseValues, diagnostics);
+		}
+		if (node.tag === "condition") {
+			validateConditionCases(node, diagnostics);
+		} else if (node.tag === "switch") {
+			validateSwitchCases(node, caseValues, diagnostics);
+			const name = toOptionalString(node.attributes.primary);
+			if (name) {
+				switches.set(name, [...(switches.get(name) ?? []), node]);
+			}
 		} else if (isCalcTag(node)) {
-			diagnostics.push(...validateCalcComponents(node, contracts));
+			calcs.push(node);
 		}
 	}
+	for (const calc of calcs) {
+		diagnostics.push(...validateCalcVariables(calc, contracts, switches));
+	}
+	diagnostics.push(...validateCalcCycles(calcs));
 
 	for (const node of ast.walk()) {
 		if (node.type !== "tag" || node.tag !== "case" || attachedCases.has(node)) {
 			continue;
 		}
-		const condition = toCaseCondition(node.attributes);
 		diagnostics.push({
-			caseKey:
-				toOptionalString(node.attributes.primary) ??
-				(condition ? serializeCaseCondition(condition) : undefined),
+			caseKey: toOptionalString(node.attributes.primary),
 			code: "orphan-case",
 			location: node.location,
 			severity: "error",

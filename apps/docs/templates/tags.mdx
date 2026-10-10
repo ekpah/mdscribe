@@ -89,7 +89,9 @@ Dieses Beispiel wird beim Speichern abgelehnt, weil derselbe Wert nicht gleichze
 
 **Größe**: {% info "Groesse" type="number" unit="cm" renderUnit=true /%}
 
-**BMI**: {% calc formula="[Gewicht] / ([Groesse] / 100) ^ 2" unit="kg/m²" renderUnit=true %}
+**BMI**:
+
+{% calc "BMI" formula="[Gewicht] / ([Groesse] / 100) ^ 2" unit="kg/m²" renderUnit=true %}
 {% info "Gewicht" type="number" unit="kg" /%}
 {% info "Groesse" type="number" unit="cm" /%}
 {% /calc %}
@@ -104,12 +106,13 @@ Dieses Beispiel wird beim Speichern abgelehnt, weil derselbe Wert nicht gleichze
 
 ## Häufige Fehler und Lösungen
 
-### Fehler: Calc zeigt "..." an
+### Calc zeigt "…" an
 
-**Problem**: Die referenzierten Variablen existieren nicht oder sind nicht ausgefüllt.
+**Ursache**: Noch nicht alle Werte der Formel sind ausgefüllt, oder das Ergebnis ist nicht definiert (z. B. Division durch 0). Ein Calc rechnet erst, wenn alle Werte vorhanden sind.
 
 **Lösung**:
 
+- Füllen Sie alle Werte aus, die die Formel verwendet
 - Überprüfen Sie, dass alle Variablen in der Formel auch als Info-Tags existieren
 - Stellen Sie sicher, dass die Variablennamen exakt übereinstimmen (inkl. Groß-/Kleinschreibung)
 
@@ -138,7 +141,7 @@ Dieses Beispiel wird beim Speichern abgelehnt, weil derselbe Wert nicht gleichze
 | --------------- | --------- | ---------------- | -------------------------------------------------------------- |
 | **Info**        | 🔵 Blau   | Variable Daten   | `{% info "Name" /%}`                                           |
 | **Switch/Case** | 🟢 Grün   | Bedingte Inhalte | `{% switch "Var" %}{% case "A" %}Text{% /case %}{% /switch %}` |
-| **Calc**        | 🟠 Orange | Berechnungen     | `{% calc formula="[A]" %}{% info "A" type="number" /%}{% /calc %}` |
+| **Calc**        | 🟠 Orange | Berechnungen     | `{% calc "Ergebnis" formula="[A]" %}{% info "A" type="number" /%}{% /calc %}` |
 | **Details**     | 🟣 Violett | Aufklappbare Abschnitte | `{% details summary="Titel" %}Text{% /details %}` |
 
 Mit diesen Tags können Sie flexible, wiederverwendbare Templates erstellen, die sich automatisch an verschiedene Situationen anpassen!

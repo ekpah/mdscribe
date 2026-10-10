@@ -16,9 +16,10 @@ const TEMPLATE_CONTEXT_USAGE = `Nutze diese Vorlage als primäre Zielstruktur un
 const MARKDOC_TAG_GUIDANCE = `Markdoc-Tags in der Vorlage sind nur Platzhalterlogik.
 - Gib in der finalen Ausgabe niemals Markdoc-Syntax aus (kein {% ... %}).
 - {% info ... /%}: durch passenden Wert ersetzen; falls unbekannt: [nicht dokumentiert].
-- {% switch ... %}{% case ... %}{% /switch %}: nur Text des passenden case ausgeben; falls unklar: [nicht dokumentiert].
-- Bei {% switch ... type="boolean" %}: case "true" für wahr, case "false" für falsch verwenden.
-- {% calc ... %}...{% /calc %}: nur mit belegten Angaben berechnen; die enthaltenen Tags sind Berechnungskomponenten; falls nicht sicher berechenbar: [nicht berechenbar].`;
+- {% switch ... %}{% case ... %}{% /switch %}: nur Text des passenden case ausgeben; passt keine Option, den default-Fall (falls vorhanden); falls unklar: [nicht dokumentiert].
+- Bei {% switch ... type="boolean" %} oder type="checkbox": case "true" für wahr, case "false" für falsch verwenden.
+- {% condition ... %}{% case ... %}{% /condition %}: Zahlenvergleich (eq =, gt >, gte ≥, lt <, lte ≤); nur den Text des ersten Falls ausgeben, dessen Vergleiche alle zutreffen, sonst den default-Fall. Bei einer Feldliste gilt je Feld ein Wert, null bedeutet beliebig. Fehlen die verglichenen Werte: [nicht dokumentiert].
+- {% calc ... /%} oder {% calc ... %}...{% /calc %}: Formel mit belegten Angaben berechnen ([Name] ist der Wert des gleichnamigen Felds, bei einer Auswahl der value= der gewählten Option, Checkbox 1/0) und wie angegeben runden (round, Standard 2 Stellen); enthaltene Tags sind nur Berechnungskomponenten; falls nicht sicher berechenbar: [nicht berechenbar].`;
 
 const toTrimmedString = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
 

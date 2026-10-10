@@ -1,9 +1,9 @@
-import type { Config, RenderableTreeNode } from "@markdoc/markdoc";
+import type { Config, Node, RenderableTreeNode } from "@markdoc/markdoc";
 import Markdoc from "@markdoc/markdoc";
 
 import { markdocConfig as config } from "../markdoc-config";
-import { serializeCaseCondition, toCaseCondition } from "./case-conditions";
 import { getFormulaVariables } from "./formula";
+import type { BranchVisibility, SwitchSelection } from "./switch-selection";
 import type { VariableContract } from "./validate-markdoc-tag-contracts";
 import { buildVariableContracts } from "./validate-markdoc-tag-contracts";
 import type { MarkdocTemplateDiagnostic } from "./validate-markdoc-template";
@@ -21,6 +21,8 @@ export type InputTagType =
 export interface BaseInputTag {
 	$$mdtype?: "Tag";
 	children: InputTagType[];
+	/** Occurrence visibility is separate from scalar field attributes. */
+	visibility?: BranchVisibility[];
 }
 
 /**
@@ -42,8 +44,8 @@ export type InfoInputTagType = BaseInputTag & {
 };
 
 /**
- * Represents a switch tag for conditional content rendering.
- * Contains case tags as children for different conditions.
+ * Represents a categorical switch tag for conditional content rendering.
+ * Contains case tags as children for its options.
  * @example
  * {% switch "gender" %}
  *   {% case "male" %}Male{% /case %}
@@ -54,32 +56,23 @@ export type SwitchInputTagType = BaseInputTag & {
 	attributes: {
 		primary: string;
 		source?: string;
-		type?: "string" | "boolean" | "checkbox" | "number";
+		type?: "string" | "boolean" | "checkbox";
 		unit?: string;
 		description?: string;
 	};
 };
 
 /**
- * Represents a case tag used within switch tags.
- * Defines a specific condition and its content. Equality cases carry a
- * `primary` key; number-switch cases carry structured condition attributes
- * (`eq`, `gt`, `gte`, `lt`, `lte`, `default`) instead.
+ * Represents a case tag used within switch tags: an option key with its
+ * content, or the occurrence's `default` rendering fallback.
  * @example
- * {% case "male" %}Male{% /case %}
- * @example
- * {% case gte=4 lt=10 %}...{% /case %}
+ * {% case "male" value=1 %}Male{% /case %}
  */
 export type CaseInputTagType = BaseInputTag & {
 	name: "Case";
 	attributes: {
 		primary: string;
 		value?: number;
-		eq?: number;
-		gt?: number;
-		gte?: number;
-		lt?: number;
-		lte?: number;
 		default?: boolean;
 		index?: number;
 	};
@@ -88,7 +81,7 @@ export type CaseInputTagType = BaseInputTag & {
 /**
  * Represents a calc tag for calculating values based on a formula.
  * @example
- * {% calc formula="[age]*2+[gender_score]*3" unit="points" /%}
+ * {% calc "risk" formula="[age]*2+[gender_score]*3" unit="points" /%}
  */
 export type CalcInputTagType = BaseInputTag & {
 	name: "Calc";
@@ -105,8 +98,8 @@ export type CalcInputTagType = BaseInputTag & {
 export type ScoreInputTagType = CalcInputTagType;
 
 // Constants for better performance
-const VALID_TAG_NAMES = new Set(["Calc", "Info", "Case", "Switch"]);
-type ValidTagName = "Calc" | "Info" | "Case" | "Switch";
+const VALID_TAG_NAMES = new Set(["Calc", "Info", "Case", "Switch", "Condition"]);
+type ValidTagName = "Calc" | "Info" | "Case" | "Switch" | "Condition";
 interface NodeContext {
 	path: string;
 	type: ValidTagName;
@@ -115,7 +108,7 @@ type MarkdocTagNode = RenderableTreeNode & {
 	$$mdtype: "Tag";
 	name: ValidTagName;
 	attributes: {
-		primary?: string;
+		primary?: string | string[];
 		formula?: string;
 		type?: string;
 		[key: string]: unknown;
@@ -141,8 +134,8 @@ const toNodeContext = (path: string, type: ValidTagName): NodeContext => ({
 
 const toKeyPart = (value: unknown): string => (typeof value === "string" ? value : "");
 
-const toSwitchType = (value: unknown): "string" | "boolean" | "number" | undefined => {
-	if (value === "string" || value === "boolean" || value === "number") {
+const toSwitchType = (value: unknown): "string" | "boolean" | undefined => {
+	if (value === "string" || value === "boolean") {
 		return value;
 	}
 	if (value === "checkbox") {
@@ -166,10 +159,11 @@ const toTagKey = (node: MarkdocTagNode, parentContext?: NodeContext): string => 
 		case "Switch": {
 			return primary ? `Switch:${primary}` : `Switch:${parentContext?.path ?? "root"}`;
 		}
+		case "Condition": {
+			return `Condition:${parentContext?.path ?? "root"}`;
+		}
 		case "Case": {
-			const condition = primary ? null : toCaseCondition(node.attributes);
-			const caseKey = condition ? serializeCaseCondition(condition) : primary;
-			return `Case:${parentContext?.path ?? "root"}:${caseKey}`;
+			return `Case:${parentContext?.path ?? "root"}:${toCaseKey(node.attributes)}`;
 		}
 		case "Calc": {
 			if (primary) {
@@ -186,8 +180,15 @@ const toTagKey = (node: MarkdocTagNode, parentContext?: NodeContext): string => 
 	}
 };
 
+/** Switch options are keyed by `primary`; the rendering fallback has none. */
+const toCaseKey = (attributes: Record<string, unknown>): string =>
+	toKeyPart(attributes.primary) || (attributes.default === true ? "default" : "");
+
 const toInputTagMergeKey = (tag: InputTagType): string => {
 	const primary = toKeyPart(tag.attributes.primary);
+	if (tag.visibility?.length) {
+		return `${tag.name}:${primary}:${JSON.stringify(tag.visibility)}`;
+	}
 
 	if (tag.name === "Calc") {
 		const formula = toKeyPart(tag.attributes.formula);
@@ -199,11 +200,8 @@ const toInputTagMergeKey = (tag: InputTagType): string => {
 		}
 	}
 
-	if (tag.name === "Case" && !primary) {
-		const condition = toCaseCondition(tag.attributes);
-		if (condition) {
-			return `Case:${serializeCaseCondition(condition)}`;
-		}
+	if (tag.name === "Case") {
+		return `Case:${toCaseKey(tag.attributes)}`;
 	}
 
 	return `${tag.name}:${primary}`;
@@ -324,16 +322,16 @@ const toInfoTag = (node: MarkdocTagNode, children: InputTagType[]): InfoInputTag
 	}) as InfoInputTagType;
 
 const toSwitchTag = (node: MarkdocTagNode, children: InputTagType[]): SwitchInputTagType => {
-	let type = toSwitchType(node.attributes.type);
-	if (!type) {
-		// A switch without an explicit type whose cases carry condition
-		// attributes is a number switch (mirrors deriveSwitchDomain).
-		const hasConditionCase = children.some(
-			(child) => child.name === "Case" && toCaseCondition(child.attributes) !== null,
-		);
-		if (hasConditionCase) {
-			type = "number";
-		}
+	const type = toSwitchType(node.attributes.type);
+	// Capture selection before same-field occurrences merge their input controls.
+	const cases = children.filter((child) => child.name === "Case");
+	const selection: SwitchSelection = {
+		primary: node.attributes.primary ?? "",
+		type,
+		cases: cases.map((branch) => branch.attributes),
+	};
+	for (const [index, branch] of cases.entries()) {
+		branch.visibility = [{ selection, index }];
 	}
 	return {
 		attributes: {
@@ -355,20 +353,19 @@ const toCaseTag = (node: MarkdocTagNode, children: InputTagType[]): CaseInputTag
 	({
 		attributes: {
 			default: node.attributes.default === true ? true : undefined,
-			eq: toOptionalNumber(node.attributes.eq),
-			gt: toOptionalNumber(node.attributes.gt),
-			gte: toOptionalNumber(node.attributes.gte),
 			index: toOptionalNumber(node.attributes.index),
-			lt: toOptionalNumber(node.attributes.lt),
-			lte: toOptionalNumber(node.attributes.lte),
-			primary: node.attributes.primary ?? "",
-			value: typeof node.attributes.value === "number" ? node.attributes.value : undefined,
+			primary: toKeyPart(node.attributes.primary),
+			value: toOptionalNumber(node.attributes.value),
 		},
 		children,
 		name: "Case" as const,
 	}) as CaseInputTagType;
 
-const appendFormulaVariables = (calcTag: CalcInputTagType, formulaValue: string) => {
+const appendFormulaVariables = (
+	calcTag: CalcInputTagType,
+	formulaValue: string,
+	selectors: Map<string, SwitchInputTagType>,
+) => {
 	try {
 		const existingInputs = new Set<string>();
 		const collectExistingInputs = (input: InputTagType) => {
@@ -387,13 +384,17 @@ const appendFormulaVariables = (calcTag: CalcInputTagType, formulaValue: string)
 			if (existingInputs.has(variable)) {
 				continue;
 			}
+			// A formula reference inherits the declared selector, not a synthetic number input.
+			const selector = selectors.get(variable);
+			if (selector) {
+				calcTag.children.push({ ...selector, children: [...selector.children] });
+				continue;
+			}
 			calcTag.children.push({
-				attributes: {
-					primary: variable,
-					type: "number",
-				},
-				name: "Info" as const,
-			} as InfoInputTagType);
+				attributes: { primary: variable, type: "number" },
+				children: [],
+				name: "Info",
+			});
 		}
 	} catch {
 		// Input discovery is intentionally tolerant. Validation reports malformed
@@ -419,7 +420,7 @@ const toCalcTag = (node: MarkdocTagNode, children: InputTagType[]): CalcInputTag
 	}) as CalcInputTagType;
 
 const tagBuilders: Record<
-	ValidTagName,
+	Exclude<ValidTagName, "Condition">,
 	(node: MarkdocTagNode, children: InputTagType[]) => InputTagType
 > = {
 	Case: toCaseTag,
@@ -428,14 +429,16 @@ const tagBuilders: Record<
 	Switch: toSwitchTag,
 };
 
+type ProcessNode = (
+	node: RenderableTreeNode,
+	tagMap: Map<string, InputTagType>,
+	parentContext?: NodeContext,
+) => InputTagType[];
+
 const collectChildTags = (
 	children: RenderableTreeNode | RenderableTreeNode[] | undefined,
 	tagMap: Map<string, InputTagType>,
-	processNode: (
-		node: RenderableTreeNode,
-		tagMap: Map<string, InputTagType>,
-		parentContext?: NodeContext,
-	) => InputTagType[],
+	processNode: ProcessNode,
 	parentContext?: NodeContext,
 ): InputTagType[] => {
 	if (!children) {
@@ -450,41 +453,81 @@ const collectChildTags = (
 	return result;
 };
 
-const buildTagFromNode = (
+/**
+ * A condition declares no input of its own: it contributes one numeric field
+ * per primary member, followed by its cases' inputs, each guarded by that
+ * occurrence's branch selection. Array-group metadata stays local.
+ */
+const toConditionInputs = (
 	node: MarkdocTagNode,
-	tagKey: string,
-	tagMap: Map<string, InputTagType>,
-	processNode: (
-		node: RenderableTreeNode,
-		tagMap: Map<string, InputTagType>,
-		parentContext?: NodeContext,
-	) => InputTagType[],
-): InputTagType | null => {
-	if (node.name === "Switch" && !node.attributes.primary) {
-		return null;
+	processNode: ProcessNode,
+	parentContext?: NodeContext,
+): InputTagType[] => {
+	const { primary } = node.attributes;
+	const names = (Array.isArray(primary) ? primary : [primary]).filter(
+		(name): name is string => typeof name === "string" && name !== "",
+	);
+	const fields: InputTagType[] = names.map((name) => ({
+		attributes: {
+			primary: name,
+			type: "number",
+			...(Array.isArray(primary)
+				? {}
+				: {
+						description: toKeyPart(node.attributes.description) || undefined,
+						source: toKeyPart(node.attributes.source) || undefined,
+						unit: toKeyPart(node.attributes.unit) || undefined,
+					}),
+		},
+		children: [],
+		name: "Info",
+	}));
+	const children = Array.isArray(node.children) ? node.children : [node.children];
+	const branches = children.filter(
+		(child): child is MarkdocTagNode => isMarkdocTagNode(child) && child.name === "Case",
+	);
+	const selection: SwitchSelection = {
+		cases: branches.map((branch) => branch.attributes),
+		primary: primary ?? "",
+		type: "number",
+	};
+	for (const [index, branch] of branches.entries()) {
+		for (const input of collectChildTags(branch.children, new Map(), processNode, parentContext)) {
+			input.visibility = [{ index, selection }, ...(input.visibility ?? [])];
+			fields.push(input);
+		}
 	}
-
-	const childContext = toNodeContext(tagKey, node.name);
-	const children = collectChildTags(node.children, tagMap, processNode, childContext);
-	const builder = tagBuilders[node.name];
-	return builder ? builder(node, children) : null;
+	return fields;
 };
 
 const processMarkdocTagNode = (
 	node: MarkdocTagNode,
 	tagMap: Map<string, InputTagType>,
-	processNode: (
-		node: RenderableTreeNode,
-		tagMap: Map<string, InputTagType>,
-		parentContext?: NodeContext,
-	) => InputTagType[],
+	processNode: ProcessNode,
 	parentContext?: NodeContext,
 ): InputTagType[] => {
-	const tagKey = toTagKey(node, parentContext);
-	const tag = buildTagFromNode(node, tagKey, tagMap, processNode);
-	if (!tag) {
+	if (node.name === "Condition") {
+		return toConditionInputs(node, processNode, parentContext);
+	}
+	// Switches are categorical; numeric or multi-field switches are invalid and declare nothing.
+	if (
+		node.name === "Switch" &&
+		(typeof node.attributes.primary !== "string" ||
+			!node.attributes.primary ||
+			node.attributes.type === "number")
+	) {
 		return [];
 	}
+	const tagKey = toTagKey(node, parentContext);
+	// Children get their own merge scope, so a nested mention never absorbs an
+	// independent mention elsewhere in the document.
+	const children = collectChildTags(
+		node.children,
+		new Map(),
+		processNode,
+		toNodeContext(tagKey, node.name),
+	);
+	const tag = tagBuilders[node.name](node, children);
 
 	const existingTag = tagMap.get(tagKey);
 	if (existingTag) {
@@ -523,145 +566,131 @@ const processNodeToInputTags = (
 	return [];
 };
 
-interface VariableOccurrences {
-	calc?: CalcInputTagType;
-	info?: InfoInputTagType;
-	infoOrder: number;
-	switch?: SwitchInputTagType;
-	switchOrder: number;
-}
-
 /**
- * Collapses multiple tag kinds that share one variable name into a single
- * input, so one variable always yields exactly one input control:
- *
- * - Calc + Info: the calc wins (the value is computed); the info's unit fills
- *   a missing calc unit.
- * - Calc + Switch: the calc wins; the switch selects on the computed value and
- *   needs no input of its own. Inputs nested inside its cases are hoisted so
- *   they stay reachable.
- * - Info + Switch (both number): one number input. The info's identity
- *   attributes merge into the switch-shaped input, which takes the earlier
- *   document position of the two.
+ * Collapses mentions of a variable within each input list: repeated mentions
+ * merge, and a calc replaces an info of the same name (the value is computed
+ * and the info's unit fills a missing calc unit). Branch-guarded inputs stay
+ * separate, so nested controls never suppress independent ones.
  */
 const deduplicateVariableInputs = (inputs: InputTagType[]): InputTagType[] => {
-	const byName = new Map<string, VariableOccurrences>();
-	let order = 0;
-	const collect = (input: InputTagType) => {
-		const sequence = order++;
-		const primary = input.attributes.primary;
-		if (input.name !== "Case" && primary) {
-			const entry = byName.get(primary) ?? { infoOrder: -1, switchOrder: -1 };
-			if (input.name === "Calc" && !entry.calc) {
-				entry.calc = input;
-			} else if (input.name === "Info" && !entry.info) {
-				entry.info = input;
-				entry.infoOrder = sequence;
-			} else if (input.name === "Switch" && !entry.switch) {
-				entry.switch = input;
-				entry.switchOrder = sequence;
+	const calculations = new Map<string, CalcInputTagType>();
+	for (const input of inputs) {
+		input.children = deduplicateVariableInputs(input.children ?? []);
+		const { primary } = input.attributes;
+		if (input.name === "Calc" && primary && !input.visibility && !calculations.has(primary)) {
+			calculations.set(primary, input);
+		}
+	}
+	const remaining = inputs.filter((input) => {
+		if (input.name !== "Info" || input.visibility) {
+			return true;
+		}
+		const calculation = calculations.get(input.attributes.primary);
+		if (calculation) {
+			calculation.attributes.unit ||= input.attributes.unit;
+		}
+		return !calculation;
+	});
+	return mergeInputTagArrays([], remaining, mergeInputTags);
+};
+
+/**
+ * Every categorical switch variable as one selector offering all options of
+ * all its occurrences, with their shared numeric mappings and no content.
+ */
+const collectSelectors = (inputs: InputTagType[]): Map<string, SwitchInputTagType> => {
+	const selectors = new Map<string, SwitchInputTagType>();
+	const visit = (input: InputTagType) => {
+		if (input.name === "Switch") {
+			const selector = selectors.get(input.attributes.primary) ?? {
+				attributes: { ...input.attributes },
+				children: [],
+				name: "Switch",
+			};
+			for (const option of input.children) {
+				if (option.name !== "Case" || !option.attributes.primary) {
+					continue;
+				}
+				const existing = selector.children.find(
+					(child): child is CaseInputTagType =>
+						child.name === "Case" && child.attributes.primary === option.attributes.primary,
+				);
+				if (existing) {
+					existing.attributes.value ??= option.attributes.value;
+					continue;
+				}
+				selector.children.push({
+					attributes: { primary: option.attributes.primary, value: option.attributes.value },
+					children: [],
+					name: "Case",
+				});
 			}
-			byName.set(primary, entry);
+			selectors.set(input.attributes.primary, selector);
 		}
 		for (const child of input.children ?? []) {
-			collect(child);
+			visit(child);
 		}
 	};
 	for (const input of inputs) {
-		collect(input);
+		visit(input);
 	}
-
-	const dropped = new Set<InputTagType>();
-	const replacements = new Map<InputTagType, InputTagType>();
-	const hoisted: InputTagType[] = [];
-
-	for (const entry of byName.values()) {
-		if (entry.calc) {
-			if (entry.info) {
-				if (!entry.calc.attributes.unit && entry.info.attributes.unit) {
-					entry.calc.attributes.unit = entry.info.attributes.unit;
-				}
-				dropped.add(entry.info);
-			}
-			if (entry.switch) {
-				for (const child of entry.switch.children) {
-					if (child.name === "Case") {
-						hoisted.push(...(child.children ?? []));
-					} else {
-						hoisted.push(child);
-					}
-				}
-				dropped.add(entry.switch);
-			}
-			continue;
-		}
-		if (
-			entry.info &&
-			entry.switch &&
-			entry.info.attributes.type === "number" &&
-			entry.switch.attributes.type === "number"
-		) {
-			const switchAttributes = entry.switch.attributes;
-			const infoAttributes = entry.info.attributes;
-			if (!switchAttributes.unit && infoAttributes.unit) {
-				switchAttributes.unit = infoAttributes.unit;
-			}
-			if (!switchAttributes.description && infoAttributes.description) {
-				switchAttributes.description = infoAttributes.description;
-			}
-			if (!switchAttributes.source && infoAttributes.source) {
-				switchAttributes.source = infoAttributes.source;
-			}
-			if (entry.infoOrder < entry.switchOrder) {
-				// The info appears first: the merged input takes its position.
-				replacements.set(entry.info, entry.switch);
-				dropped.add(entry.switch);
-			} else {
-				dropped.add(entry.info);
-			}
-		}
-	}
-
-	if (dropped.size === 0 && hoisted.length === 0) {
-		return inputs;
-	}
-
-	const prune = (list: InputTagType[]): InputTagType[] => {
-		const result: InputTagType[] = [];
-		for (const input of list) {
-			const replacement = replacements.get(input);
-			if (replacement) {
-				replacement.children = prune(replacement.children ?? []);
-				result.push(replacement);
-				continue;
-			}
-			if (dropped.has(input)) {
-				continue;
-			}
-			input.children = prune(input.children ?? []);
-			result.push(input);
-		}
-		return result;
-	};
-
-	return [...prune(inputs), ...prune(hoisted)];
+	return selectors;
 };
 
 const parseTagsToInputs = ({ nodes }: { nodes: RenderableTreeNode }) => {
 	const tagMap = new Map<string, InputTagType>();
 	const inputs = processNodeToInputTags(nodes, tagMap);
-	const appendMissingCalcInputs = (input: InputTagType) => {
+	const selectors = collectSelectors(inputs);
+	const complete = (input: InputTagType) => {
 		if (input.name === "Calc") {
-			appendFormulaVariables(input, input.attributes.formula ?? "");
+			appendFormulaVariables(input, input.attributes.formula ?? "", selectors);
+		}
+		if (input.name === "Switch") {
+			// Every control offers the shared options and mappings; borrowed options have no content.
+			for (const option of selectors.get(input.attributes.primary)?.children ?? []) {
+				if (option.name !== "Case") {
+					continue;
+				}
+				const matches = input.children.filter(
+					(child): child is CaseInputTagType =>
+						child.name === "Case" && child.attributes.primary === option.attributes.primary,
+				);
+				for (const match of matches) {
+					match.attributes.value = option.attributes.value;
+				}
+				if (matches.length === 0) {
+					input.children.push({ ...option, attributes: { ...option.attributes }, children: [] });
+				}
+			}
 		}
 		for (const child of input.children ?? []) {
-			appendMissingCalcInputs(child);
+			complete(child);
 		}
 	};
 	for (const input of inputs) {
-		appendMissingCalcInputs(input);
+		complete(input);
 	}
 	return deduplicateVariableInputs(inputs);
+};
+
+const applyFieldContracts = (
+	inputs: InputTagType[],
+	contracts: Map<string, VariableContract>,
+): InputTagType[] => {
+	for (const input of inputs) {
+		if (input.name !== "Case") {
+			const contract = contracts.get(input.attributes.primary);
+			if (contract) {
+				for (const key of ["unit", "description", "source"] as const) {
+					if (contract[key] !== undefined) {
+						Object.assign(input.attributes, { [key]: contract[key] });
+					}
+				}
+			}
+		}
+		applyFieldContracts(input.children ?? [], contracts);
+	}
+	return inputs;
 };
 
 export interface MarkdocTemplateAnalysis {
@@ -670,22 +699,31 @@ export interface MarkdocTemplateAnalysis {
 	variables: VariableContract[];
 }
 
+/** Inputs and variable contracts of a parsed template, from one transform. */
+export const extractTemplateInputs = (
+	ast: Node,
+	markdocConfig: Config = config,
+): { contracts: Map<string, VariableContract>; inputs: InputTagType[] } => {
+	const { contracts } = buildVariableContracts(ast);
+	const nodes = Markdoc.transform(ast, markdocConfig);
+	return { contracts, inputs: applyFieldContracts(parseTagsToInputs({ nodes }), contracts) };
+};
+
 export const analyzeMarkdocTemplate = (
 	content: string,
 	markdocConfig: Config = config,
 ): MarkdocTemplateAnalysis => {
 	const ast = Markdoc.parse(content);
-	const diagnostics = validateMarkdocTemplateAst(ast, markdocConfig);
-	const nodes = Markdoc.transform(ast, markdocConfig);
-	const variables = [...buildVariableContracts(ast).contracts.values()];
-	return { diagnostics, inputs: parseTagsToInputs({ nodes }), variables };
+	const { contracts, inputs } = extractTemplateInputs(ast, markdocConfig);
+	return {
+		diagnostics: validateMarkdocTemplateAst(ast, markdocConfig),
+		inputs,
+		variables: [...contracts.values()],
+	};
 };
 
 // function to take markdoc content and return parsed tags
-const parseMarkdocToInputs = (content: string, markdocConfig: Config = config): InputTagType[] => {
-	const ast = Markdoc.parse(content);
-	const nodes = Markdoc.transform(ast, markdocConfig);
-	return parseTagsToInputs({ nodes });
-};
+const parseMarkdocToInputs = (content: string, markdocConfig: Config = config): InputTagType[] =>
+	extractTemplateInputs(Markdoc.parse(content), markdocConfig).inputs;
 
 export default parseMarkdocToInputs;

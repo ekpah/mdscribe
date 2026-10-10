@@ -5,7 +5,7 @@ description: Dokumentation zu Switch/Case-Tags für bedingte Inhalte in Template
 
 ## Switch/Case-Tags
 
-Switch/Case-Tags ermöglichen bedingte Inhalte basierend auf verschiedenen Optionen oder Szenarien.
+Switch/Case-Tags ermöglichen bedingte Inhalte für kategoriale Auswahlwerte. Zahlenvergleiche verwenden den separaten `condition`-Tag.
 
 ### Syntax
 
@@ -31,12 +31,50 @@ Switch/Case-Tags ermöglichen bedingte Inhalte basierend auf verschiedenen Optio
 **Switch-Tag:**
 | Parameter | Typ | Pflicht | Beschreibung |
 |-----------|-----|---------|--------------|
-| `primary` | String | Ja | Der Name der Auswahlvariable |
+| `primary` | String | Ja | Name des kategorialen Auswahlfelds |
 
 **Case-Tag:**
 | Parameter | Typ | Pflicht | Beschreibung |
 |-----------|-----|---------|--------------|
-| `primary` | String | Ja | Der Wert, bei dem dieser Case angezeigt wird |
+| `primary` | String | Außer beim Standardfall | Der ausgewählte Optionsname |
+| `value` | Zahl | Nein | Gemeinsamer numerischer Wert dieser Option für Berechnungen |
+| `default` | Boolean | Nein | Darstellungsalternative, falls hier keine Option passt; ohne `value` |
+
+Mehrere Switches mit demselben Namen ergeben ein Eingabefeld mit allen Optionen. Gleiche
+Optionsnamen dürfen unterschiedliche Texte, aber keine widersprüchlichen expliziten `value`-Werte
+haben. Ein fehlender Wert übernimmt die Zuordnung einer anderen Stelle. Doppelte Optionen innerhalb
+eines einzelnen Switches sind ungültig. Die Ausgabe bleibt lokal: Eine anderswo definierte Option
+zeigt hier keinen Fall an, außer es gibt hier einen `default=true`-Fall.
+
+Boolean-Switches liefern für Berechnungen standardmäßig **true = 1, false = 0**. Mit `value` lässt
+sich jeder dieser Werte einzeln überschreiben, etwa `{% case "true" value=5 %}`. Ein nicht
+überschriebener false-Fall bleibt dabei 0. Textoptionen, die eine Formel verwendet, brauchen alle
+eine numerische Zuordnung. Diese Zuordnungen gelten global, auch außerhalb eines Calc-Tags.
+
+### Zahlenbedingungen
+
+```markdown
+{% condition ["ivsd", "lvpwd"] %}
+{% case gt=[11,null] %}Erste Messung über 11.{% /case %}
+{% case gt=[null,14] %}Zweite Messung über 14.{% /case %}
+{% case default=true %}Keine Bedingung erfüllt.{% /case %}
+{% /condition %}
+```
+
+Jeder Vergleich (`eq`, `gt`, `gte`, `lt`, `lte`) enthält genau einen Eintrag pro Feld in derselben
+Reihenfolge: eine Zahl oder `null` zum Überspringen. Innerhalb eines Falls müssen **alle** aktiven
+Vergleiche zutreffen. Mehrere Fälle bilden Alternativen; nur der erste passende Fall erscheint.
+Zum Beispiel verlangt `gte=[8,7] lte=[11,14]` gleichzeitig 8–11 für ivsd und 7–14 für lvpwd.
+Fehlende verglichene Werte passen nicht; übersprungene Felder dürfen fehlen. Der letzte
+`default=true`-Fall enthält keine Vergleiche und bedeutet nicht, dass Messungen vollständig oder
+normal sind. Identische Bedingungen bei Geschwisterfällen, Zeichenketten als Grenzwerte und
+Fälle ohne aktive Bedingung sind ungültig.
+
+Auch ein einzelner Feldname (`{% condition "Alter" %}`) ist erlaubt. `type` ist bei `condition` nicht erlaubt: Vergleiche sind immer numerisch.
+Zum Beispiel prüft `{% case gte=18 %}` diesen einzelnen Wert. **Kein Condition-Fall darf `value`
+tragen.** Condition-Felder werden auch ohne weitere Definition automatisch als Zahleninputs
+behandelt. Im Inspector werden Vergleichsarrays beim Umordnen gemeinsam
+verschoben.
 
 ### Beispiele
 
@@ -107,6 +145,3 @@ Der Patient hat nie geraucht.
 <!-- ✅ GUT für längere Texte: Umbrüche nur zwischen Cases -->
 {% switch "Komplikationen" %}{% case "Keine" %}Der Verlauf war komplikationslos.{% /case %}{% case "Leicht" %}Es traten leichte Komplikationen auf, die konservativ behandelt werden konnten.{% /case %}{% case "Schwer" %}Es kam zu schweren Komplikationen, die eine intensivmedizinische Behandlung erforderten.{% /case %}{% /switch %}
 ```
-
-
-

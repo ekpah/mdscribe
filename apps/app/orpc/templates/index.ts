@@ -12,7 +12,7 @@ import {
 	user,
 } from "@repo/database";
 import type { Database, Template } from "@repo/database";
-import { validateMarkdocTagContracts } from "markdoc-md/parse";
+import { validateMarkdocTemplate } from "markdoc-md/parse";
 import { z } from "zod";
 
 import type { Session } from "@/lib/auth-types";
@@ -165,7 +165,7 @@ const ensureCanSaveTemplateVisibility = async ({
 };
 
 const ensureValidTemplateContent = (content: string): void => {
-	const diagnostics = validateMarkdocTagContracts(content);
+	const diagnostics = validateMarkdocTemplate(content);
 	if (diagnostics.some((diagnostic) => diagnostic.severity === "error")) {
 		throw new ORPCError("BAD_REQUEST", {
 			message: USER_MESSAGES.invalidTemplateTags,

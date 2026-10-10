@@ -5,11 +5,7 @@ import { Calendar } from "@repo/design-system/components/ui/calendar-rac";
 import { DateInput } from "@repo/design-system/components/ui/datefield-rac";
 import { Input } from "@repo/design-system/components/ui/input";
 import { Label } from "@repo/design-system/components/ui/label";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-} from "@repo/design-system/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/design-system/components/ui/tooltip";
 import { cn } from "@repo/design-system/lib/utils";
 import { CalendarIcon } from "lucide-react";
 import type { InfoInputTagType } from "markdoc-md/parse";
@@ -116,6 +112,10 @@ const InfoInput = ({
 	const handleNumberChange = useCallback(
 		(e: React.ChangeEvent<HTMLInputElement>) => {
 			setNumberDraft(e.target.value);
+			if (!e.target.value.trim()) {
+				onChange("");
+				return;
+			}
 			const numValue = Number(e.target.value.replace(",", "."));
 			onChange(Number.isNaN(numValue) ? 0 : numValue);
 		},

@@ -41,8 +41,28 @@ const readAttribute = (element: Element, name: string): string | null =>
 const serializeStringAttribute = (name: string, value: string | null): string =>
 	value ? ` ${name}=${quoteMarkdocValue(value)}` : "";
 
-const serializeBooleanAttribute = (name: string, value: string | null): string =>
-	value === "true" || value === "" ? ` ${name}=true` : "";
+/** Invalid stored values are kept as strings, so validation still reports them. */
+const serializeBooleanAttribute = (name: string, value: string | null): string => {
+	if (value === "true" || value === "") {
+		return ` ${name}=true`;
+	}
+	return value === null || value === "false" ? "" : ` ${name}=${JSON.stringify(value)}`;
+};
+
+/**
+ * Case values and comparisons are JSON literals in editor HTML; anything else
+ * is kept as a string, so validation still reports it and no constraint is lost.
+ */
+const serializeNumericAttribute = (name: string, raw: string | null): string => {
+	if (raw === null || raw === "") {
+		return "";
+	}
+	try {
+		return ` ${name}=${JSON.stringify(JSON.parse(raw))}`;
+	} catch {
+		return ` ${name}=${JSON.stringify(raw)}`;
+	}
+};
 
 const serializeRoundAttribute = (value: string | null): string => {
 	if (value === "false") {
@@ -65,6 +85,16 @@ const decodeAttributeValue = (value: string | null): string | null => {
 };
 
 let convertHtmlFragmentToMarkdoc = (htmlFragment: string): string => htmlFragment;
+
+/** Details and tables are block tags and must begin on their own line. */
+const containsBlockTag = (content: string): boolean => /\{% (?:details|table)\b/u.test(content);
+
+/**
+ * A case containing block content needs the switch or condition delimiters on
+ * their own lines too, for Markdoc to parse the tree.
+ */
+const caseListContent = (innerContent: string): string =>
+	containsBlockTag(innerContent) ? `\n${innerContent.trim()}\n` : innerContent;
 
 const customMarkdocRenderers: Partial<
 	Record<string, (element: Element, innerContent: string) => string>
@@ -93,39 +123,40 @@ const customMarkdocRenderers: Partial<
 		const caseContent = decodedCaseContent
 			? convertHtmlFragmentToMarkdoc(decodedCaseContent).trim()
 			: innerContent.trim();
-		// Cases are normally inline, but Details is a block tag and must begin on
-		// its own line. This includes cases with prose before Details and keeps
-		// sibling case delimiters from sharing the block case's closing line.
-		const containsDetails = /\{% (?:details|table)\b/u.test(caseContent);
+		// Cases are normally inline, but block content must begin on its own
+		// line. This includes cases with prose before it and keeps sibling case
+		// delimiters from sharing the block case's closing line.
+		const containsBlock = containsBlockTag(caseContent);
 		const rawValue = readAttribute(element, "value");
-		const valueAttribute =
-			rawValue !== null && rawValue !== "" && Number.isFinite(Number(rawValue))
-				? ` value=${Number(rawValue)}`
-				: "";
+		const valueAttribute = serializeNumericAttribute("value", rawValue);
 		const conditionAttributes = ["eq", "gt", "gte", "lt", "lte"]
-			.map((operator) => {
-				const raw = readAttribute(element, operator);
-				return raw !== null && raw !== "" && Number.isFinite(Number(raw))
-					? ` ${operator}=${Number(raw)}`
-					: "";
-			})
+			.map((operator) => serializeNumericAttribute(operator, readAttribute(element, operator)))
 			.join("");
 		const defaultAttribute = serializeBooleanAttribute(
 			"default",
 			readAttribute(element, "default"),
 		);
+		// Condition cases carry no primary key; an invalid primary is preserved so
+		// validation can diagnose it.
 		const openingTag =
 			conditionAttributes || defaultAttribute
-				? `{% case${conditionAttributes}${defaultAttribute} %}`
+				? `{% case${casePrimary ? ` ${quoteMarkdocValue(casePrimary)}` : ""}${conditionAttributes}${defaultAttribute}${valueAttribute} %}`
 				: `{% case ${quoteMarkdocValue(casePrimary)}${valueAttribute} %}`;
-		if (containsDetails) {
+		if (containsBlock) {
 			return `\n${openingTag}\n${caseContent}\n{% /case %}\n`;
 		}
-		// Condition cases (number switches) carry no primary key.
-		if (conditionAttributes || defaultAttribute) {
-			return `${openingTag}${caseContent}{% /case %}`;
-		}
 		return `${openingTag}${caseContent}{% /case %}`;
+	},
+	condition: (element, innerContent) => {
+		const rawPrimary = readAttribute(element, "primary") || "";
+		const primary =
+			readAttribute(element, "data-primary-json") === "true"
+				? rawPrimary
+				: quoteMarkdocValue(rawPrimary);
+		const attributes = ["unit", "description", "source"]
+			.map((key) => serializeStringAttribute(key, readAttribute(element, key)))
+			.join("");
+		return `{% condition ${primary}${attributes} %}${caseListContent(innerContent)}{% /condition %}`;
 	},
 	cite: (element, innerContent) => {
 		const source = readAttribute(element, "source") || "";
@@ -161,7 +192,10 @@ const customMarkdocRenderers: Partial<
 	score: (element, innerContent) => customMarkdocRenderers.calc?.(element, innerContent) ?? "",
 	switch: (element, innerContent) => {
 		const switchPrimary = readAttribute(element, "primary") || "";
-		const primary = quoteMarkdocValue(switchPrimary);
+		const primary =
+			readAttribute(element, "data-primary-json") === "true"
+				? switchPrimary
+				: quoteMarkdocValue(switchPrimary);
 		const sourceAttribute = serializeStringAttribute("source", readAttribute(element, "source"));
 		const typeAttribute = serializeStringAttribute("type", readAttribute(element, "type"));
 		const unitAttribute = serializeStringAttribute("unit", readAttribute(element, "unit"));
@@ -169,12 +203,7 @@ const customMarkdocRenderers: Partial<
 			"description",
 			readAttribute(element, "description"),
 		);
-		// A case containing Details has block content, so the switch and case
-		// delimiters also need their own lines for Markdoc to parse the tree.
-		const content = /\{% (?:details|table)\b/u.test(innerContent)
-			? `\n${innerContent.trim()}\n`
-			: innerContent;
-		return `{% switch ${primary}${typeAttribute}${unitAttribute}${descriptionAttribute}${sourceAttribute} %}${content}{% /switch %}`;
+		return `{% switch ${primary}${typeAttribute}${unitAttribute}${descriptionAttribute}${sourceAttribute} %}${caseListContent(innerContent)}{% /switch %}`;
 	},
 };
 

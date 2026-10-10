@@ -19,17 +19,28 @@ export {
 	toFormulaValue,
 	toVoiceBooleanValue,
 } from "./parse/boolean-coercion";
-export { evaluateFormula, getFormulaVariables, isValidFormula } from "./parse/formula";
+export {
+	evaluateFormula,
+	getFormulaVariables,
+	isValidFormula,
+	renameFormulaVariable,
+} from "./parse/formula";
+export { calculateCalcValue, resolveCalculatedValues } from "./parse/calculated-values";
+export { isBranchVisible, selectedSwitchCases } from "./parse/switch-selection";
+export type { BranchVisibility, SwitchSelection } from "./parse/switch-selection";
 export {
 	CASE_CONDITION_OPERATORS,
-	hasCaseCondition,
 	matchesCaseCondition,
-	resolveMatchedCaseIndex,
-	serializeCaseCondition,
-	toCaseCondition,
-	toNumericSwitchValue,
+	parseConditionCase,
+	selectConditionCase,
+	toNumericValue,
 } from "./parse/case-conditions";
-export type { CaseCondition, CaseConditionOperator } from "./parse/case-conditions";
+export type {
+	CaseCondition,
+	CaseConditionOperator,
+	ConditionCase,
+	MalformedConditionCase,
+} from "./parse/case-conditions";
 export {
 	buildVariableContracts,
 	deriveSwitchDomain,

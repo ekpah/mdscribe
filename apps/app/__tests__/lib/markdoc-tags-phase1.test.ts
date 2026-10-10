@@ -1,40 +1,50 @@
 import { describe, expect, test } from "bun:test";
 
 import { renderTipTapHTML } from "markdoc-md/editor";
-import { parseMarkdocToInputs, validateMarkdocTagContracts } from "markdoc-md/parse";
+import {
+	calculateCalcValue,
+	parseMarkdocToInputs,
+	resolveCalculatedValues,
+	validateMarkdocTagContracts,
+} from "markdoc-md/parse";
 import { DynamicMarkdocRenderer } from "markdoc-md/react";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import Inputs, {
-	calculateCalcValue,
-	collectFillInputFields,
-	resolveCalculatedValues,
-} from "@/app/_components/inputs/inputs";
+import Inputs, { collectFillInputFields } from "@/app/_components/inputs/inputs";
 
 describe("markdoc tags phase 1 regressions", () => {
+	test("numeric switches are invalid rather than legacy numeric controls", () => {
+		expect(
+			validateMarkdocTagContracts(
+				'{% switch "score" type="number" %}{% case gte=1 %}positive{% /case %}{% /switch %}',
+			),
+		).toContainEqual(expect.objectContaining({ reason: "number-switch-unsupported" }));
+	});
+
 	test("reused calculations resolve before dependents regardless of document order", () => {
 		const tags =
 			parseMarkdocToInputs(`{% calc primary="PAC" formula="[SV] / [pressure]" %}{% info "SV" type="number" /%}{% info "pressure" type="number" /%}{% /calc %}
 {% calc primary="SV" formula="[output] * 1000 / [rate]" %}{% info "output" type="number" /%}{% info "rate" type="number" /%}{% /calc %}`);
-		expect(resolveCalculatedValues(tags, { output: 6, rate: 60, pressure: 20 })).toMatchObject({
-			SV: 100,
+		expect(resolveCalculatedValues(tags, { output: 6, pressure: 20, rate: 60 })).toMatchObject({
 			PAC: 5,
+			SV: 100,
 		});
 		expect(
-			resolveCalculatedValues(tags, { output: 6, rate: 60, pressure: 20, SV: 80 }),
-		).toMatchObject({ SV: 80, PAC: 4 });
+			resolveCalculatedValues(tags, { SV: 80, output: 6, pressure: 20, rate: 60 }),
+		).toMatchObject({ PAC: 4, SV: 80 });
 		const displayTags = parseMarkdocToInputs(
 			'{% calc primary="PAC" formula="[SV] / 2" %}{% info "SV" type="number" /%}{% /calc %}\n{% calc primary="SV" formula="100" /%}',
 		);
 		const html = renderToStaticMarkup(
 			createElement(Inputs, { inputTags: displayTags, onChange: () => {} }),
 		);
+		expect(html).toMatch(/<input[^>]*value="50"/);
+		expect(html).toMatch(/<input[^>]*value="100"/);
+		// The nested SV mirrors the SV calculation's control and links to it.
 		expect(html).toContain('aria-label="SV – ursprüngliche Berechnung öffnen"');
-		expect(html).toMatch(/<output[^>]*bg-muted[^>]*>100<\/output>/);
-		expect(html).toContain(">berechnet</span>");
-		// Only the two real results are editable, not the computed reference.
-		expect(html.match(/type="number"/g)).toHaveLength(2);
+		expect(html.match(/<input[^>]*value="100"/g)).toHaveLength(2);
+		expect(html.match(/type="number"/g)).toHaveLength(3);
 	});
 
 	test("keeps case scopes separate across switches with same case labels", () => {
@@ -168,6 +178,21 @@ describe("markdoc tags phase 1 regressions", () => {
 			unit: "Punkte",
 		});
 		expect(fields.map((field) => field.label)).toEqual(["A", "Risk", "B"]);
+	});
+
+	test("promotes an earlier info field to calculation metadata regardless of order", () => {
+		const tags = parseMarkdocToInputs(`
+{% info "Risk" type="number" description="Result" /%}
+{% calc "Risk" formula="[A]+1" unit="points" /%}
+`);
+		const { fields } = collectFillInputFields(tags);
+
+		expect(fields[0]).toMatchObject({
+			calculation: { components: ["A"], formula: "[A]+1" },
+			label: "Risk",
+			type: "number",
+		});
+		expect(fields.filter((field) => field.label === "Risk")).toHaveLength(1);
 	});
 
 	test("keeps explicit checkbox calc components and only synthesizes missing variables", () => {

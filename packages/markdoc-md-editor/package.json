@@ -25,7 +25,6 @@
 		"@tiptap/pm": "^3.22.4",
 		"@tiptap/react": "^3.22.4",
 		"@tiptap/starter-kit": "^3.22.4",
-		"fparser": "^4.2.0",
 		"lucide-react": "catalog:",
 		"markdoc-md": "workspace:*",
 		"react": "catalog:",

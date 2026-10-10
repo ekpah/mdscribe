@@ -74,20 +74,19 @@ export const TagInspectorHelp = () => (
 					<AccordionTrigger className="py-2 text-sm hover:no-underline">
 						<div className="flex items-center gap-2">
 							<Badge className="bg-solarized-blue text-xs">Info</Badge>
-							<span className="text-xs">Informations-Tag</span>
+							<span className="text-xs">Eingabe-Tag</span>
 						</div>
 					</AccordionTrigger>
 					<AccordionContent className="space-y-2 pt-1 pb-3">
 						<p className="text-muted-foreground text-xs leading-relaxed">
-							Zeigt wichtige Informationen oder Hinweise im Template an.
+							Fügt einen Wert ein, der im Eingabebereich ausgefüllt wird. Tags mit demselben Namen
+							teilen sich einen Wert, auch wenn sie in einem Fall stehen.
 						</p>
 						<div className="rounded bg-muted p-2">
 							<p className="font-mono text-xs">
-								<span className="text-solarized-blue">{'{% info primary="Titel" %}'}</span>
-								<br />
-								Inhalt der Information
-								<br />
-								<span className="text-solarized-blue">{"{% /info %}"}</span>
+								<span className="text-solarized-blue">
+									{'{% info "Gewicht" type="number" unit="kg" /%}'}
+								</span>
 							</p>
 						</div>
 					</AccordionContent>
@@ -98,32 +97,78 @@ export const TagInspectorHelp = () => (
 					<AccordionTrigger className="py-2 text-sm hover:no-underline">
 						<div className="flex items-center gap-2">
 							<Badge className="bg-solarized-green text-xs">Switch</Badge>
-							<span className="text-xs">Bedingungs-Tag</span>
+							<span className="text-xs">Auswahl-Tag</span>
 						</div>
 					</AccordionTrigger>
 					<AccordionContent className="space-y-2 pt-1 pb-3">
 						<p className="text-muted-foreground text-xs leading-relaxed">
-							Erstellt bedingte Inhalte basierend auf einer Variable. Nützlich für verschiedene
-							Patientengruppen oder Szenarien.
+							Zeigt je nach ausgewählter Option einen anderen Text, als Auswahl oder mit{" "}
+							<code className="rounded bg-muted px-1 font-mono">type="checkbox"</code> als Häkchen.
+							Switches mit demselben Namen sind eine Eingabe mit allen ihren Optionen.
 						</p>
 						<p className="text-muted-foreground text-xs leading-relaxed">
-							Ein Zahl-Switch prüft Werte mit „gleich“, „größer als“, „mindestens“, „kleiner als“,
-							„höchstens“ oder einem Bereich. Der erste passende Fall gewinnt. „Sonst“ ist der
-							Standardfall und gehört ans Ende.
+							Für Berechnungen erhält jede Option mit{" "}
+							<code className="rounded bg-muted px-1 font-mono">value</code> eine Zahl, die für alle
+							gleichnamigen Switches gilt. Checkboxen zählen ohne Angabe als 1 und 0. Ein{" "}
+							<code className="rounded bg-muted px-1 font-mono">default=true</code>-Fall ist nur die
+							Textalternative. Zahlenvergleiche gehören in einen Condition-Tag.
 						</p>
 						<div className="rounded bg-muted p-2">
 							<p className="font-mono text-xs">
-								<span className="text-solarized-green">{'{% switch "geschlecht" %}'}</span>
+								<span className="text-solarized-green">{'{% switch "Raucher" %}'}</span>
 								<br />
-								<span className="ml-2 text-solarized-cyan">{'{% case "männlich" %}'}</span>
-								<span className="text-muted-foreground">Herr</span>
+								<span className="ml-2 text-solarized-cyan">{'{% case "ja" value=1 %}'}</span>
+								<span className="text-muted-foreground">Raucher</span>
 								<span className="text-solarized-cyan">{"{% /case %}"}</span>
 								<br />
-								<span className="ml-2 text-solarized-cyan">{'{% case "weiblich" %}'}</span>
-								<span className="text-muted-foreground">Frau</span>
+								<span className="ml-2 text-solarized-cyan">{'{% case "nein" value=0 %}'}</span>
+								<span className="text-muted-foreground">Nichtraucher</span>
 								<span className="text-solarized-cyan">{"{% /case %}"}</span>
 								<br />
 								<span className="text-solarized-green">{"{% /switch %}"}</span>
+							</p>
+						</div>
+					</AccordionContent>
+				</AccordionItem>
+
+				{/* Condition Tag */}
+				<AccordionItem value="condition">
+					<AccordionTrigger className="py-2 text-sm hover:no-underline">
+						<div className="flex items-center gap-2">
+							<Badge className="bg-solarized-cyan text-xs">Condition</Badge>
+							<span className="text-xs">Zahlen-Bedingung</span>
+						</div>
+					</AccordionTrigger>
+					<AccordionContent className="space-y-2 pt-1 pb-3">
+						<p className="text-muted-foreground text-xs leading-relaxed">
+							Zeigt Text abhängig von Zahlenwerten. Verglichen wird mit „gleich“ (eq), „größer als“
+							(gt), „mindestens“ (gte), „kleiner als“ (lt) und „höchstens“ (lte). Alle Vergleiche
+							eines Falls müssen zutreffen, der erste passende Fall wird angezeigt, und „Sonst“
+							gehört ans Ende.
+						</p>
+						<p className="text-muted-foreground text-xs leading-relaxed">
+							Mehrere Felder werden als Liste angegeben; jeder Vergleich hat dann einen Wert pro
+							Feld, <code className="rounded bg-muted px-1 font-mono">null</code> überspringt ein
+							Feld. Für ein „oder“ einfach mehrere Fälle anlegen. Unbekannte Felder werden zu
+							Zahleneingaben.
+						</p>
+						<div className="rounded bg-muted p-2">
+							<p className="font-mono text-xs">
+								<span className="text-solarized-cyan">{'{% condition ["IVSd", "LVPWd"] %}'}</span>
+								<br />
+								<span className="ml-2 text-solarized-cyan">{"{% case gt=[11,null] %}"}</span>
+								<span className="text-muted-foreground">hypertrophiert</span>
+								<span className="text-solarized-cyan">{"{% /case %}"}</span>
+								<br />
+								<span className="ml-2 text-solarized-cyan">{"{% case gt=[null,11] %}"}</span>
+								<span className="text-muted-foreground">hypertrophiert</span>
+								<span className="text-solarized-cyan">{"{% /case %}"}</span>
+								<br />
+								<span className="ml-2 text-solarized-cyan">{"{% case default=true %}"}</span>
+								<span className="text-muted-foreground">normal</span>
+								<span className="text-solarized-cyan">{"{% /case %}"}</span>
+								<br />
+								<span className="text-solarized-cyan">{"{% /condition %}"}</span>
 							</p>
 						</div>
 					</AccordionContent>
@@ -134,13 +179,14 @@ export const TagInspectorHelp = () => (
 					<AccordionTrigger className="py-2 text-sm hover:no-underline">
 						<div className="flex items-center gap-2">
 							<Badge className="bg-solarized-cyan text-xs">Case</Badge>
-							<span className="text-xs">Fall-Tag (in Switch)</span>
+							<span className="text-xs">Fall-Tag (in Switch oder Condition)</span>
 						</div>
 					</AccordionTrigger>
 					<AccordionContent className="space-y-2 pt-1 pb-3">
 						<p className="text-muted-foreground text-xs leading-relaxed">
-							Definiert einen einzelnen Fall innerhalb eines Switch-Tags. Wird nur innerhalb von
-							Switch verwendet.
+							Ein einzelner Fall mit seinem Text: im Switch eine Option, in der Condition ein
+							Vergleich. Die Fälle lassen sich im Editor über die Tabs des aufgeklappten Tags
+							bearbeiten.
 						</p>
 						<div className="rounded bg-muted p-2">
 							<p className="font-mono text-xs">
@@ -162,17 +208,27 @@ export const TagInspectorHelp = () => (
 					</AccordionTrigger>
 					<AccordionContent className="space-y-2 pt-1 pb-3">
 						<p className="text-muted-foreground text-xs leading-relaxed">
-							Berechnet und zeigt Scores oder Formelergebnisse an.
+							Berechnet einen Wert aus einer Formel; Felder stehen in eckigen Klammern und
+							Info-Felder in einer Formel brauchen type="number". Jede Berechnung braucht einen
+							Namen und wird immer berechnet, auch in zugeklappten oder nicht gewählten Fällen,
+							sobald alle Werte der Formel ausgefüllt sind; bis dahin steht „…“ da. Ein eingegebener
+							Wert überschreibt das Ergebnis, bis er zurückgesetzt wird.
+						</p>
+						<p className="text-muted-foreground text-xs leading-relaxed">
+							Das gerundete Ergebnis (<code className="rounded bg-muted px-1 font-mono">round</code>
+							, Standard 2 Stellen) verwenden auch andere Berechnungen und Conditions. Nutzt eine
+							Formel eine andere Berechnung, verweist „berechnet ↗“ im Eingabebereich darauf.
 						</p>
 						<div className="rounded bg-muted p-2">
 							<p className="font-mono text-xs">
 								<span className="text-solarized-orange">
-									{'{% calc formula="a+b" unit="Punkte" %}'}
+									{'{% calc "BMI" formula="[Gewicht] / ([Groesse] / 100) ^ 2" unit="kg/m²" /%}'}
 								</span>
 							</p>
 						</div>
 					</AccordionContent>
 				</AccordionItem>
+
 				{/* Details Tag */}
 				<AccordionItem value="details">
 					<AccordionTrigger className="py-2 text-sm hover:no-underline">
@@ -214,6 +270,13 @@ export const TagInspectorHelp = () => (
 				<li className="flex items-start gap-2">
 					<span className="text-solarized-cyan">•</span>
 					<span>Klicken Sie auf ein Tag, um seine Eigenschaften zu bearbeiten</span>
+				</li>
+				<li className="flex items-start gap-2">
+					<span className="text-solarized-cyan">•</span>
+					<span>
+						Switch und Condition klappen beim Anklicken auf: Die Fall-Texte stehen in Tabs im
+						Dokument, Optionen und Vergleiche rechts.
+					</span>
 				</li>
 			</ul>
 		</div>

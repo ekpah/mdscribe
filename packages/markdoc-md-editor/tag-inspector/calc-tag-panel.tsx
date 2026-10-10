@@ -7,13 +7,18 @@ import { Separator } from "@repo/design-system/components/ui/separator";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import type { Editor } from "@tiptap/react";
-import Formula from "fparser";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import { getFormulaVariables } from "markdoc-md/parse";
 import type { ChangeEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { CalcComponent } from "../tiptap-extension/editorNodes/calcTag/calc-tag";
+import {
+	calcComponentNames,
+	toCalcComponent,
+} from "../tiptap-extension/editorNodes/calcTag/calc-tag";
 import { CommonTagFields } from "./common-tag-fields";
+import { ConditionFields } from "./condition-fields";
 import { updateMarkdocTagAttributes } from "./use-selected-markdoc-tag";
 
 const CALC_OPERATORS = ["+", "-", "*", "/", "(", ")"] as const;
@@ -37,32 +42,16 @@ export const CalcTagPanel = ({
 		() => (Array.isArray(node.attrs.components) ? (node.attrs.components as CalcComponent[]) : []),
 		[node.attrs.components],
 	);
-	const availableVariables = availableComponents.map((component) => component.primary);
+	const availableVariables = [...new Set(availableComponents.flatMap(calcComponentNames))];
 
 	useEffect(() => {
 		const updateVariables = () => {
 			const components = new Map<string, CalcComponent>();
 			const calculations = new Map<string, number>();
 			editor.state.doc.descendants((docNode) => {
-				if (docNode.type.name === "infoTag" && docNode.attrs.primary) {
-					components.set(docNode.attrs.primary, {
-						description: docNode.attrs.description,
-						kind: "info",
-						primary: docNode.attrs.primary,
-						...(docNode.attrs.round === null ? {} : { round: docNode.attrs.round }),
-						renderUnit: docNode.attrs.renderUnit,
-						source: docNode.attrs.source,
-						type: docNode.attrs.type,
-						unit: docNode.attrs.unit,
-					});
-				} else if (docNode.type.name === "switchTag" && docNode.attrs.primary) {
-					components.set(docNode.attrs.primary, {
-						cases: Array.isArray(docNode.attrs.cases) ? docNode.attrs.cases : [],
-						kind: "switch",
-						primary: docNode.attrs.primary,
-						source: docNode.attrs.source,
-						type: docNode.attrs.type,
-					});
+				const component = toCalcComponent(docNode);
+				if (component?.kind !== "condition" && typeof component?.primary === "string") {
+					components.set(component.primary, component);
 				}
 			});
 			editor.state.doc.descendants((docNode, docPos) => {
@@ -83,13 +72,15 @@ export const CalcTagPanel = ({
 			});
 			setComputedVariables(calculations);
 			for (const component of calcComponents) {
-				if (!components.has(component.primary)) {
-					components.set(component.primary, component);
+				for (const name of calcComponentNames(component)) {
+					if (!components.has(name)) {
+						components.set(name, component);
+					}
 				}
 			}
 			setAvailableComponents(
 				[...components.values()].toSorted((left, right) =>
-					left.primary.localeCompare(right.primary),
+					String(left.primary).localeCompare(String(right.primary)),
 				),
 			);
 		};
@@ -108,10 +99,9 @@ export const CalcTagPanel = ({
 		}
 
 		try {
-			const formula = new Formula(formulaValue);
 			return {
 				parseError: null,
-				parsedVariables: formula.getVariables(),
+				parsedVariables: getFormulaVariables(formulaValue),
 			};
 		} catch (error) {
 			return {
@@ -125,17 +115,20 @@ export const CalcTagPanel = ({
 		(formula: string) => {
 			let components = calcComponents;
 			try {
-				const variables = new Formula(formula).getVariables();
+				const variables = getFormulaVariables(formula);
 				const componentsByPrimary = new Map(
-					[...calcComponents, ...availableComponents].map((component) => [
-						component.primary,
-						component,
-					]),
+					[...availableComponents, ...calcComponents].flatMap((component) =>
+						calcComponentNames(component).map((name) => [name, component] as const),
+					),
 				);
-				components = variables.flatMap((variable) => {
-					const component = componentsByPrimary.get(variable);
-					return component ? [component] : [];
-				});
+				components = [
+					...new Set(
+						variables.flatMap((variable) => {
+							const component = componentsByPrimary.get(variable);
+							return component ? [component] : [];
+						}),
+					),
+				];
 			} catch {
 				// Keep the last valid component set while the formula is incomplete.
 			}
@@ -239,6 +232,24 @@ export const CalcTagPanel = ({
 	return (
 		<div className="space-y-4">
 			<CommonTagFields editor={editor} node={node} pos={pos} selectPrimary={selectPrimary} />
+			{calcComponents.map((component, index) =>
+				component.kind === "condition" && Array.isArray(component.primary) ? (
+					<ConditionFields
+						available={availableVariables}
+						key={index}
+						primary={component.primary}
+						cases={component.cases}
+						attributes={{ ...component }}
+						update={(patch) =>
+							updateMarkdocTagAttributes(editor, pos, {
+								components: calcComponents.map((entry, i) =>
+									i === index ? { ...entry, ...patch } : entry,
+								),
+							})
+						}
+					/>
+				) : null,
+			)}
 
 			<div className="space-y-1.5">
 				<Label className="font-medium text-xs" htmlFor="calc-tag-formula">
@@ -339,9 +350,10 @@ export const CalcTagPanel = ({
 
 			<div className="space-y-3">
 				<div>
-					<Label className="font-medium text-xs">Nur für diese Instanz</Label>
+					<Label className="font-medium text-xs">Anzeige und gemeinsames Ergebnis</Label>
 					<p className="text-muted-foreground text-xs">
-						Diese Einstellungen werden nicht auf Calc-Tags mit demselben Namen übertragen.
+						Die Rundung gilt auch für abhängige Werte und muss bei gleichnamigen Berechnungen
+						übereinstimmen. Die Einheitenanzeige bleibt lokal.
 					</p>
 				</div>
 				<div className="flex items-center gap-2">

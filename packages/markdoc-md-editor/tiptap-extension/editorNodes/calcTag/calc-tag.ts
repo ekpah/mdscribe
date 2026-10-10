@@ -1,14 +1,17 @@
 import { Node, mergeAttributes } from "@tiptap/core";
-import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+import type { DOMOutputSpec, Node as ProseMirrorNode } from "@tiptap/pm/model";
 import type { Transaction } from "@tiptap/pm/state";
 import { ReactNodeViewRenderer } from "@tiptap/react";
-import Formula from "fparser";
+import { getFormulaVariables } from "markdoc-md/parse";
 
+import type { SwitchCase } from "../case-items";
 import {
-	parseRoundAttribute,
-	renderRoundAttribute,
-	serializeRoundAttribute,
-} from "../round-attribute";
+	parseCaseElements,
+	readTagPrimary,
+	nodeToMarkdoc,
+	renderBranchingTagHtml,
+} from "../case-items";
+import { parseRoundAttribute, renderRoundAttribute } from "../round-attribute";
 import { CalcTagView } from "./calc-tag-view";
 
 /** An info input referenced by a calculated tag. */
@@ -23,37 +26,42 @@ export interface CalcInfoComponent {
 	unit?: string | null;
 }
 
+/** A categorical switch referenced by a calculated tag. */
 export interface CalcSwitchComponent {
-	cases: {
-		content?: string;
-		primary: string;
-		text: string;
-		value?: number;
-	}[];
+	cases: SwitchCase[];
 	kind: "switch";
-	primary: string;
+	/** An array primary is invalid for switches but kept for validation to report. */
+	primary: string | string[];
+	description?: string | null;
+	unit?: string | null;
 	source?: string | null;
-	type?: "boolean" | "string" | null;
+	type?: "boolean" | "string" | "number" | null;
 }
 
-export type CalcComponent = CalcInfoComponent | CalcSwitchComponent;
+/** A numeric condition whose members a calculated tag references. */
+export interface CalcConditionComponent {
+	cases: SwitchCase[];
+	kind: "condition";
+	primary: string | string[];
+	description?: string | null;
+	unit?: string | null;
+	source?: string | null;
+}
+
+export type CalcComponent = CalcInfoComponent | CalcSwitchComponent | CalcConditionComponent;
+
+/** The variable names a component declares; a condition declares each member. */
+export const calcComponentNames = (component: CalcComponent): string[] =>
+	Array.isArray(component.primary) ? component.primary : [component.primary];
 
 const parseCalcSwitchType = (value: string | null): CalcSwitchComponent["type"] => {
 	if (value === "checkbox") {
 		return "boolean";
 	}
-	return value === "boolean" || value === "string" ? value : null;
+	return value === "boolean" || value === "string" || value === "number" ? value : null;
 };
 
-const readNumberAttribute = (element: Element, attribute: string): number | undefined => {
-	const rawValue = element.getAttribute(attribute);
-	if (rawValue === null || !Number.isFinite(Number(rawValue))) {
-		return undefined;
-	}
-	return Number(rawValue);
-};
-
-const parseCalcComponents = (element: HTMLElement): CalcComponent[] =>
+export const parseCalcComponents = (element: HTMLElement): CalcComponent[] =>
 	[...element.children].flatMap((child): CalcComponent[] => {
 		if (!(child instanceof HTMLElement)) {
 			return [];
@@ -76,31 +84,29 @@ const parseCalcComponents = (element: HTMLElement): CalcComponent[] =>
 				},
 			];
 		}
-		if (tagName !== "switch") {
-			return [];
+		const branching = {
+			cases: parseCaseElements(child),
+			description: child.getAttribute("description"),
+			source: child.getAttribute("source"),
+			unit: child.getAttribute("unit"),
+		};
+		if (tagName === "condition") {
+			return [{ ...branching, kind: "condition", primary: readTagPrimary(child) ?? "" }];
 		}
-		return [
-			{
-				cases: [...child.children]
-					.filter(
-						(caseElement): caseElement is HTMLElement =>
-							caseElement instanceof HTMLElement && caseElement.tagName.toLowerCase() === "case",
-					)
-					.map((caseElement) => ({
-						content: caseElement.dataset.content ?? caseElement.innerHTML,
-						primary: caseElement.getAttribute("primary") ?? "",
-						text: (caseElement.textContent ?? "").trim(),
-						value: readNumberAttribute(caseElement, "value"),
-					})),
-				kind: "switch",
-				primary,
-				source: child.getAttribute("source"),
-				type: parseCalcSwitchType(child.getAttribute("type")),
-			},
-		];
+		if (tagName === "switch") {
+			return [
+				{
+					...branching,
+					kind: "switch",
+					primary: readTagPrimary(child) ?? "",
+					type: parseCalcSwitchType(child.getAttribute("type")),
+				},
+			];
+		}
+		return [];
 	});
 
-const renderCalcComponentHtml = (component: CalcComponent) => {
+export const renderCalcComponentHtml = (component: CalcComponent): DOMOutputSpec => {
 	if (component.kind === "info") {
 		return [
 			"Info",
@@ -115,44 +121,16 @@ const renderCalcComponentHtml = (component: CalcComponent) => {
 			},
 		];
 	}
-	return [
-		"Switch",
-		{ primary: component.primary, source: component.source, type: component.type },
-		...component.cases.map((caseItem) => [
-			"Case",
-			{
-				"data-content": caseItem.content ?? caseItem.text,
-				primary: caseItem.primary,
-				value: caseItem.value,
-			},
-			caseItem.text,
-		]),
-	];
+	return renderBranchingTagHtml(component.kind === "condition" ? "Condition" : "Switch", component);
 };
 
-const renderStringAttribute = (name: string, value: string | null | undefined): string =>
-	value ? ` ${name}=${JSON.stringify(value)}` : "";
-
-const renderCalcComponentText = (component: CalcComponent): string => {
-	if (component.kind === "info") {
-		const renderUnit = component.renderUnit ? " renderUnit=true" : "";
-		return `{% info ${JSON.stringify(component.primary)}${renderStringAttribute("description", component.description)}${renderStringAttribute("type", component.type)}${renderStringAttribute("unit", component.unit)}${serializeRoundAttribute(component.round)}${renderUnit}${renderStringAttribute("source", component.source)} /%}`;
-	}
-	const cases = component.cases
-		.map((caseItem) => {
-			const value = caseItem.value === undefined ? "" : ` value=${caseItem.value}`;
-			return `{% case ${JSON.stringify(caseItem.primary)}${value} %}${caseItem.text}{% /case %}`;
-		})
-		.join("");
-	return `{% switch ${JSON.stringify(component.primary)}${renderStringAttribute("type", component.type)}${renderStringAttribute("source", component.source)} %}${cases}{% /switch %}`;
-};
-
-const toComponentFromNode = (node: ProseMirrorNode): CalcComponent | null => {
-	const primary = typeof node.attrs.primary === "string" ? node.attrs.primary : "";
-	if (!primary) {
+/** The component a document tag would contribute to a calc that references it. */
+export const toCalcComponent = (node: ProseMirrorNode): CalcComponent | null => {
+	const { primary } = node.attrs;
+	if (!primary || (typeof primary !== "string" && !Array.isArray(primary))) {
 		return null;
 	}
-	if (node.type.name === "infoTag") {
+	if (node.type.name === "infoTag" && typeof primary === "string") {
 		return {
 			description: node.attrs.description,
 			kind: "info",
@@ -164,34 +142,72 @@ const toComponentFromNode = (node: ProseMirrorNode): CalcComponent | null => {
 			unit: node.attrs.unit,
 		};
 	}
+	const branching = {
+		cases: Array.isArray(node.attrs.cases) ? node.attrs.cases : [],
+		description: node.attrs.description,
+		source: node.attrs.source,
+		unit: node.attrs.unit,
+	};
+	if (node.type.name === "conditionTag") {
+		return { ...branching, kind: "condition", primary };
+	}
 	if (node.type.name === "switchTag") {
-		return {
-			cases: Array.isArray(node.attrs.cases) ? node.attrs.cases : [],
-			kind: "switch",
-			primary,
-			source: node.attrs.source,
-			type: node.attrs.type,
-		};
+		return { ...branching, kind: "switch", primary, type: node.attrs.type };
 	}
 	return null;
 };
 
-/** Adds formula inputs to Calc nodes so legacy and incomplete tags serialize canonically. */
-export const ensureCalcFormulaComponents = (tr: Transaction): boolean => {
+/** Adds formula inputs using existing declarations before synthesizing numeric fields. */
+export const ensureCalcFormulaComponents = (tr: Transaction, rootDocument = tr.doc): boolean => {
 	const availableComponents = new Map<string, CalcComponent>();
-	tr.doc.descendants((node) => {
-		const component = toComponentFromNode(node);
-		if (component) {
-			availableComponents.set(component.primary, component);
+	const collect = (component: CalcComponent) => {
+		for (const name of calcComponentNames(component)) {
+			if (!name || availableComponents.has(name)) {
+				continue;
+			}
+			// A condition only compares numbers; the calc needs the field, not the condition.
+			availableComponents.set(
+				name,
+				component.kind === "condition"
+					? { kind: "info", primary: name, type: "number" }
+					: component.kind === "switch"
+						? // Only the option values matter; copied case content would duplicate its inputs.
+							{ ...component, cases: component.cases.map(({ content: _content, ...item }) => item) }
+						: component,
+			);
 		}
-		if (node.type.name === "calcTag" && Array.isArray(node.attrs.components)) {
-			for (const existing of node.attrs.components as CalcComponent[]) {
-				if (existing.primary && !availableComponents.has(existing.primary)) {
-					availableComponents.set(existing.primary, existing);
+		if (component.kind === "info") {
+			return;
+		}
+		// Declarations inside case content count too, so no conflicting number input is invented.
+		for (const item of component.cases) {
+			if (!item.content) {
+				continue;
+			}
+			const content = document.createElement("div");
+			content.innerHTML = item.content;
+			for (const element of content.querySelectorAll("info, switch, condition")) {
+				const wrapper = document.createElement("div");
+				wrapper.append(element.cloneNode(true));
+				for (const nested of parseCalcComponents(wrapper)) {
+					collect(nested);
 				}
 			}
 		}
-	});
+	};
+	for (const document of rootDocument === tr.doc ? [tr.doc] : [tr.doc, rootDocument]) {
+		document.descendants((node) => {
+			const component = toCalcComponent(node);
+			if (component) {
+				collect(component);
+			}
+			if (node.type.name === "calcTag" && Array.isArray(node.attrs.components)) {
+				for (const existing of node.attrs.components as CalcComponent[]) {
+					collect(existing);
+				}
+			}
+		});
+	}
 
 	const updates: { components: CalcComponent[]; pos: number }[] = [];
 	tr.doc.descendants((node, pos) => {
@@ -200,14 +216,14 @@ export const ensureCalcFormulaComponents = (tr: Transaction): boolean => {
 		}
 		let variables: string[];
 		try {
-			variables = new Formula(node.attrs.formula).getVariables();
+			variables = getFormulaVariables(node.attrs.formula);
 		} catch {
 			return;
 		}
 		const components = Array.isArray(node.attrs.components)
 			? (node.attrs.components as CalcComponent[])
 			: [];
-		const existingPrimaries = new Set(components.map((component) => component.primary));
+		const existingPrimaries = new Set(components.flatMap(calcComponentNames));
 		const missingComponents = variables
 			.filter((variable) => !existingPrimaries.has(variable))
 			.map(
@@ -356,18 +372,7 @@ export const CalcTag = Node.create<CalcTagAttrs>({
 	},
 
 	renderText({ node }: { node: ProseMirrorNode }) {
-		const primary = node.attrs.primary ? ` primary=${JSON.stringify(node.attrs.primary)}` : "";
-		const formula = node.attrs.formula || "";
-		const formulaAttribute = ` formula=${JSON.stringify(formula)}`;
-		const round = serializeRoundAttribute(node.attrs.round);
-		const renderUnit = node.attrs.renderUnit ? " renderUnit=true" : "";
-		const unit = node.attrs.unit ? ` unit=${JSON.stringify(node.attrs.unit)}` : "";
-		const description = renderStringAttribute("description", node.attrs.description);
-		const source = renderStringAttribute("source", node.attrs.source);
-		const components = Array.isArray(node.attrs.components)
-			? (node.attrs.components as CalcComponent[])
-			: [];
-		return `{% calc${primary}${formulaAttribute}${description}${source}${unit}${round}${renderUnit} %}${components.map(renderCalcComponentText).join("")}{% /calc %}`;
+		return nodeToMarkdoc(node);
 	},
 
 	selectable: true,

@@ -35,8 +35,9 @@ export const useResolvedVariable = (
 		return { contract, isComputed: false, value: raw };
 	}
 
-	const formula =
-		options?.formula ?? (contract?.roles.computed ? contract.formula : undefined);
+	// DynamicMarkdocRenderer publishes every named calculation before tags read
+	// it, so only a tag carrying its own formula falls back to evaluating it.
+	const formula = options?.formula;
 	if (formula) {
 		const computed = evaluateFormula(formula, variables);
 		return { contract, isComputed: true, value: computed };

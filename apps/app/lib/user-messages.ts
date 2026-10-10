@@ -1,12 +1,13 @@
 import type {
 	MarkdocContractAttribute,
-	MarkdocTagDiagnostic,
+	MarkdocTemplateDiagnostic,
 	VariableDomain,
 } from "markdoc-md/parse";
 
 const MARKDOC_ATTRIBUTE_LABELS: Record<MarkdocContractAttribute, string> = {
 	description: "Beschreibung",
 	formula: "Formel",
+	round: "Rundung",
 	source: "Quelle",
 	unit: "Einheit",
 };
@@ -25,8 +26,89 @@ const CURRENT_LANDING_DATE = new Intl.DateTimeFormat("de-DE", {
 	timeZone: "Europe/Berlin",
 }).format(new Date());
 
-export const formatMarkdocTagDiagnostic = (diagnostic: MarkdocTagDiagnostic): string => {
+const MARKDOC_TYPE_LABELS: Record<string, string> = {
+	Array: "Liste",
+	Boolean: "true oder false",
+	Number: "Zahl",
+	Object: "Objekt",
+	String: "Text",
+};
+
+/** Markdoc names untagged Markdown structure by node type. */
+const MARKDOC_NODE_LABELS: Record<string, string> = {
+	heading: "Überschrift",
+	inline: "Textzeile",
+	item: "Listeneintrag",
+	list: "Liste",
+	paragraph: "Absatz",
+};
+
+const formatAllowedValues = (message: string): string => {
+	try {
+		const allowed: unknown = JSON.parse(/one of (\[.*?\])/u.exec(message)?.[1] ?? "null");
+		return Array.isArray(allowed) ? ` (erlaubt: ${allowed.join(", ")})` : "";
+	} catch {
+		return "";
+	}
+};
+
+/** German text per Markdoc schema error; `name` and `other` are the names quoted in Markdoc's message. */
+const MARKDOC_SCHEMA_MESSAGES: Record<
+	string,
+	(name: string, other: string, message: string) => string
+> = {
+	"attribute-missing-required": (name) => `Pflichtattribut „${name}“ fehlt.`,
+	"attribute-type-invalid": (name, other) =>
+		`Attribut „${name}“ hat den falschen Typ (erwartet: ${other
+			.split(" | ")
+			.map((type) => MARKDOC_TYPE_LABELS[type] ?? type)
+			.join(" oder ")}).`,
+	"attribute-undefined": (name) => `Unbekanntes Attribut „${name}“.`,
+	"attribute-value-invalid": (name, _other, message) =>
+		`Attribut „${name}“ hat einen ungültigen Wert${formatAllowedValues(message)}.`,
+	"calc-formula-invalid": () =>
+		"Die Formel eines Calc-Tags ist ungültig. Prüfen Sie Klammern und Operatoren.",
+	"calc-primary-invalid": () => "Ein Calc-Tag braucht einen Namen.",
+	"child-invalid": (name, other) => `„${name}“ darf nicht in „${other}“ stehen.`,
+	"duplicate-attribute": (name) => `Attribut „${name}“ ist mehrfach gesetzt.`,
+	"function-undefined": (name) => `Unbekannte Funktion „${name}“.`,
+	"missing-closing": (name) => `Tag „${name}“ wird nicht geschlossen.`,
+	"missing-opening": (name) =>
+		name && name !== "tag"
+			? `Zu „${name}“ fehlt der öffnende Tag.`
+			: "Ein schließender Tag hat keinen passenden öffnenden Tag.",
+	"parse-error": () => "Ein Tag ist nicht korrekt geschrieben ({% … %}).",
+	"round-value-invalid": () => "„round“ muss false oder eine ganze Zahl von 0 bis 100 sein.",
+	"tag-placement-invalid": (name) =>
+		`Tag „${name}“ steht an einer ungültigen Stelle (eigene Zeile oder innerhalb einer Zeile).`,
+	"tag-selfclosing-has-children": (name) => `Tag „${name}“ muss selbstschließend sein (mit /%}).`,
+	"tag-undefined": (name) => `Unbekannter Tag „${name}“.`,
+	"variable-undefined": (name) => `Unbekannte Variable „${name}“.`,
+};
+
+/**
+ * Markdoc only provides English messages; unknown errors fall back to them.
+ */
+const formatMarkdocSchemaDiagnostic = (id: string, message: string): string => {
+	const [name = "", other = ""] = [...message.matchAll(/(?:^|\s)'([^']*)'/gu)].map(
+		(match) => MARKDOC_NODE_LABELS[match[1] ?? ""] ?? match[1] ?? "",
+	);
+	return MARKDOC_SCHEMA_MESSAGES[id]?.(name, other, message) ?? message;
+};
+
+export const formatMarkdocTagDiagnostic = (diagnostic: MarkdocTemplateDiagnostic): string => {
 	switch (diagnostic.code) {
+		case "markdoc-schema": {
+			return formatMarkdocSchemaDiagnostic(diagnostic.id, diagnostic.message);
+		}
+		case "citation-source-invalid": {
+			return `Die Zitatquelle „${diagnostic.source}“ ist ungültig.`;
+		}
+		case "citation-quote-too-long": {
+			// The limit is part of the message, so this module never loads markdoc-md.
+			const limit = /\d+/u.exec(diagnostic.message)?.[0];
+			return `Zitate dürfen höchstens ${limit ?? "die erlaubte Anzahl"} Zeichen enthalten.`;
+		}
 		case "variable-domain-conflict": {
 			return `„${diagnostic.name}“ wird sowohl als ${VARIABLE_DOMAIN_LABELS[diagnostic.firstDomain]} als auch als ${VARIABLE_DOMAIN_LABELS[diagnostic.conflictingDomain]} verwendet.`;
 		}
@@ -38,28 +120,44 @@ export const formatMarkdocTagDiagnostic = (diagnostic: MarkdocTagDiagnostic): st
 		}
 		case "case-condition-invalid": {
 			const reasons = {
+				"array-switch-unsupported": "mehrere Feldnamen; bitte condition statt switch verwenden",
+				"comparison-in-switch":
+					"numerische Vergleiche; dafür bitte condition statt switch verwenden",
+				"condition-case-value":
+					"einen Fall mit value; Conditions wählen nur Inhalte aus und vergeben keine Werte",
 				"conflicting-operators": "widersprüchliche Bedingungsoperatoren",
+				"duplicate-predicate": "eine mehrfach verwendete Fallbedingung",
 				"empty-range": "einen leeren Wertebereich",
+				"group-source-unsupported":
+					"eine Gruppen-Quelle; Quellen müssen einzelnen Feldern zugeordnet werden",
+				"invalid-case-value": "ungültige oder nicht passend zugeordnete numerische Fallwerte",
+				"invalid-literal": "ungültige Vergleichswerte oder eine falsche Anzahl von Werten",
+				"invalid-members": "leere oder doppelte Feldnamen",
 				"missing-condition":
-					"eine fehlende Bedingung (Zahl-Switches benötigen eq/gt/gte/lt/lte oder default=true)",
+					"eine fehlende Bedingung (condition benötigt eq/gt/gte/lt/lte oder default=true)",
+				"missing-option": "einen Fall ohne Optionsnamen",
+				"number-switch-unsupported": "type=number; bitte condition ohne type verwenden",
 				"primary-and-condition": "sowohl einen Options-Namen als auch eine Bedingung",
-				"requires-number-switch": "eine Bedingung, obwohl der Switch kein Zahl-Switch ist",
 			} as const;
-			return `Switch „${diagnostic.switch}“ enthält ${reasons[diagnostic.reason]}.`;
+			return `Tag „${diagnostic.switch}“ enthält ${reasons[diagnostic.reason]}.`;
 		}
 		case "case-unreachable": {
-			return `Switch „${diagnostic.switch}“ enthält nach dem Standardfall einen unerreichbaren Fall.`;
+			return `Tag „${diagnostic.switch}“ enthält nach dem Standardfall einen unerreichbaren Fall.`;
 		}
 		case "orphan-case": {
 			return diagnostic.caseKey
-				? `Case „${diagnostic.caseKey}“ steht außerhalb eines Switches.`
-				: "Ein Case steht außerhalb eines Switches.";
+				? `Case „${diagnostic.caseKey}“ steht außerhalb eines Switch- oder Condition-Tags.`
+				: "Ein Case steht außerhalb eines Switch- oder Condition-Tags.";
 		}
-		case "calc-components-missing": {
-			return `Calc „${diagnostic.calc}“ muss alle Formel-Komponenten enthalten. Fehlend: ${diagnostic.missingComponents.join(", ")}.`;
+		case "calc-variable-not-numeric": {
+			const field = diagnostic.domain === "date" ? "ein Datumsfeld" : "ein Textfeld";
+			return `„${diagnostic.variable}“ wird in der Formel von Calc „${diagnostic.calc}“ verwendet, ist aber ${field} – bitte type="number" ergänzen.`;
 		}
 		case "calc-case-values-missing": {
 			return `Switch „${diagnostic.switch}“ im Calc „${diagnostic.calc}“ benötigt numerische Werte für: ${diagnostic.caseKeys.join(", ")}.`;
+		}
+		case "calc-cycle": {
+			return `Calc „${diagnostic.calc}“ hängt von sich selbst ab.`;
 		}
 		case "case-value-conflict": {
 			return `Switch „${diagnostic.switch}“ verwendet für Option „${diagnostic.caseKey}“ widersprüchliche numerische Werte.`;
@@ -219,8 +317,7 @@ export const USER_MESSAGES = {
 	},
 	filesNotSupported: "Das ausgewählte Modell unterstützt keine Datei-Eingabe.",
 	inputInvalid: "Die Eingaben konnten nicht verarbeitet werden. Bitte prüfen Sie Ihre Angaben.",
-	invalidTemplateTags:
-		"Einige Tags mit demselben Namen haben widersprüchliche Einstellungen. Gleichen Sie die Einstellungen an.",
+	invalidTemplateTags: "Der Textbaustein enthält ungültige Tags.",
 	landing: {
 		features: {
 			description:

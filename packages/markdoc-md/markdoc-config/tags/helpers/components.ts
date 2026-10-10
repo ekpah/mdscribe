@@ -5,7 +5,7 @@ import { Case } from "../case";
 import { Cite } from "../cite";
 import { Details } from "../details";
 import { Info } from "../info";
-import { Switch } from "../switch";
+import { Condition, Switch } from "../switch";
 
 /** Default React components used by the built-in Markdoc tag schema. */
 export type MarkdocComponentMap = Exclude<
@@ -17,6 +17,7 @@ export const components = {
 	Calc,
 	Case,
 	Cite,
+	Condition,
 	Details,
 	Info,
 	Score,

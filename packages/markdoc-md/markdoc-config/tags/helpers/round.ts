@@ -13,5 +13,12 @@ export const roundNumber = (
 	}
 
 	const decimalPlaces = isValidDecimalPlaces(round) ? round : defaultDecimalPlaces;
-	return decimalPlaces === undefined ? value : Number(value.toFixed(decimalPlaces));
+	if (decimalPlaces === undefined) {
+		return value;
+	}
+	// Shifting by exponent avoids binary artifacts (5.55 is stored as 5.5499…),
+	// so halves round away from zero like on paper.
+	const shifted = Math.round(Number(`${Math.abs(value)}e${decimalPlaces}`));
+	const rounded = Math.sign(value) * Number(`${shifted}e-${decimalPlaces}`);
+	return Number.isFinite(rounded) ? rounded : Number(value.toFixed(decimalPlaces));
 };

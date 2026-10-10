@@ -106,6 +106,24 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
 				.command(selectInsertedInlineTag)
 				.run();
 		},
+		handleInsertConditionTag() {
+			const selectedPrimary = getPrimaryFromSelection(editor.state);
+			editor
+				.chain()
+				.focus()
+				.insertContent({
+					attrs: {
+						cases: [
+							{ gt: 0, primary: "", text: "..." },
+							{ isDefault: true, primary: "", text: "..." },
+						],
+						primary: selectedPrimary ?? "...",
+					},
+					type: "conditionTag",
+				})
+				.command(selectInsertedInlineTag)
+				.run();
+		},
 		handleInsertDetailsTag() {
 			// Marked content becomes the section body, the way a marked value
 			// becomes the primary of an info tag.
@@ -175,7 +193,7 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
 				.focus()
 				.insertContent({
 					attrs: {
-						cases: [{ primary: "", text: "..." }],
+						cases: [{ primary: "Option 1", text: "..." }],
 						primary: selectedPrimary ?? "...",
 					},
 					type: "switchTag",
@@ -418,6 +436,15 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
 					variant="ghost"
 				>
 					<span>Switch</span>
+				</Button>
+				<Button
+					className={cn(tagButtonClassName, "bg-solarized-cyan hover:bg-solarized-cyan/90")}
+					onClick={handlers.handleInsertConditionTag}
+					size="sm"
+					type="button"
+					variant="ghost"
+				>
+					<span>Condition</span>
 				</Button>
 				<Button
 					className={cn(tagButtonClassName, "bg-solarized-orange hover:bg-solarized-orange/90")}

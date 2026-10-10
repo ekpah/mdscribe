@@ -215,4 +215,17 @@ if (!renderTipTapHTML(nestedTableCase).includes("<table>")) {
 	throw new Error("Table in switch case was lost");
 }
 
+const conditionTableSource = htmlToMarkdoc(
+	renderTipTapHTML(
+		`{% condition "gewicht" %}\n{% case gt=100 %}\n${htmlToMarkdoc(tagTable).trim()}\n{% /case %}\n{% case default=true %}normal{% /case %}\n{% /condition %}`,
+	),
+);
+if (validateMarkdocTemplate(conditionTableSource).length > 0) {
+	throw new Error(`Table in condition case became invalid: ${conditionTableSource}`);
+}
+if (!renderTipTapHTML(conditionTableSource).includes("<table>")) {
+	throw new Error("Table in condition case was lost");
+}
+equal(htmlToMarkdoc(renderTipTapHTML(conditionTableSource)), conditionTableSource);
+
 document.body.textContent = `Editor roundtrips and ${tableFragments.length * 3} table save/reopen cycles passed`;

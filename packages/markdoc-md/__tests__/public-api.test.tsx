@@ -82,7 +82,7 @@ describe("public integration APIs", () => {
 	});
 
 	test("validates round as false or a supported number of decimal places", () => {
-		expect(validateMarkdocTemplate(`{% calc formula="1 / 3" round=4 /%}`)).toEqual([]);
+		expect(validateMarkdocTemplate(`{% calc "result" formula="1 / 3" round=4 /%}`)).toEqual([]);
 		expect(validateMarkdocTemplate(`{% info "value" type="number" round=false /%}`)).toEqual([]);
 
 		for (const round of ["true", "-1", "1.5", "101"]) {
@@ -120,7 +120,7 @@ describe("public integration APIs", () => {
 		const template = `{% info /%} {% calc formula=true /%} {% switch %}{% case %}x{% /case %}{% /switch %}`;
 		const html = renderToStaticMarkup(renderMarkdocAsReact(template));
 		expect(html).toContain("No formula");
-		expect(html).toContain("...");
+		expect(html).toContain("…");
 		expect(html).not.toContain("data-markdoc-input");
 	});
 });

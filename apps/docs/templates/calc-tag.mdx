@@ -10,18 +10,19 @@ Das Calc-Tag führt automatische Berechnungen basierend auf Formeln durch.
 ### Syntax
 
 ```markdown
-{% calc formula="[Variable1] + [Variable2]" %}
+{% calc "Ergebnis" formula="[Variable1] + [Variable2]" %}
 {% info "Variable1" type="number" /%}
 {% info "Variable2" type="number" /%}
 {% /calc %}
 ```
 
-Jede in der Formel referenzierte Variable muss als `info`- oder `switch`-Tag innerhalb des Calc-Tags enthalten sein. Die enthaltenen Tags werden im Dokument nicht doppelt gerendert, sondern definieren und verifizieren die Berechnungskomponenten.
+Jeder Calc benötigt einen nicht leeren Ergebnisnamen (`primary`). Der Editor ergänzt für jede Formelvariable einen enthaltenen Info-, Switch- oder Condition-Tag: vorhandene Deklarationen werden übernommen, andernfalls wird ein numerischer Info-Tag angelegt. Ein kategorialer Switch und ein numerischer Info-Tag mit demselben Namen widersprechen sich und führen zu einem Validierungsfehler. Info-Tags, die eine Formel verwendet, brauchen `type="number"`: Ein Text- oder Datumsfeld in einer Formel ist ein Validierungsfehler, weil sein Wert sonst unbemerkt als 0 zählen würde.
 
 ### Parameter
 
 | Parameter | Typ | Pflicht | Beschreibung |
 |-----------|-----|---------|--------------|
+| `primary` | String | Ja | Nicht leerer Name für das gemeinsame Ergebnis; auch als erstes Positionsargument möglich |
 | `formula` | String | Ja | Die mathematische Formel |
 | `unit` | String | Nein | Einheit für das Ergebnis |
 | `round` | Number oder `false` | Nein | Anzahl der Nachkommastellen (Standard: `2`); `false` deaktiviert die Rundung |
@@ -43,7 +44,9 @@ Variablen werden in **eckigen Klammern** referenziert: `[Variablenname]`
 
 **Body-Mass-Index (BMI):**
 ```markdown
-**BMI**: {% calc formula="[Gewicht] / ([Groesse] / 100) ^ 2" unit="kg/m²" renderUnit=true %}
+**BMI**:
+
+{% calc "BMI" formula="[Gewicht] / ([Groesse] / 100) ^ 2" unit="kg/m²" renderUnit=true %}
 {% info "Gewicht" type="number" unit="kg" /%}
 {% info "Groesse" type="number" unit="cm" /%}
 {% /calc %}
@@ -51,7 +54,9 @@ Variablen werden in **eckigen Klammern** referenziert: `[Variablenname]`
 
 **Mittlerer arterieller Druck (MAP):**
 ```markdown
-**MAP**: {% calc formula="([RR_sys] + 2 * [RR_dia]) / 3" unit="mmHg" renderUnit=true %}
+**MAP**:
+
+{% calc "MAP" formula="([RR_sys] + 2 * [RR_dia]) / 3" unit="mmHg" renderUnit=true %}
 {% info "RR_sys" type="number" unit="mmHg" /%}
 {% info "RR_dia" type="number" unit="mmHg" /%}
 {% /calc %}
@@ -59,7 +64,9 @@ Variablen werden in **eckigen Klammern** referenziert: `[Variablenname]`
 
 **Einfache Summe:**
 ```markdown
-**Gesamtscore**: {% calc formula="[Score1] + [Score2] + [Score3]" %}
+**Gesamtscore**:
+
+{% calc "Gesamtscore" formula="[Score1] + [Score2] + [Score3]" %}
 {% info "Score1" type="number" /%}
 {% info "Score2" type="number" /%}
 {% info "Score3" type="number" /%}
@@ -68,7 +75,7 @@ Variablen werden in **eckigen Klammern** referenziert: `[Variablenname]`
 
 **Vier Nachkommastellen:**
 ```markdown
-{% calc formula="[Zaehler] / [Nenner]" round=4 %}
+{% calc "Quotient" formula="[Zaehler] / [Nenner]" round=4 %}
 {% info "Zaehler" type="number" /%}
 {% info "Nenner" type="number" /%}
 {% /calc %}
@@ -76,9 +83,21 @@ Variablen werden in **eckigen Klammern** referenziert: `[Variablenname]`
 
 Mit `round=false` wird das Ergebnis ohne Rundung dargestellt.
 
+Bei benannten Berechnungen gilt die Rundung für den **gemeinsamen Ergebniswert**, auch für
+manuelle Überschreibungen: `1/3` mit `round=2` veröffentlicht 0,33; ein abhängiger Calc mal 100
+erhält 33 und eine Condition vergleicht ebenfalls 0,33. Wiederholte benannte Calcs müssen dieselbe
+Formel und Rundung verwenden. `round` auf einem Info-Tag bleibt dagegen reine Darstellung.
+
+Calcs werden global ausgewertet; auch nicht sichtbare Calcs berechnen ihr Ergebnis. Ein manuell
+eingegebener Wert hat Vorrang vor einem KI-Vorschlag, beide überschreiben den berechneten Wert.
+Wird die Überschreibung zurückgesetzt, gilt wieder der KI-Vorschlag bzw. die Berechnung.
+Kategoriale Zahlenzuordnungen werden global nach Variablenname und Case-Key zusammengeführt.
+
 **CHA₂DS₂-VASc-Score (vereinfacht):**
 ```markdown
-**CHA₂DS₂-VASc-Score**: {% calc formula="[Herzinsuffizienz] + [Hypertonie] + [Alter75] * 2 + [Diabetes] + [Schlaganfall] * 2 + [Gefaesserkrankung] + [Alter65] + [Geschlecht]" %}
+**CHA₂DS₂-VASc-Score**:
+
+{% calc "CHA2DS2_VASc" formula="[Herzinsuffizienz] + [Hypertonie] + [Alter75] * 2 + [Diabetes] + [Schlaganfall] * 2 + [Gefaesserkrankung] + [Alter65] + [Geschlecht]" %}
 {% info "Herzinsuffizienz" type="number" /%}
 {% info "Hypertonie" type="number" /%}
 {% info "Alter75" type="number" /%}
@@ -101,7 +120,7 @@ Mit `round=false` wird das Ergebnis ohne Rundung dargestellt.
 1. Das Calc-Tag enthält und referenziert seine Variablen als Info- oder Switch-Tags
 2. Die Formel wird automatisch berechnet, wenn Werte eingegeben werden
 3. Das Ergebnis wird standardmäßig auf **2 Dezimalstellen** gerundet; `round` passt dies an
-4. Bei fehlenden oder ungültigen Werten wird `...` angezeigt
+4. Berechnet wird erst, wenn alle Werte der Formel ausgefüllt sind (ein nicht angehakter Haken zählt als „nein“). Bis dahin – und bei ungültigen Ergebnissen wie einer Division durch 0 – wird `…` angezeigt. Davon abhängige Calcs zeigen ebenfalls `…`, und Conditions auf den Wert nutzen ihren Standardfall
 5. Das Ergebnis erscheint als **orangener Badge** im Dokument
 
 ### Best Practices

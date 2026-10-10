@@ -26,7 +26,7 @@ import { cn } from "@repo/design-system/lib/utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { InfoIcon, Loader2, Plus, Trash2 } from "lucide-react";
 import type { TagInspectorEditor } from "markdoc-md-editor/tag-inspector/tag-inspector";
-import type { MarkdocTagDiagnostic } from "markdoc-md/parse";
+import type { MarkdocTemplateDiagnostic } from "markdoc-md/parse";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -48,7 +48,7 @@ type TemplateVisibility = (typeof TEMPLATE_VISIBILITIES)[number];
 
 const isActionableError = (error: unknown): error is Error => error instanceof Error;
 
-const hasMarkdocValidationErrors = (diagnostics: MarkdocTagDiagnostic[] | null): boolean =>
+const hasMarkdocValidationErrors = (diagnostics: MarkdocTemplateDiagnostic[] | null): boolean =>
 	diagnostics?.some((diagnostic) => diagnostic.severity === "error") ?? false;
 
 const isTemplateFormValid = ({
@@ -102,18 +102,28 @@ const getSaveButtonLabel = ({
 const MarkdocValidationMessage = ({
 	diagnostics,
 }: {
-	diagnostics: MarkdocTagDiagnostic[] | null;
+	diagnostics: MarkdocTemplateDiagnostic[] | null;
 }) => {
 	if (!diagnostics || diagnostics.length === 0) {
 		return null;
 	}
 
+	const hasErrors = hasMarkdocValidationErrors(diagnostics);
 	return (
 		<div
-			className="rounded-md border border-solarized-red/40 bg-solarized-red/5 p-3 text-sm"
-			role="alert"
+			className={cn(
+				"rounded-md border p-3 text-sm",
+				hasErrors
+					? "border-solarized-red/40 bg-solarized-red/5"
+					: "border-solarized-yellow/40 bg-solarized-yellow/5",
+			)}
+			role={hasErrors ? "alert" : "status"}
 		>
-			<p className="font-medium text-solarized-red">{USER_MESSAGES.invalidTemplateTags}</p>
+			<p className={cn("font-medium", hasErrors ? "text-solarized-red" : "text-solarized-yellow")}>
+				{hasErrors
+					? `${USER_MESSAGES.invalidTemplateTags} Bitte korrigieren Sie die folgenden Punkte.`
+					: "Hinweise zu den Tags im Textbaustein:"}
+			</p>
 			<ul className="mt-2 list-disc space-y-1 pl-5 text-foreground">
 				{diagnostics.map((diagnostic, index) => (
 					<li key={`${diagnostic.code}-${index}`}>{formatMarkdocTagDiagnostic(diagnostic)}</li>
@@ -379,7 +389,9 @@ export default function Editor({
 	const [visibility, setVisibility] = useState<TemplateVisibility>(initialVisibility);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [editorInstance, setEditorInstance] = useState<TagInspectorEditor | null>(null);
-	const [markdocDiagnostics, setMarkdocDiagnostics] = useState<MarkdocTagDiagnostic[] | null>(null);
+	const [markdocDiagnostics, setMarkdocDiagnostics] = useState<MarkdocTemplateDiagnostic[] | null>(
+		null,
+	);
 
 	const handleTemplateChange = useCallback((update: Partial<TemplateSections>) => {
 		if (update.content !== undefined) {

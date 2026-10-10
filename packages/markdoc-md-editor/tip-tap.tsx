@@ -3,23 +3,32 @@
 import { Button } from "@repo/design-system/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
 import { cn } from "@repo/design-system/lib/utils";
+import { Extension } from "@tiptap/core";
 import { TableKit } from "@tiptap/extension-table";
 import { Markdown } from "@tiptap/markdown";
 import { DOMParser as ProseMirrorDOMParser } from "@tiptap/pm/model";
 import type { Transaction } from "@tiptap/pm/state";
-import { TextSelection } from "@tiptap/pm/state";
+import { Plugin, TextSelection } from "@tiptap/pm/state";
 import type { Editor } from "@tiptap/react";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import TipTapStarterKit from "@tiptap/starter-kit";
 import { htmlToMarkdoc, renderTipTapHTML } from "markdoc-md/editor";
-import { validateMarkdocTagContracts } from "markdoc-md/parse";
-import type { MarkdocTagDiagnostic } from "markdoc-md/parse";
+import { validateMarkdocTemplate } from "markdoc-md/parse";
+import type { MarkdocTemplateDiagnostic } from "markdoc-md/parse";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 import { createPortal } from "react-dom";
 
 import { TAG_COLORS } from "./tag-colors";
-import { updateMarkdocTagAttributes } from "./tag-inspector/use-selected-markdoc-tag";
+import {
+	ensureSharedSwitchCaseAttributes,
+	type NestedContentUpdate,
+	SHARED_CASE_EDITS_META,
+	SHARED_TAG_EDITS_META,
+	type SharedCaseEdit,
+	type SharedTagEdit,
+	updateMarkdocTagAttributes,
+} from "./tag-inspector/use-selected-markdoc-tag";
 import TipTapMenu from "./tip-tap-menu";
 import { MarkdocMD } from "./tiptap-extension";
 import { ensureCalcFormulaComponents } from "./tiptap-extension/editorNodes/calcTag/calc-tag";
@@ -27,8 +36,14 @@ import { formatCaseConditionLabel } from "./tiptap-extension/editorNodes/case-co
 import type { SwitchCase } from "./tiptap-extension/editorNodes/switchTag/switch-tag";
 import { NativeTable } from "./tiptap-extension/native-table";
 
-const MARKDOC_INPUT_TAG_PATTERN = /\{%\s*(?:calc|details|info|score|switch|table)\b/iu;
-const TIPTAP_INPUT_ELEMENT_PATTERN = /<(?:Calc|Details|Info|Score|Switch|table)\b/iu;
+/** Tags whose cases expand inline as tabs with nested case editors. */
+const BRANCHING_TAG_NAMES = new Set(["conditionTag", "switchTag"]);
+
+/** Marks automatic normalization of loaded content, which is kept out of undo history. */
+const NORMALIZATION_META = "markdoc-normalization";
+
+const MARKDOC_INPUT_TAG_PATTERN = /\{%\s*(?:calc|condition|details|info|score|switch|table)\b/iu;
+const TIPTAP_INPUT_ELEMENT_PATTERN = /<(?:Calc|Condition|Details|Info|Score|Switch|table)\b/iu;
 
 export default function TipTap({
 	note,
@@ -37,16 +52,19 @@ export default function TipTap({
 	onValidationChange,
 	autofocus = true,
 	onInspectEditor,
+	rootEditor,
 }: {
 	note: string;
-	setContent: (content: string, html: string) => void;
+	setContent: (content: string, html: string, update?: NestedContentUpdate) => void;
 	autofocus?: boolean;
 	/** Reports the live editor instance, e.g. to drive the tag inspector. */
 	onEditorChange?: (editor: Editor | null) => void;
 	/** Reports semantic Markdoc tag conflicts without loading Markdoc in the parent bundle. */
-	onValidationChange?: (diagnostics: MarkdocTagDiagnostic[]) => void;
+	onValidationChange?: (diagnostics: MarkdocTemplateDiagnostic[]) => void;
 	/** Nested documents report the editor owning the clicked tag to the outer inspector. */
 	onInspectEditor?: (editor: Editor) => void;
+	/** Nested fragments resolve declarations against the complete document. */
+	rootEditor?: Editor;
 }) {
 	const lastEditorContentRef = useRef(note);
 	const [openSwitch, setOpenSwitch] = useState<{
@@ -115,6 +133,10 @@ export default function TipTap({
 				return false;
 			},
 			handlePaste: (view, event) => {
+				// Editor HTML already carries the tags, plus formatting plain text would lose.
+				if (TIPTAP_INPUT_ELEMENT_PATTERN.test(event.clipboardData?.getData("text/html") ?? "")) {
+					return false;
+				}
 				const clipboardText = event.clipboardData?.getData("text/plain") ?? "";
 				if (!MARKDOC_INPUT_TAG_PATTERN.test(clipboardText)) {
 					return false;
@@ -137,7 +159,71 @@ export default function TipTap({
 			},
 		},
 		extensions: [
-			TipTapStarterKit,
+			TipTapStarterKit.configure({ undoRedo: rootEditor ? false : {} }),
+			Extension.create({
+				name: "normalizeMarkdocTags",
+				addProseMirrorPlugins: () => [
+					new Plugin({
+						appendTransaction: (transactions, _oldState, state) => {
+							if (!transactions.some((transaction) => transaction.docChanged)) {
+								return null;
+							}
+							// Appended changes belong to the originating history event, even when
+							// inheritance updates tags far away from the user's edit.
+							const transaction = state.tr;
+							ensureCalcFormulaComponents(transaction, rootEditor?.state.doc);
+							ensureSharedSwitchCaseAttributes(transaction, rootEditor?.state.doc);
+							return transaction.docChanged ? transaction : null;
+						},
+					}),
+				],
+			}),
+			...(rootEditor
+				? [
+						Extension.create({
+							name: "rootDocumentHistory",
+							addCommands: () => ({
+								undo:
+									() =>
+									({ dispatch }) =>
+										dispatch ? rootEditor.commands.undo() : rootEditor.can().undo(),
+								redo:
+									() =>
+									({ dispatch }) =>
+										dispatch ? rootEditor.commands.redo() : rootEditor.can().redo(),
+							}),
+							addKeyboardShortcuts: () => ({
+								"Mod-z": () => rootEditor.commands.undo(),
+								"Mod-Shift-z": () => rootEditor.commands.redo(),
+								"Mod-y": () => rootEditor.commands.redo(),
+							}),
+							// Menu, touch, and other native history input bypasses key bindings.
+							addProseMirrorPlugins: () => [
+								new Plugin({
+									props: {
+										handleDOMEvents: {
+											beforeinput: (_view, event) => {
+												if (
+													event.inputType !== "historyUndo" &&
+													event.inputType !== "historyRedo"
+												) {
+													return false;
+												}
+												event.preventDefault();
+												if (event.inputType === "historyUndo") {
+													rootEditor.commands.undo();
+												} else {
+													rootEditor.commands.redo();
+												}
+												return true;
+											},
+										},
+									},
+								}),
+							],
+						}),
+					]
+				: []),
 			Markdown,
 			MarkdocMD,
 			TableKit.configure({ table: false }),
@@ -152,29 +238,34 @@ export default function TipTap({
 		injectCSS: false,
 		onCreate: ({ editor: createdEditor }) => {
 			const transaction = createdEditor.state.tr;
-			if (ensureCalcFormulaComponents(transaction)) {
-				createdEditor.view.dispatch(transaction);
+			ensureCalcFormulaComponents(transaction, rootEditor?.state.doc);
+			ensureSharedSwitchCaseAttributes(transaction, rootEditor?.state.doc);
+			if (transaction.docChanged) {
+				// Normalizing loaded content is not an edit, so it is not an undo step.
+				createdEditor.view.dispatch(
+					transaction.setMeta("addToHistory", false).setMeta(NORMALIZATION_META, true),
+				);
 				return;
 			}
-			onValidationChange?.(validateMarkdocTagContracts(note));
+			onValidationChange?.(validateMarkdocTemplate(note));
 		},
 		onFocus: ({ editor: focusedEditor, event }) => {
 			if (event.target === focusedEditor.view.dom) {
 				inspectEditor(focusedEditor);
 			}
 		},
-		onUpdate: ({ editor: updatedEditor }) => {
-			const transaction = updatedEditor.state.tr;
-			if (ensureCalcFormulaComponents(transaction)) {
-				updatedEditor.view.dispatch(transaction);
-				return;
-			}
+		onUpdate: ({ editor: updatedEditor, transaction: edit }) => {
+			const update: NestedContentUpdate = {
+				addToHistory: edit.getMeta(NORMALIZATION_META) !== true,
+				sharedCaseEdits: edit.getMeta(SHARED_CASE_EDITS_META) as SharedCaseEdit[] | undefined,
+				sharedTagEdits: edit.getMeta(SHARED_TAG_EDITS_META) as SharedTagEdit[] | undefined,
+			};
 			// Get the HTML and convert to markdoc format
 			const html = updatedEditor.getHTML();
 			const markdocContent = htmlToMarkdoc(html);
 			lastEditorContentRef.current = markdocContent;
-			setContent(markdocContent, html);
-			onValidationChange?.(validateMarkdocTagContracts(markdocContent));
+			setContent(markdocContent, html, update);
+			onValidationChange?.(validateMarkdocTemplate(markdocContent));
 		},
 	});
 
@@ -187,7 +278,7 @@ export default function TipTap({
 		setOpenSwitch(null);
 		setInspectedEditor(null);
 		editor.commands.setContent(renderTipTapHTML(note), { emitUpdate: false });
-		onValidationChange?.(validateMarkdocTagContracts(note));
+		onValidationChange?.(validateMarkdocTemplate(note));
 	}, [editor, note, onValidationChange]);
 
 	useEffect(() => {
@@ -216,7 +307,9 @@ export default function TipTap({
 					return null;
 				}
 				const pos = transaction.mapping.map(current.pos);
-				return transaction.doc.nodeAt(pos)?.type.name === "switchTag" ? { ...current, pos } : null;
+				return BRANCHING_TAG_NAMES.has(transaction.doc.nodeAt(pos)?.type.name ?? "")
+					? { ...current, pos }
+					: null;
 			});
 		};
 		editor.on("transaction", mapOpenSwitch);
@@ -230,8 +323,29 @@ export default function TipTap({
 			openSwitch ? current?.state.doc.nodeAt(openSwitch.pos) : null,
 	});
 	const cases = (switchNode?.attrs.cases ?? []) as SwitchCase[];
+	const isCondition = switchNode?.type.name === "conditionTag";
+	// Array conditions label each case by its compared fields.
+	const conditionMembers =
+		isCondition && Array.isArray(switchNode?.attrs.primary)
+			? (switchNode.attrs.primary as string[])
+			: undefined;
 	const caseIndex = Math.min(openSwitch?.caseIndex ?? 0, Math.max(0, cases.length - 1));
 	const activeCase = cases[caseIndex];
+	// Follow the open case when cases before it are added or removed: unchanged
+	// cases keep their object identity across attribute updates.
+	const trackedCase = useRef({ cases, item: activeCase });
+	useEffect(() => {
+		const { cases: previousCases, item } = trackedCase.current;
+		trackedCase.current = { cases, item: activeCase };
+		if (cases === previousCases || !item || item === activeCase) {
+			return;
+		}
+		const moved = cases.indexOf(item);
+		if (moved >= 0) {
+			trackedCase.current = { cases, item };
+			setOpenSwitch((current) => (current ? { ...current, caseIndex: moved } : current));
+		}
+	}, [activeCase, cases]);
 	const closeSwitch = () => {
 		setOpenSwitch(null);
 		if (editor) {
@@ -269,7 +383,8 @@ export default function TipTap({
 					return;
 				}
 				inspectEditor(editor);
-				if (chip.dataset.type === "markdoc-switch") {
+				// Switches and conditions expand their cases inline as tabs.
+				if (chip.dataset.type === "markdoc-switch" || chip.dataset.type === "markdoc-condition") {
 					// The chip selects its node on mousedown; keyboard clicks select on click.
 					const wrapper = chip.closest("[data-node-view-wrapper]");
 					if (!wrapper) {
@@ -290,7 +405,7 @@ export default function TipTap({
 						<div
 							className={cn(
 								"not-prose relative flex w-full flex-col overflow-hidden rounded-md rounded-tl-none border whitespace-normal leading-normal",
-								TAG_COLORS.green.surface,
+								TAG_COLORS[isCondition ? "cyan" : "green"].surface,
 							)}
 							data-testid="switch-content-editor"
 						>
@@ -312,10 +427,12 @@ export default function TipTap({
 									}}
 								>
 									<div className="shrink-0 overflow-x-auto border-b p-2 pr-24">
-										<TabsList aria-label="Switch-Optionen">
+										<TabsList aria-label={isCondition ? "Condition-Fälle" : "Switch-Optionen"}>
 											{cases.map((item, index) => (
 												<TabsTrigger key={index} value={index}>
-													{item.primary || formatCaseConditionLabel(item) || `Option ${index + 1}`}
+													{(isCondition ? "" : item.primary) ||
+														formatCaseConditionLabel(item, conditionMembers) ||
+														`${isCondition ? "Fall" : "Option"} ${index + 1}`}
 												</TabsTrigger>
 											))}
 										</TabsList>
@@ -326,25 +443,33 @@ export default function TipTap({
 											autofocus={false}
 											note={htmlToMarkdoc(activeCase.content ?? activeCase.text)}
 											onInspectEditor={inspectEditor}
-											setContent={(_content, html) => {
+											rootEditor={rootEditor ?? editor}
+											setContent={(_content, html, update) => {
 												// Store the editor HTML directly. Rendering Markdown on every
 												// keystroke would normalize away an unfinished trailing space.
 												const container = document.createElement("div");
 												container.innerHTML = html;
-												updateMarkdocTagAttributes(editor, openSwitch.pos, {
-													cases: cases.map((item, index) =>
-														index === caseIndex
-															? { ...item, content: html, text: container.textContent ?? "" }
-															: item,
-													),
-												});
+												updateMarkdocTagAttributes(
+													editor,
+													openSwitch.pos,
+													{
+														cases: cases.map((item, index) =>
+															index === caseIndex
+																? { ...item, content: html, text: container.textContent ?? "" }
+																: item,
+														),
+													},
+													update,
+												);
 											}}
 										/>
 									</TabsContent>
 								</Tabs>
 							) : (
 								<p className="p-3 pr-24 text-sm text-muted-foreground">
-									Optionen rechts in den Switch-Eigenschaften hinzufügen.
+									{isCondition
+										? "Fälle rechts in den Condition-Eigenschaften hinzufügen."
+										: "Optionen rechts in den Switch-Eigenschaften hinzufügen."}
 								</p>
 							)}
 						</div>,

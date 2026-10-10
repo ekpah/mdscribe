@@ -13,19 +13,17 @@ import {
 	TooltipTrigger,
 } from "@repo/design-system/components/ui/tooltip";
 import { cn } from "@repo/design-system/lib/utils";
-import Formula from "fparser";
 import { ArrowUpRight, Bot, Pencil, RotateCcw, Sigma } from "lucide-react";
+import { CALC_PLACEHOLDER } from "markdoc-md/config";
 import {
-	getFormulaVariables,
-	resolveMatchedCaseIndex,
-	serializeCaseCondition,
-	toCaseCondition,
-	toFormulaValue,
-	toNumericSwitchValue,
+	isBranchVisible,
+	resolveCalculatedValues,
+	selectedSwitchCases,
+	toNumericValue,
 	toVoiceBooleanValue as toFillInputsBooleanValue,
 } from "markdoc-md/parse";
 import type { CalcInputTagType, InputTagType } from "markdoc-md/parse";
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import type { ContextDocument } from "@/lib/ocr-types";
@@ -111,7 +109,7 @@ type InputSource = "ai" | "manual";
 export const collectFillInputFields = (inputTags: InputTagType[]) => {
 	const fields: FillInputsInputField[] = [];
 	const meta = new Map<string, InputMeta>();
-	const seen = new Set<string>();
+	const indexes = new Map<string, number>();
 
 	const pushField = (
 		label: string | undefined,
@@ -121,12 +119,32 @@ export const collectFillInputFields = (inputTags: InputTagType[]) => {
 		unit?: string,
 		calculation?: FillInputsInputField["calculation"],
 	) => {
-		if (!label || seen.has(label)) {
+		if (!label) {
 			return;
 		}
+		const index = indexes.get(label);
+		const previous = index === undefined ? undefined : fields[index];
+		if (index !== undefined && previous) {
+			const mergedOptions = [...new Set([...(previous.options ?? []), ...(options ?? [])])];
+			const merged = {
+				calculation: calculation ?? previous.calculation,
+				description: previous.description ?? description,
+				label,
+				options: mergedOptions.length ? mergedOptions : undefined,
+				type: calculation ? "number" : previous.type,
+				unit: previous.unit ?? unit,
+			} satisfies FillInputsInputField;
+			fields[index] = merged;
+			meta.set(label, {
+				calculation: merged.calculation,
+				options: merged.options,
+				type: merged.type ?? "string",
+			});
+			return;
+		}
+		indexes.set(label, fields.length);
 		fields.push({ calculation, description, label, options, type, unit });
 		meta.set(label, { calculation, options, type });
-		seen.add(label);
 	};
 
 	const visit = (input: InputTagType) => {
@@ -145,16 +163,18 @@ export const collectFillInputFields = (inputTags: InputTagType[]) => {
 		}
 
 		if (input.name === "Switch") {
-			const options = input.children
-				?.filter((child) => child.name === "Case")
-				.map((child) => toSwitchCaseKey(child.attributes))
-				.filter((key): key is string => Boolean(key));
+			const options = [
+				...new Set(
+					input.children
+						.filter((child) => child.name === "Case")
+						.map((child) => child.attributes.primary)
+						.filter(Boolean),
+				),
+			];
 			const switchType =
-				input.attributes.type === "number"
-					? "number"
-					: input.attributes.type === "boolean" || input.attributes.type === "checkbox"
-						? "boolean"
-						: "switch";
+				input.attributes.type === "boolean" || input.attributes.type === "checkbox"
+					? "boolean"
+					: "switch";
 			pushField(
 				input.attributes.primary,
 				input.attributes.description,
@@ -198,104 +218,6 @@ export const collectFillInputFields = (inputTags: InputTagType[]) => {
 	return { fields, meta };
 };
 
-const collectCalcKeys = (inputTags: InputTagType[]): Set<string> => {
-	const keys = new Set<string>();
-	const visit = (input: InputTagType) => {
-		if (input.name === "Calc" && input.attributes.primary) {
-			keys.add(input.attributes.primary);
-		}
-		for (const child of input.children ?? []) {
-			visit(child);
-		}
-	};
-	for (const inputTag of inputTags) {
-		visit(inputTag);
-	}
-	return keys;
-};
-
-export const calculateCalcValue = (
-	input: CalcInputTagType,
-	values: Record<string, unknown>,
-): number => {
-	try {
-		const formula = new Formula(input.attributes.formula ?? "");
-		const formulaValues = Object.fromEntries(
-			Object.entries(values).map(([key, value]) => [key, toFormulaValue(value)]),
-		);
-		for (const component of input.children) {
-			if (!Object.hasOwn(formulaValues, component.attributes.primary)) {
-				formulaValues[component.attributes.primary] = 0;
-			}
-			if (
-				component.name !== "Switch" ||
-				component.attributes.type === "boolean" ||
-				component.attributes.type === "checkbox"
-			) {
-				continue;
-			}
-			const selectedCase = component.children.find(
-				(child) =>
-					child.name === "Case" &&
-					child.attributes.primary === values[component.attributes.primary],
-			);
-			if (selectedCase?.name === "Case" && selectedCase.attributes.value !== undefined) {
-				formulaValues[component.attributes.primary] = selectedCase.attributes.value;
-			}
-		}
-		const result = formula.evaluate(formulaValues as Record<string, number>);
-		if (typeof result !== "number" || input.attributes.round === false) {
-			return typeof result === "number" ? result : 0;
-		}
-		return Number(result.toFixed(input.attributes.round ?? 2));
-	} catch {
-		return 0;
-	}
-};
-
-export const resolveCalculatedValues = (
-	inputTags: InputTagType[],
-	values: Record<string, unknown>,
-): Record<string, unknown> => {
-	const resolvedValues = { ...values };
-	const calculations = new Map<string, CalcInputTagType>();
-	const collect = (input: InputTagType) => {
-		if (input.name === "Calc" && input.attributes.primary) {
-			calculations.set(input.attributes.primary, input);
-		}
-		for (const child of input.children ?? []) {
-			collect(child);
-		}
-	};
-	for (const inputTag of inputTags) {
-		collect(inputTag);
-	}
-	const visiting = new Set<string>();
-	const resolve = (key: string) => {
-		if (Object.hasOwn(resolvedValues, key) || visiting.has(key)) {
-			return;
-		}
-		const input = calculations.get(key);
-		if (!input) {
-			return;
-		}
-		visiting.add(key);
-		try {
-			for (const dependency of getFormulaVariables(input.attributes.formula ?? "")) {
-				resolve(dependency);
-			}
-		} catch {
-			// Invalid stored formulas retain calculateCalcValue's tolerant fallback.
-		}
-		resolvedValues[key] = calculateCalcValue(input, resolvedValues);
-		visiting.delete(key);
-	};
-	for (const key of calculations.keys()) {
-		resolve(key);
-	}
-	return resolvedValues;
-};
-
 const normalizeFillInputsValue = (
 	value: boolean | number | string,
 	meta?: InputMeta,
@@ -326,27 +248,6 @@ const normalizeFillInputsValue = (
 	}
 
 	return String(value);
-};
-
-const toSwitchCaseKey = (value: unknown): string | undefined => {
-	if (value && typeof value === "object") {
-		const attributes = value as { primary?: string };
-		const condition = toCaseCondition(attributes);
-		return attributes.primary || (condition ? serializeCaseCondition(condition) : undefined);
-	}
-	if (typeof value === "string") {
-		return value;
-	}
-
-	if (typeof value === "boolean") {
-		return String(value);
-	}
-
-	if (typeof value === "number" && (value === 0 || value === 1)) {
-		return String(Boolean(value));
-	}
-
-	return undefined;
 };
 
 const isEmptyValue = (value: unknown) => value === "" || value === undefined || value === null;
@@ -469,15 +370,22 @@ const SourceIndicator = ({ source }: { source: InputSource | undefined }) => {
 
 interface RenderContext {
 	activeInputName?: string | null;
-	calcKeys: Set<string>;
+	/** Every named calculation; any other mention of one mirrors and links to it. */
+	calculations: Map<string, CalcInputTagType>;
+	/** Per variable, the mention that focusing it from the document scrolls to. */
+	scrollRanks: Map<InputTagType, number>;
 	changeHandlers: Record<string, (value: unknown) => void>;
-	applySuggestionHandlers: Record<string, () => void>;
-	fieldRefs: React.MutableRefObject<Map<string, HTMLDivElement>>;
+	/**
+	 * Drops a field's manual value, revealing its AI suggestion. For a calculation
+	 * without a manual value, drops the AI suggestion, revealing the calculation.
+	 */
+	clearHandlers: Record<string, () => void>;
+	/** Every shown mention per variable, with its scroll-target rank. */
+	fieldRefs: React.MutableRefObject<FieldRefs>;
 	fieldSources: Record<string, InputSource>;
 	isFocusSelectionSuppressed: React.MutableRefObject<boolean>;
 	onInputBlur?: (inputName: string) => void;
 	onInputSelect?: (inputName: string) => void;
-	resetCalcHandlers: Record<string, () => void>;
 	suggestedValues: Record<string, SuggestedValue>;
 	values: Record<string, unknown>;
 }
@@ -536,73 +444,50 @@ const getSelectableFieldHandlers = (
 	};
 };
 
-const CalcInputField = ({
-	input,
+/**
+ * The value control of a calculation: its result, editable as a manual
+ * override, with the override state, formula tooltip, and reset.
+ */
+const CalcValueField = ({
+	calculation,
 	context,
-	renderChild,
+	trailing,
 }: {
-	input: CalcInputTagType;
+	calculation: CalcInputTagType;
 	context: RenderContext;
-	renderChild: (input: InputTagType) => React.ReactNode | null;
+	/** Extra controls after the value, e.g. a link to the calculation. */
+	trailing?: React.ReactNode;
 }) => {
-	const fieldKey = input.attributes.primary;
+	const fieldKey = calculation.attributes.primary;
 	const controlId = useId();
 	const inputState = context.fieldSources[fieldKey];
 	const inputStateClassName = getInputStateClassName(inputState);
 	const isOverridden = inputState !== undefined;
-	const isActiveInput = context.activeInputName === fieldKey;
 	const [isEditing, setIsEditing] = useState(false);
 	const [calcDraft, setCalcDraft] = useState("");
+	const dirty = useRef(false);
 	const handleCalcChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+		dirty.current = true;
 		setCalcDraft(event.target.value);
 	};
 	const handleCalcBlur = (event: React.FocusEvent<HTMLInputElement>) => {
 		const nextDraft = event.currentTarget.value;
 		setIsEditing(false);
-		if (!nextDraft || !Number.isFinite(Number(nextDraft))) {
-			context.resetCalcHandlers[fieldKey]?.();
+		if (!dirty.current) {
 			return;
 		}
-		const nextValue = Number(nextDraft);
-		const calculatedValue = calculateCalcValue(input, context.values);
-		if (nextValue === calculatedValue) {
-			context.resetCalcHandlers[fieldKey]?.();
+		const nextValue = toNumericValue(nextDraft);
+		if (nextValue === null) {
+			context.clearHandlers[fieldKey]?.();
 			return;
 		}
+		// Explicit edits remain manual even when they equal the current calculation.
+		// Only clearing/resetting removes the manual layer.
 		context.changeHandlers[fieldKey]?.(nextValue);
 	};
-	const handleFieldRef = (node: HTMLDivElement | null) => {
-		if (node) {
-			context.fieldRefs.current.set(fieldKey, node);
-			return;
-		}
-		context.fieldRefs.current.delete(fieldKey);
-	};
-	const children = [...input.children];
-	try {
-		for (const primary of getFormulaVariables(input.attributes.formula ?? "")) {
-			if (
-				context.calcKeys.has(primary) &&
-				!children.some((child) => child.attributes.primary === primary)
-			) {
-				children.push({ attributes: { primary, type: "number" }, children: [], name: "Info" });
-			}
-		}
-	} catch {
-		// Invalid stored formulas have no additional dependency links.
-	}
 
 	return (
-		<div
-			className={getInputWrapperClassName(isActiveInput, Boolean(context.onInputSelect))}
-			ref={handleFieldRef}
-			{...getSelectableFieldHandlers(fieldKey, context)}
-		>
-			{inputState && (
-				<div className="absolute -top-1 right-0 z-10">
-					<SourceIndicator source={inputState} />
-				</div>
-			)}
+		<>
 			<div className="mb-1 flex items-center gap-1.5">
 				<Label className="font-medium text-foreground text-sm" htmlFor={controlId}>
 					{fieldKey}
@@ -613,18 +498,26 @@ const CalcInputField = ({
 							render={
 								<Badge
 									className={cn(
-										isOverridden
-											? "border-solarized-green/40 text-solarized-green"
-											: "border-transparent bg-muted text-muted-foreground",
+										inputState === "ai"
+											? "border-solarized-orange/40 text-solarized-orange"
+											: inputState === "manual"
+												? "border-solarized-green/40 text-solarized-green"
+												: "border-transparent bg-muted text-muted-foreground",
 									)}
 									variant={isOverridden ? "outline" : "secondary"}
 								>
-									{isOverridden ? (
+									{inputState === "manual" ? (
 										<Pencil aria-hidden="true" size={11} />
+									) : inputState === "ai" ? (
+										<Bot aria-hidden="true" size={11} />
 									) : (
 										<Sigma aria-hidden="true" size={11} />
 									)}
-									{isOverridden ? "Überschrieben" : "Berechnet"}
+									{inputState === "manual"
+										? "Überschrieben"
+										: inputState === "ai"
+											? "KI-Vorschlag"
+											: "Berechnet"}
 								</Badge>
 							}
 						/>
@@ -632,7 +525,7 @@ const CalcInputField = ({
 							<div className="space-y-1">
 								<p className="font-medium text-[13px]">Formel</p>
 								<p className="text-wrap font-mono text-muted-foreground text-xs">
-									{input.attributes.formula || "Keine Formel"}
+									{calculation.attributes.formula || "Keine Formel"}
 								</p>
 							</div>
 						</TooltipContent>
@@ -650,24 +543,32 @@ const CalcInputField = ({
 					onBlur={handleCalcBlur}
 					onChange={handleCalcChange}
 					onFocus={(event) => {
+						dirty.current = false;
 						setCalcDraft(event.currentTarget.value);
 						setIsEditing(true);
 					}}
+					placeholder={CALC_PLACEHOLDER}
 					step="any"
 					type="number"
-					value={isEditing ? calcDraft : (context.values[fieldKey] as number)}
+					value={isEditing ? calcDraft : ((context.values[fieldKey] as number | undefined) ?? "")}
 				/>
-				{input.attributes.unit ? (
-					<span className="shrink-0 text-muted-foreground text-sm">{input.attributes.unit}</span>
+				{calculation.attributes.unit ? (
+					<span className="shrink-0 text-muted-foreground text-sm">
+						{calculation.attributes.unit}
+					</span>
 				) : null}
-				{isOverridden ? (
+				{inputState ? (
 					<TooltipProvider delay={200}>
 						<Tooltip>
 							<TooltipTrigger
 								render={
 									<Button
-										aria-label="Berechneten Score wiederherstellen"
-										onClick={context.resetCalcHandlers[fieldKey]}
+										aria-label={
+											inputState === "manual"
+												? "Manuelle Überschreibung entfernen"
+												: "KI-Vorschlag verwerfen"
+										}
+										onClick={context.clearHandlers[fieldKey]}
 										size="icon"
 										type="button"
 										variant="outline"
@@ -677,86 +578,212 @@ const CalcInputField = ({
 								}
 							/>
 							<TooltipContent side="top" className="text-xs">
-								Wieder aus der Formel berechnen
+								{inputState === "manual"
+									? "Aktuellen KI-Vorschlag oder berechneten Wert verwenden"
+									: "Wieder aus der Formel berechnen"}
 							</TooltipContent>
 						</Tooltip>
 					</TooltipProvider>
 				) : null}
+				{trailing}
 			</div>
+		</>
+	);
+};
+
+const CalcInputField = ({
+	input,
+	context,
+	renderChildren,
+}: {
+	input: CalcInputTagType;
+	context: RenderContext;
+	renderChildren: (inputs: InputTagType[]) => React.ReactNode;
+}) => {
+	const fieldKey = input.attributes.primary;
+	const inputState = context.fieldSources[fieldKey];
+	const { children } = input;
+
+	return (
+		<div
+			className={getInputWrapperClassName(
+				context.activeInputName === fieldKey,
+				Boolean(context.onInputSelect),
+			)}
+			ref={registerFieldRef(context, fieldKey, input)}
+			{...getSelectableFieldHandlers(fieldKey, context)}
+		>
+			{inputState && (
+				<div className="absolute -top-1 right-0 z-10">
+					<SourceIndicator source={inputState} />
+				</div>
+			)}
+			<CalcValueField calculation={input} context={context} />
 			{children.length > 0 && (
 				<div className="ml-4 max-w-full space-y-2 border-muted border-l-2 pr-4 pl-4">
-					{children.map(renderChild)}
+					{renderChildren(children)}
 				</div>
 			)}
 		</div>
 	);
 };
 
+type FieldRefs = Map<string, Map<HTMLElement, number>>;
+
+/**
+ * How well each input suits as the scroll target of its variable (lower is
+ * better): less nested, and outside conditional branches.
+ */
+const collectScrollRanks = (inputTags: InputTagType[]): Map<InputTagType, number> => {
+	const ranks = new Map<InputTagType, number>();
+	const visit = (input: InputTagType, depth: number, guarded: boolean) => {
+		// Inputs reached through a case count as guarded, like branch-guarded ones.
+		const isGuarded = guarded || Boolean(input.visibility);
+		ranks.set(input, (isGuarded ? 1000 : 0) + depth);
+		for (const child of input.children ?? []) {
+			visit(child, depth + 1, isGuarded || input.name === "Case");
+		}
+	};
+	for (const input of inputTags) {
+		visit(input, 0, false);
+	}
+	return ranks;
+};
+
+/**
+ * Registers a rendered mention of a variable as a possible scroll target.
+ * Every shown mention registers, so focusing works whichever case is active.
+ */
+const registerFieldRef =
+	(context: RenderContext, name: string, input: InputTagType, penalty = 0) =>
+	(node: HTMLDivElement | null) => {
+		if (!node) {
+			return;
+		}
+		const mentions = context.fieldRefs.current.get(name) ?? new Map<HTMLElement, number>();
+		context.fieldRefs.current.set(name, mentions);
+		mentions.set(node, (context.scrollRanks.get(input) ?? 5000) + penalty);
+		return () => {
+			mentions.delete(node);
+		};
+	};
+
+/** The best shown mention of a variable to scroll to, other than `except`. */
+const findFieldTarget = (
+	refs: FieldRefs,
+	name: string,
+	except?: Element | null,
+): HTMLElement | undefined => {
+	let best: HTMLElement | undefined;
+	let bestRank = Infinity;
+	for (const [element, rank] of refs.get(name) ?? []) {
+		if (element.isConnected && element !== except && rank < bestRank) {
+			best = element;
+			bestRank = rank;
+		}
+	}
+	return best;
+};
+
+/**
+ * A calc component that is itself calculated elsewhere mirrors that
+ * calculation's value control, so it can be overridden in place, and links
+ * to the calculation instead of offering a second, independent input.
+ */
+const CalcReference = ({
+	calculation,
+	context,
+	mention,
+}: {
+	calculation: CalcInputTagType;
+	context: RenderContext;
+	/** The input tag shown as this reference. */
+	mention: InputTagType;
+}) => {
+	const fieldKey = calculation.attributes.primary;
+	return (
+		// Also a scroll target, so the variable stays reachable when the
+		// calculation itself sits in a hidden case; the real control wins.
+		<div
+			className="my-2"
+			data-calc-reference=""
+			ref={registerFieldRef(context, fieldKey, mention, 500)}
+		>
+			<CalcValueField
+				calculation={calculation}
+				context={context}
+				trailing={
+					<button
+						aria-label={`${fieldKey} – ursprüngliche Berechnung öffnen`}
+						className="inline-flex shrink-0 items-center gap-1 rounded-md px-1 text-muted-foreground text-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+						title="Berechneter Wert – ursprüngliche Berechnung öffnen"
+						type="button"
+						onFocus={(event) => event.stopPropagation()}
+						onClick={(event) => {
+							event.stopPropagation();
+							const target = findFieldTarget(
+								context.fieldRefs.current,
+								fieldKey,
+								event.currentTarget.closest("[data-calc-reference]"),
+							);
+							target?.scrollIntoView({ behavior: "smooth", block: "center" });
+							if (target) {
+								focusFirstInputControl(target);
+							}
+							context.onInputSelect?.(fieldKey);
+						}}
+					>
+						berechnet
+						<ArrowUpRight aria-hidden="true" className="size-4" />
+					</button>
+				}
+			/>
+		</div>
+	);
+};
+
+/** A list may mention one variable more than once, so positions key its entries. */
+const renderInputList = (
+	inputs: InputTagType[],
+	context: RenderContext,
+	parentCalcKey?: string,
+): React.ReactNode =>
+	inputs.map((input, index) => (
+		<Fragment key={`${input.name}:${input.attributes.primary}:${index}`}>
+			{renderInputTag(input, context, parentCalcKey)}
+		</Fragment>
+	));
+
 const renderInputTag = (
 	input: InputTagType,
 	context: RenderContext,
 	parentCalcKey?: string,
 ): React.ReactNode | null => {
-	if (!input.attributes.primary) {
+	if (!input.attributes.primary || !isBranchVisible(input.visibility, context.values)) {
 		return null;
 	}
 
 	const fieldKey = input.attributes.primary;
-	if (parentCalcKey && input.name !== "Calc" && context.calcKeys.has(fieldKey)) {
-		return (
-			<button
-				className="group my-2 block w-full rounded-md text-left text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-				aria-label={`${fieldKey} – ursprüngliche Berechnung öffnen`}
-				key={`calc-reference-${fieldKey}`}
-				type="button"
-				onFocus={(event) => event.stopPropagation()}
-				onClick={(event) => {
-					event.stopPropagation();
-					const target = context.fieldRefs.current.get(fieldKey);
-					target?.scrollIntoView({ behavior: "smooth", block: "center" });
-					if (target) {
-						focusFirstInputControl(target);
-					}
-					context.onInputSelect?.(fieldKey);
-				}}
-				title="Berechneter Wert – ursprüngliche Berechnung öffnen"
-			>
-				<span className="mb-1 block font-medium text-foreground">{fieldKey}</span>
-				<span className="flex items-center gap-1.5">
-					<output className="flex h-9 min-w-0 flex-1 items-center rounded-md border border-input bg-muted px-3 font-medium text-foreground group-hover:border-ring">
-						{Number.isFinite(context.values[fieldKey]) ? String(context.values[fieldKey]) : "—"}
-					</output>
-					<span className="shrink-0 text-muted-foreground">berechnet</span>
-					<ArrowUpRight aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
-				</span>
-			</button>
-		);
+	// Any other mention of a calculated variable mirrors and links to the calculation.
+	const calculation = input.name !== "Calc" && context.calculations.get(fieldKey);
+	if (calculation) {
+		return <CalcReference calculation={calculation} context={context} mention={input} />;
 	}
 	const selectionFieldKey = parentCalcKey ?? fieldKey;
 	const suggestedValue = context.suggestedValues[fieldKey];
 	const inputState = context.fieldSources[fieldKey];
 	const inputStateClassName = getInputStateClassName(inputState);
 	const handleFieldChange = context.changeHandlers[fieldKey];
-	const handleApplySuggestion = context.applySuggestionHandlers[fieldKey];
+	const handleApplySuggestion = context.clearHandlers[fieldKey];
 	const isActiveInput = !parentCalcKey && context.activeInputName === fieldKey;
 	const selectableFieldHandlers = getSelectableFieldHandlers(selectionFieldKey, context);
-	const handleFieldRef = (node: HTMLDivElement | null) => {
-		if (parentCalcKey) {
-			return;
-		}
-		if (node) {
-			context.fieldRefs.current.set(fieldKey, node);
-			return;
-		}
-		context.fieldRefs.current.delete(fieldKey);
-	};
+	const handleFieldRef = registerFieldRef(context, fieldKey, input);
 
 	if (input.name === "Info") {
 		return (
 			<div
 				className={getInputWrapperClassName(isActiveInput, Boolean(context.onInputSelect))}
-				key={`info-${fieldKey}`}
-				ref={parentCalcKey ? undefined : handleFieldRef}
+				ref={handleFieldRef}
 				{...selectableFieldHandlers}
 			>
 				{inputState && (
@@ -779,39 +806,14 @@ const renderInputTag = (
 
 	if (input.name === "Switch") {
 		const currentValue = context.values[fieldKey] as string | number | boolean | undefined;
-		const currentCaseKey = toSwitchCaseKey(currentValue);
-		const orderedCases = input.children
-			?.filter((child) => child.name === "Case")
-			.toSorted(
-				(a, b) =>
-					(a.attributes.index ?? input.children.indexOf(a)) -
-					(b.attributes.index ?? input.children.indexOf(b)),
-			);
-		const matchedNumberCaseIndex =
-			input.attributes.type === "number" && orderedCases
-				? resolveMatchedCaseIndex(
-						toNumericSwitchValue(currentValue),
-						orderedCases.map((child) => toCaseCondition(child.attributes)),
-					)
-				: null;
-		const selectedCaseChildren =
-			input.attributes.type === "number"
-				? matchedNumberCaseIndex === null
-					? []
-					: (orderedCases?.[matchedNumberCaseIndex]?.children ?? [])
-				: currentCaseKey && input.children
-					? input.children
-							.filter(
-								(child) => child.name === "Case" && child.attributes.primary === currentCaseKey,
-							)
-							.flatMap((caseChild) => caseChild.children)
-					: [];
+		const selectedCaseChildren = selectedSwitchCases(input, context.values).flatMap(
+			(branch) => branch.children,
+		);
 
 		return (
 			<div
 				className={getInputWrapperClassName(isActiveInput, Boolean(context.onInputSelect))}
-				key={`switch-${fieldKey}`}
-				ref={parentCalcKey ? undefined : handleFieldRef}
+				ref={handleFieldRef}
 				{...selectableFieldHandlers}
 			>
 				{inputState && (
@@ -831,7 +833,7 @@ const renderInputTag = (
 				{/* Render children of selected case */}
 				{selectedCaseChildren.length > 0 && (
 					<div className="mt-2.5 ml-4 space-y-2.5">
-						{selectedCaseChildren.map((child) => renderInputTag(child, context, parentCalcKey))}
+						{renderInputList(selectedCaseChildren, context, parentCalcKey)}
 					</div>
 				)}
 			</div>
@@ -843,8 +845,7 @@ const renderInputTag = (
 			<CalcInputField
 				context={context}
 				input={input}
-				key={`calc-${fieldKey}`}
-				renderChild={(child) => renderInputTag(child, context, fieldKey)}
+				renderChildren={(children) => renderInputList(children, context, fieldKey)}
 			/>
 		);
 	}
@@ -865,20 +866,56 @@ export default function Inputs({
 	suggestedValues: suggestedValuesProp,
 	onSuggestedValuesChange,
 }: InputsProps) {
-	const [values, setValues] = useState<Record<string, unknown>>({});
-	const [fieldSources, setFieldSources] = useState<Record<string, InputSource>>({});
+	const [userValues, setUserValues] = useState<Record<string, unknown>>({});
 	const [suggestedValues, setSuggestedValues] = useState<Record<string, SuggestedValue>>(
 		suggestedValuesProp ?? {},
 	);
-	const stateRef = useRef({ fieldSources, suggestedValues, values });
-	const fieldRefs = useRef(new Map<string, HTMLDivElement>());
+	const fieldRefs = useRef<FieldRefs>(new Map());
+	const scrollRanks = useMemo(() => collectScrollRanks(inputTags), [inputTags]);
+	const calculations = useMemo(() => {
+		const found = new Map<string, CalcInputTagType>();
+		const visit = (input: InputTagType) => {
+			if (
+				input.name === "Calc" &&
+				input.attributes.primary &&
+				!found.has(input.attributes.primary)
+			) {
+				found.set(input.attributes.primary, input);
+			}
+			for (const child of input.children ?? []) {
+				visit(child);
+			}
+		};
+		for (const input of inputTags) {
+			visit(input);
+		}
+		return found;
+	}, [inputTags]);
 	const isFocusSelectionSuppressed = useRef(false);
 	const lastHandledFocusKeyRef = useRef(activeInputFocusKey);
-	const resolvedValues = useMemo(
-		() => resolveCalculatedValues(inputTags, values),
-		[inputTags, values],
+	const aiValues = useMemo(
+		() =>
+			Object.fromEntries(Object.entries(suggestedValues).map(([key, item]) => [key, item.value])),
+		[suggestedValues],
 	);
-	const calcKeys = useMemo(() => collectCalcKeys(inputTags), [inputTags]);
+	const explicitValues = useMemo(() => ({ ...aiValues, ...userValues }), [aiValues, userValues]);
+	const resolvedValues = useMemo(
+		() => resolveCalculatedValues(inputTags, explicitValues),
+		[inputTags, explicitValues],
+	);
+	const fieldSources = useMemo<Record<string, InputSource>>(() => {
+		const sources = new Map<string, InputSource>(
+			Object.keys(suggestedValues).map((key) => [key, "ai"]),
+		);
+		for (const [key, value] of Object.entries(userValues)) {
+			if (isEmptyValue(value)) {
+				sources.delete(key);
+			} else {
+				sources.set(key, "manual");
+			}
+		}
+		return Object.fromEntries(sources);
+	}, [suggestedValues, userValues]);
 
 	useEffect(() => {
 		onChange(resolvedValues);
@@ -895,7 +932,7 @@ export default function Inputs({
 		if (!activeInputName) {
 			return;
 		}
-		const activeField = fieldRefs.current.get(activeInputName);
+		const activeField = findFieldTarget(fieldRefs.current, activeInputName);
 		if (!activeField) {
 			return;
 		}
@@ -912,115 +949,35 @@ export default function Inputs({
 	}, [activeInputFocusKey, activeInputName]);
 
 	useEffect(() => {
-		stateRef.current = { fieldSources, suggestedValues, values };
-	}, [values, fieldSources, suggestedValues]);
-
-	const applySuggestions = useCallback(
-		(nextSuggestions: Record<string, SuggestedValue>, resetAiFields: string[] = []) => {
-			const { values: currentValues, fieldSources: currentSources } = stateRef.current;
-			let nextValues = { ...currentValues };
-			let nextSources = { ...currentSources };
-
-			for (const field of resetAiFields) {
-				if (nextSources[field] === "ai") {
-					nextValues = withoutRecordKey(nextValues, field);
-					nextSources = withoutRecordKey(nextSources, field);
-				}
-			}
-
-			for (const [field, suggestion] of Object.entries(nextSuggestions)) {
-				if (nextSources[field] === "manual") {
-					continue;
-				}
-				const suggestedValue = suggestion.value;
-				const existingValue = nextValues[field];
-
-				if (isEmptyValue(existingValue) || nextSources[field] === "ai") {
-					nextValues[field] = suggestedValue;
-					nextSources[field] = "ai";
-					continue;
-				}
-				if (existingValue === suggestedValue) {
-					nextSources[field] = "ai";
-					continue;
-				}
-				nextSources[field] = "manual";
-			}
-
-			setValues(nextValues);
-			setFieldSources(nextSources);
-		},
-		[],
-	);
-
-	useEffect(() => {
 		if (!suggestedValuesProp) {
 			return;
 		}
 		setSuggestedValues(suggestedValuesProp);
-		applySuggestions(suggestedValuesProp);
-	}, [suggestedValuesProp, applySuggestions]);
+	}, [suggestedValuesProp]);
 
+	// Dropping a manual value reveals the AI suggestion, or else the calculation.
+	const clearUserValue = useCallback((key: string) => {
+		setUserValues((previous) => withoutRecordKey(previous, key));
+	}, []);
+
+	// Emptying a calculated field resumes calculation; any other field keeps an
+	// explicit empty value instead of reviving its AI suggestion.
 	const handleInputChange = useCallback(
 		(key: string, value: unknown) => {
-			setValues((prevValues) => ({
-				...prevValues,
-				[key]: value,
-			}));
-			setFieldSources((prevSources) => {
-				if (isEmptyValue(value)) {
-					return withoutRecordKey(prevSources, key);
-				}
-				if (calcKeys.has(key)) {
-					return { ...prevSources, [key]: "manual" };
-				}
-				const hasSuggestion = Boolean(suggestedValues[key]);
-				if (hasSuggestion || prevSources[key] === "ai") {
-					return {
-						...prevSources,
-						[key]: "manual",
-					};
-				}
-				return withoutRecordKey(prevSources, key);
-			});
-		},
-		[calcKeys, suggestedValues],
-	);
-
-	const resetCalc = useCallback(
-		(key: string) => {
-			setValues((prevValues) => withoutRecordKey(prevValues, key));
-			setFieldSources((prevSources) => withoutRecordKey(prevSources, key));
-			const nextSuggestions = withoutRecordKey(stateRef.current.suggestedValues, key);
-			setSuggestedValues(nextSuggestions);
-			onSuggestedValuesChange?.(nextSuggestions);
-		},
-		[onSuggestedValuesChange],
-	);
-
-	const handleApplySuggestion = useCallback(
-		(key: string) => {
-			const suggestion = suggestedValues[key];
-			if (!suggestion) {
+			if (isEmptyValue(value) && calculations.has(key)) {
+				clearUserValue(key);
 				return;
 			}
-			setValues((prevValues) => ({
-				...prevValues,
-				[key]: suggestion.value,
-			}));
-			setFieldSources((prevSources) => ({
-				...prevSources,
-				[key]: "ai",
-			}));
+			setUserValues((previous) => ({ ...previous, [key]: value }));
 		},
-		[suggestedValues],
+		[calculations, clearUserValue],
 	);
 
 	const fieldKeys = useMemo(() => {
 		const keys = new Set<string>();
 		const visit = (inputTag: InputTagType) => {
 			const fieldKey = inputTag.attributes.primary;
-			if (fieldKey) {
+			if (fieldKey && inputTag.name !== "Case") {
 				keys.add(fieldKey);
 			}
 			for (const child of inputTag.children ?? []) {
@@ -1045,25 +1002,29 @@ export default function Inputs({
 		return handlers;
 	}, [fieldKeys, handleInputChange]);
 
-	const applySuggestionHandlers = useMemo<Record<string, () => void>>(() => {
+	// Accepting a suggestion and resetting a calc peel off one explicit layer.
+	const clearHandlers = useMemo<Record<string, () => void>>(() => {
 		const handlers: Record<string, () => void> = {};
 		for (const fieldKey of fieldKeys) {
 			handlers[fieldKey] = () => {
-				handleApplySuggestion(fieldKey);
+				if (Object.hasOwn(userValues, fieldKey) || !calculations.has(fieldKey)) {
+					clearUserValue(fieldKey);
+					return;
+				}
+				const nextSuggestions = withoutRecordKey(suggestedValues, fieldKey);
+				setSuggestedValues(nextSuggestions);
+				onSuggestedValuesChange?.(nextSuggestions);
 			};
 		}
 		return handlers;
-	}, [fieldKeys, handleApplySuggestion]);
-
-	const resetCalcHandlers = useMemo<Record<string, () => void>>(() => {
-		const handlers: Record<string, () => void> = {};
-		for (const calcKey of calcKeys) {
-			handlers[calcKey] = () => {
-				resetCalc(calcKey);
-			};
-		}
-		return handlers;
-	}, [calcKeys, resetCalc]);
+	}, [
+		calculations,
+		clearUserValue,
+		fieldKeys,
+		onSuggestedValuesChange,
+		suggestedValues,
+		userValues,
+	]);
 
 	const { fields: fillInputFields, meta: fillInputMeta } = useMemo(
 		() => collectFillInputFields(inputTags),
@@ -1097,19 +1058,10 @@ export default function Inputs({
 					contextFiles,
 				);
 
-				let nextSuggestions = { ...stateRef.current.suggestedValues };
-				const returnedFields = new Set(Object.keys(fieldValues));
-				const omittedCalcFields = fillInputFields
-					.filter((field) => field.calculation && !returnedFields.has(field.label))
-					.map((field) => field.label);
-				for (const calcField of omittedCalcFields) {
-					nextSuggestions = withoutRecordKey(nextSuggestions, calcField);
-				}
-
+				const nextSuggestions: Record<string, SuggestedValue> = {};
 				for (const [field, value] of Object.entries(fieldValues)) {
 					const normalizedValue = normalizeFillInputsValue(value, fillInputMeta.get(field));
 					if (normalizedValue === undefined || isEmptyValue(normalizedValue)) {
-						nextSuggestions = withoutRecordKey(nextSuggestions, field);
 						continue;
 					}
 					nextSuggestions[field] = {
@@ -1119,8 +1071,15 @@ export default function Inputs({
 				}
 
 				setSuggestedValues(nextSuggestions);
-				applySuggestions(nextSuggestions, omittedCalcFields);
 				onSuggestedValuesChange?.(nextSuggestions);
+				// A field the user emptied takes a new suggestion; other manual values stay.
+				setUserValues((previous) =>
+					Object.fromEntries(
+						Object.entries(previous).filter(
+							([field, value]) => !(isEmptyValue(value) && field in nextSuggestions),
+						),
+					),
+				);
 
 				toast.success("Felder ausgefüllt", {
 					id: "fill-inputs",
@@ -1132,7 +1091,7 @@ export default function Inputs({
 				});
 			}
 		},
-		[applySuggestions, fillInputFields, fillInputMeta, onFillInputs, onSuggestedValuesChange],
+		[fillInputFields, fillInputMeta, onFillInputs, onSuggestedValuesChange],
 	);
 
 	if (inputTags.length === 0 || !inputTags) {
@@ -1142,15 +1101,15 @@ export default function Inputs({
 	const shouldShowFillInputs = Boolean(showFillInputs && onFillInputs && renderFillControls);
 	const renderContext: RenderContext = {
 		activeInputName,
-		applySuggestionHandlers,
-		calcKeys,
+		calculations,
 		changeHandlers,
+		clearHandlers,
 		fieldRefs,
 		fieldSources,
 		isFocusSelectionSuppressed,
 		onInputBlur,
 		onInputSelect,
-		resetCalcHandlers,
+		scrollRanks,
 		suggestedValues,
 		values: resolvedValues,
 	};
@@ -1162,7 +1121,7 @@ export default function Inputs({
 				className="flex-1 space-y-3 overflow-x-hidden overflow-y-auto overscroll-none p-3 pr-3"
 				key="inputs-list"
 			>
-				{inputTags.map((inputTag) => renderInputTag(inputTag, renderContext))}
+				{renderInputList(inputTags, renderContext)}
 			</div>
 			{/* Fixed autofill footer */}
 			{shouldShowFillInputs && renderFillControls

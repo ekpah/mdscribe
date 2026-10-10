@@ -1,6 +1,7 @@
 "use client";
 
 import { useResolvedVariable } from "../../render/hooks/use-resolved-variable";
+import { CALC_PLACEHOLDER } from "./helpers/config";
 import { InteractiveTag } from "./helpers/interactive-tag";
 import { roundNumber } from "./helpers/round";
 import type { RoundValue } from "./helpers/round";
@@ -30,7 +31,7 @@ export const Calc = ({ formula, primary, unit, renderUnit, round }: CalcProps) =
 	const tooltipLabel = getFormulaTooltipLabel(normalizedFormula);
 
 	// A stored value (manual override) wins; otherwise the formula result is
-	// used. `evaluateFormula` returns undefined for unevaluable formulas.
+	// used. It stays undefined until every input is filled in.
 	const { value } = useResolvedVariable(tagName, { formula: normalizedFormula });
 	const roundedResult = typeof value === "number" ? roundNumber(value, round, 2) : value;
 
@@ -41,7 +42,7 @@ export const Calc = ({ formula, primary, unit, renderUnit, round }: CalcProps) =
 				className="cursor-help whitespace-nowrap rounded-md bg-solarized-orange px-1 text-white opacity-90"
 				title={tooltipLabel}
 			>
-				{roundedResult ?? "..."}
+				{roundedResult ?? CALC_PLACEHOLDER}
 				{renderUnit && unit && ` ${unit}`}
 			</span>
 		</InteractiveTag>

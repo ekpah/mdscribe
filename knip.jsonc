@@ -10,6 +10,8 @@
 				// These entries only cover Bun test discovery that Knip cannot infer.
 				"__tests__/setup.ts",
 				"__tests__/{lib,orpc}/**/*.test.ts",
+				// Chromium harnesses bundled with `bun build` and run in a browser.
+				"__tests__/**/*.browser.{ts,tsx}",
 			],
 		},
 		"packages/database": {
@@ -24,13 +26,20 @@
 				// subset currently consumed by this monorepo.
 				"{index,citations,config,editor,parse,react,sources}.ts",
 				"**/*.test.{ts,tsx}",
+				// Chromium harnesses bundled with `bun build` and run in a browser.
+				"__tests__/**/*.browser.{ts,tsx}",
 				// The build script invokes these consumer-facing package checks.
 				"__tests__/public-types.tsx",
 				"__tests__/verify-dist.mjs",
 			],
 		},
 		"packages/markdoc-md-editor": {
-			"entry": ["tip-tap.tsx", "tag-inspector/{tag-inspector,tag-inspector-sheet}.tsx"],
+			"entry": [
+				"tip-tap.tsx",
+				"tag-inspector/{tag-inspector,tag-inspector-sheet}.tsx",
+				// Chromium harnesses bundled with `bun build` and run in a browser.
+				"__tests__/**/*.browser.{ts,tsx}",
+			],
 		},
 	},
 }

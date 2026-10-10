@@ -32,6 +32,32 @@ describe("Templates oRPC Handlers", () => {
 		await server?.close();
 	});
 
+	test("create and update enforce complete schema validation", async () => {
+		const { user } = await createTestUser(server.db);
+		const existing = await createTestTemplate(server.db, user.id, { content: "Original" });
+		const context = createTestContext({ db: server.db, session: createMockSession(user) });
+		const invalid = [
+			...["calc", "score"].flatMap((tag) =>
+				["", 'primary=""', 'primary="   "'].map(
+					(primary) => `{% ${tag} ${primary} formula="1" /%}`,
+				),
+			),
+			'{% switch "x" type="number" %}{% case gt=0 %}positive{% /case %}{% /switch %}',
+		];
+		for (const content of invalid) {
+			const input = { category: "Test", content, examples: [], name: "Invalid" };
+			await expect(call(templatesHandler.create, input, { context })).rejects.toThrow(
+				USER_MESSAGES.invalidTemplateTags,
+			);
+			await expect(
+				call(templatesHandler.update, { ...input, id: existing.id }, { context }),
+			).rejects.toThrow(USER_MESSAGES.invalidTemplateTags);
+		}
+		const saved = await server.db.select().from(template).where(eq(template.authorId, user.id));
+		expect(saved).toHaveLength(1);
+		expect(saved[0]?.content).toBe("Original");
+	});
+
 	describe("Public Endpoints", () => {
 		describe("templates.get", () => {
 			test("returns null for non-existent template", async () => {

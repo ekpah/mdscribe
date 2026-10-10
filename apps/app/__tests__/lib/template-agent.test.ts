@@ -23,7 +23,7 @@ describe("template agent sections", () => {
 		};
 		const prompt = buildTemplateAgentSystemPrompt(sections);
 		expect(prompt).toContain(JSON.stringify(sections, null, 2));
-		expect(prompt).toContain("compatible numeric info child");
+		expect(prompt).toContain("A number info, a condition, and a calc may share a name");
 		expect(prompt).toContain("Preserve line breaks");
 	});
 
