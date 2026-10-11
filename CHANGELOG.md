@@ -37,6 +37,7 @@
 - OCR preprocessing requests structured line-level page bounding boxes from the configured file/image model; Scribe receives indexed document JSON containing text and citation geometry. Uploaded files can be opened with the shared app-level PDF preview and toggled to their OCR text after preprocessing.
 - Moved app-specific development seeding and API-key encryption into the app, while keeping schema setup and migrations in the database package.
 - Scribe document OCR now runs through a single `extractOcrDocument` entry point with one adapter per engine (vision LLM, OCR HTTP, Mistral, Privatemode). Automatic orientation detection/correction is removed: manual image alignment before OCR is an explicit product requirement, with boxes in the supplied page frame. Page bounding boxes are logged in per-file OCR usage events (except under ZDR). The unused admin `ocrToMarkdown` endpoint and the document-model "direct/multimodal" mode were removed.
+- Reworked the markdoc-md README into a progressive medical-template tutorial, with a separate packaged language and integration reference.
 - The dashboard usage card now identifies active BYOK connections while continuing to show the MDScribe quota consumed by requests using other models.
 - Renamed the Markdoc `score` tag to `calc`, while retaining `score` as a backward-compatible alias across parsing, rendering, the editor, and documentation.
 - Fill Inputs now receives template guidance and examples and can prefer component values while accepting an explicit calculated result when components are incomplete.

@@ -1,457 +1,259 @@
-# `markdoc-md`
+# markdoc-md
 
-Typed Markdoc schemas, validation, source resolution, and optional React rendering for templates
-that read input values, conditionally render text, calculate values, and cite source material.
+**markdoc-md is a templating language for creating reusable templates for quick medical
+documentation.** Write the structure, inputs, and rules once, then fill the template with
+patient-specific information or let your AI fill it.
 
-## Install
+## What you'll build
+
+A structured diagnosis block for patients with atrial fibrillation:
+
+> **Atrial fibrillation**
+> - **Classification:** Persistent; first diagnosed March 2024
+> - **Symptoms:** Modified EHRA IIa
+> - **CHA₂DS₂-VA:** 3 points
+> - **Anticoagulation:** Apixaban; taken regularly
+> - **Treatment strategy:** Rate control
+
+We'll start with placeholders and build up this template step by step, using fictional
+patient data to show the result.
+
+## Write templates
+
+### 1. Start with Markdown
+
+Write the diagnosis block as you would any Markdown document. Bold text and lists need no
+special syntax beyond Markdown itself. Add placeholders for the parts you want to fill in later.
+
+```markdoc
+**Atrial fibrillation**
+- **Classification:** [classification]; first diagnosed [month] 20XX
+- **Symptoms:** Modified EHRA X
+- **CHA₂DS₂-VA:** X points
+- **Anticoagulation:** [medication]
+- **Treatment strategy:** [strategy]
+```
+
+### 2. Replace placeholder text with inputs
+
+An `info` tag inserts a value. The quoted name, such as `"classification"`, names the input
+you need to provide. Instead of finding and replacing placeholders, you can fill named fields.
+
+**New: `info` replaces each placeholder with an input.**
+
+```markdoc
+**Atrial fibrillation**
+- **Classification:** {% info "classification" /%}; first diagnosed {% info "diagnosed" /%}
+- **Symptoms:** Modified EHRA {% info "ehra" /%}
+- **CHA₂DS₂-VA:** {% info "cha2ds2_va" type="number" unit="points" renderUnit=true /%}
+- **Anticoagulation:** {% info "anticoagulation" /%}
+- **Treatment strategy:** {% info "strategy" /%}
+```
+
+For example, `classification = "Persistent"` and `diagnosed = "March 2024"` reproduce the
+first line of the example. You can also provide a type and unit to make fields easier to fill
+correctly: the score is a `number`, and `renderUnit=true` adds “points” after its value.
+
+### 3. Select from predefined options
+
+When you don't want to type the full text every time, use `switch` to define options to choose
+from. Each `case` contains the text to display for its matching value.
+
+**New: `switch` and `case` replace the treatment-strategy input with two options.**
+
+```markdoc
+**Atrial fibrillation**
+- **Classification:** {% info "classification" /%}; first diagnosed {% info "diagnosed" /%}
+- **Symptoms:** Modified EHRA {% info "ehra" /%}
+- **CHA₂DS₂-VA:** {% info "cha2ds2_va" type="number" unit="points" renderUnit=true /%}
+- **Anticoagulation:** {% info "anticoagulation" /%}
+- **Treatment strategy:** {% switch "strategy" %}{% case "rate" %}Rate control{% /case %}{% case "rhythm" %}Rhythm control{% /case %}{% /switch %}
+```
+Now `strategy = "rate"` renders “Rate control”, while `"rhythm"` renders “Rhythm control”.
+You can use the same pattern for classification or symptom categories.
+
+### 4. Add a checkbox for yes/no information
+
+Some choices only need a yes or no. A switch with `type="checkbox"` lets your application
+offer a checkbox—for example, to record whether anticoagulation is taken regularly.
+
+**New: a checkbox switch adds regular intake to the anticoagulation line.**
+
+```markdoc
+**Atrial fibrillation**
+- **Classification:** {% info "classification" /%}; first diagnosed {% info "diagnosed" /%}
+- **Symptoms:** Modified EHRA {% info "ehra" /%}
+- **CHA₂DS₂-VA:** {% info "cha2ds2_va" type="number" unit="points" renderUnit=true /%}
+- **Anticoagulation:** {% info "anticoagulation" /%}; {% switch "anticoagulation_regular" type="checkbox" %}{% case "true" %}taken regularly{% /case %}{% case "false" %}not taken regularly{% /case %}{% /switch %}
+- **Treatment strategy:** {% switch "strategy" %}{% case "rate" %}Rate control{% /case %}{% case "rhythm" %}Rhythm control{% /case %}{% /switch %}
+```
+
+Set `anticoagulation_regular` to `true` or `false` to select the wording. Supply the value
+explicitly: “unknown” is not the same as “not taken regularly”. `type="boolean"` uses the
+same true/false logic. For numeric ranges, use [conditions](docs/reference.md#numeric-conditions)
+rather than switches.
+
+### 5. Calculate the full score
+
+You don't need to calculate a clinical score by hand if its inputs are already available.
+A `calc` tag does that for you. Its `formula` refers to inputs in square brackets.
+Here we declare the inputs inside the tag to give them types and descriptions; only the
+final result is displayed. You can also reuse inputs declared elsewhere, and undeclared
+formula inputs become number fields automatically.
+
+**New: `calc` replaces the score input with the full CHA₂DS₂-VA calculation.**
+
+```markdoc
+**Atrial fibrillation**
+- **Classification:** {% info "classification" /%}; first diagnosed {% info "diagnosed" /%}
+- **Symptoms:** Modified EHRA {% info "ehra" /%}
+- **CHA₂DS₂-VA:**
+  {% calc primary="cha2ds2_va" formula="[heart_failure] + [hypertension] + ([age] >= 65) + ([age] >= 75) + [diabetes] + 2 * [stroke_tia_thromboembolism] + [vascular_disease]" unit="points" renderUnit=true %}
+  {% info "age" type="number" description="Age in completed years" /%}
+  {% switch "heart_failure" type="boolean" /%}
+  {% switch "hypertension" type="boolean" /%}
+  {% switch "diabetes" type="boolean" /%}
+  {% switch "stroke_tia_thromboembolism" type="boolean" /%}
+  {% switch "vascular_disease" type="boolean" /%}
+  {% /calc %}
+- **Anticoagulation:** {% info "anticoagulation" /%}; {% switch "anticoagulation_regular" type="checkbox" %}{% case "true" %}taken regularly{% /case %}{% case "false" %}not taken regularly{% /case %}{% /switch %}
+- **Treatment strategy:** {% switch "strategy" %}{% case "rate" %}Rate control{% /case %}{% case "rhythm" %}Rhythm control{% /case %}{% /switch %}
+```
+
+The calculation adds the **CHA₂DS₂-VA** components below. Boolean inputs contribute 1 for
+`true` and 0 for `false`; a history of stroke, TIA, or arterial thromboembolism counts twice.
+The age comparisons contribute 0, 1, or 2 points from a single age input.
+
+| Input | Points |
+| --- | --- |
+| Chronic heart failure | 1 if present |
+| Hypertension | 1 if present |
+| Age | 0 under 65; 1 at 65–74; 2 at 75 or older |
+| Diabetes mellitus | 1 if present |
+| Prior stroke, TIA, or arterial thromboembolism | 2 if present |
+| Vascular disease | 1 if present |
+
+**Why no sex category?** This example uses CHA₂DS₂-VA, the score recommended in the
+[2024 ESC atrial fibrillation guidelines](https://academic.oup.com/eurheartj/article/45/36/3314/7738779).
+Unlike CHA₂DS₂-VASc, it does not include a sex-category point. Its maximum is 8 points.
+
+For our fictional 68-year-old patient with hypertension and diabetes, and all other
+components false, the result is 1 + 1 + 1 = **3 points**.
+
+The boolean switches inside `calc` need no cases because they declare inputs rather than
+visible text. Supply all components explicitly: unchecked checkboxes count as false, while
+missing numeric inputs leave the result as `…`. Leave `cha2ds2_va` out of the supplied values
+to use the formula; providing that value overrides the calculation.
+
+### 6. Cite supporting information
+
+Use `cite` to connect text to a source—for example, the MDCalc page explaining the score.
+Wrap the score's label in a citation and set `source` to the page URL.
+
+**New: `cite` connects the CHA₂DS₂-VA label to its MDCalc page.**
+
+```markdoc
+**Atrial fibrillation**
+- **Classification:** {% info "classification" /%}; first diagnosed {% info "diagnosed" /%}
+- **Symptoms:** Modified EHRA {% info "ehra" /%}
+- **{% cite source="https://www.mdcalc.com/calc/10583/cha2ds2-va-score-atrial-fibrillation-stroke-risk" %}CHA₂DS₂-VA{% /cite %}:**
+  {% calc primary="cha2ds2_va" formula="[heart_failure] + [hypertension] + ([age] >= 65) + ([age] >= 75) + [diabetes] + 2 * [stroke_tia_thromboembolism] + [vascular_disease]" unit="points" renderUnit=true %}
+  {% info "age" type="number" description="Age in completed years" /%}
+  {% switch "heart_failure" type="boolean" /%}
+  {% switch "hypertension" type="boolean" /%}
+  {% switch "diabetes" type="boolean" /%}
+  {% switch "stroke_tia_thromboembolism" type="boolean" /%}
+  {% switch "vascular_disease" type="boolean" /%}
+  {% /calc %}
+- **Anticoagulation:** {% info "anticoagulation" /%}; {% switch "anticoagulation_regular" type="checkbox" %}{% case "true" %}taken regularly{% /case %}{% case "false" %}not taken regularly{% /case %}{% /switch %}
+- **Treatment strategy:** {% switch "strategy" %}{% case "rate" %}Rate control{% /case %}{% case "rhythm" %}Rhythm control{% /case %}{% /switch %}
+```
+
+You can also cite local standard operating procedures (SOPs), guidelines, or supporting
+documents. Your application decides how to open or preview a selected source. See the
+[citation reference](docs/reference.md#cite) for file, text, HTTPS, and FHIR sources.
+
+## Developer quick start
+
+Install the package and React for this rendering example:
 
 ```sh
-npm install markdoc-md
+npm install markdoc-md react react-dom
 ```
 
-`@markdoc/markdoc` is installed automatically as a production dependency. The React peer is
-optional; install `react` and `react-dom` when using `markdoc-md/react`. The package is ESM-only,
-supports Node.js 20 or newer, includes TypeScript declarations and source maps, and does not require
-React for parsing, validation, citation resolution, or FHIR source evaluation.
-
-## Public entry points
-
-| Import | Purpose | Runtime |
-| --- | --- | --- |
-| `markdoc-md` | Headless config, validation, input analysis, source and citation helpers | Node or browser |
-| `markdoc-md/config` | Default Markdoc schema | Node or browser |
-| `markdoc-md/parse` | Input analysis, validation, and boolean coercion | Node or browser |
-| `markdoc-md/citations` | Source parsing and injectable citation resolvers | Browser-oriented; HTTPS/FHIR work in Node |
-| `markdoc-md/sources` | FHIRPath-backed input source evaluation | Node or browser |
-| `markdoc-md/react` | React renderer, providers, hooks, and default components | React client/SSR |
-| `markdoc-md/editor` | Tolerant HTML rendering and browser-only HTML-to-Markdoc conversion | Node or browser as documented |
-
-Only these entry points are public. Imports into package-internal directories are intentionally not
-supported.
-
-## Quick start
-
-```ts
-import {
-  analyzeMarkdocTemplate,
-  validateMarkdocTemplate,
-} from "markdoc-md";
-
-const template = `{% info "patient_name" /%}`;
-const diagnostics = validateMarkdocTemplate(template);
-const { inputs } = analyzeMarkdocTemplate(template);
-```
+Import the renderer and pass the complete template from step 6 as a string, along with its values:
 
 ```tsx
 import { DynamicMarkdocRenderer } from "markdoc-md/react";
 
-export function Preview() {
-  return (
-    <DynamicMarkdocRenderer
-      markdocContent={`Hello {% info "patient_name" /%}`}
-      variables={{ patient_name: "Ada" }}
-    />
-  );
+const variables = {
+  classification: "Persistent",
+  diagnosed: "March 2024",
+  ehra: "IIa",
+  age: 68,
+  heart_failure: false,
+  hypertension: true,
+  diabetes: true,
+  stroke_tia_thromboembolism: false,
+  vascular_disease: false,
+  anticoagulation: "Apixaban",
+  anticoagulation_regular: true,
+  strategy: "rate",
+};
+
+export function DiagnosisBlock({ template }: { template: string }) {
+  return <DynamicMarkdocRenderer markdocContent={template} variables={variables} />;
 }
 ```
 
-The default React components emit semantic elements, `data-*` hooks, and utility class names. They
-remain functional without a CSS framework. Applications can replace any component or pass a
-custom wrapper class through `DynamicMarkdocRenderer`.
+This renders the diagnosis block with the supplied values and a calculated score of 3 points.
+In your application, you can let users enter these values in a form or have an AI agent extract
+them from previous documentation. Add `onCitationSelect` to handle source links.
 
-## Tables and merged cells
+### Discover inputs and validate a template
 
-Editor tables save as native Markdoc list tables, not raw HTML or Markdown pipe tables:
-
-```markdoc
-{% table %}
-* Parameter
-* Value
----
-* Summary{% colspan=2 %}
-{% /table %}
-```
-
-Native `colspan` and `rowspan` annotations preserve ordinary merged cells without custom table
-schemas or layout metadata. The editor limits cells to one paragraph with inline formatting,
-line breaks, and dynamic tags. Merging filled cells joins their contents with line breaks.
-It prevents edits that fully cover a following row or merge headers into the body, and does not
-offer custom column widths or header columns. Tables without a header start their body with `---`.
-
-`renderTipTapHTML` restores editable HTML tables from this source. The React renderer's
-`layout="template"` adds portable borders, padding, and header styling, including in rich-text
-copies. Dynamic template tags remain supported inside cells.
-
-## Extending the schema
-
-The package exports a regular Markdoc `Config`. Compose it explicitly when adding schemas, and pass
-the same resulting config to validation and rendering so both boundaries agree:
-
-```tsx
-import { markdocConfig, validateMarkdocTemplate } from "markdoc-md";
-import { renderMarkdocAsReact } from "markdoc-md/react";
-
-const config = {
-  ...markdocConfig,
-  tags: {
-    ...markdocConfig.tags,
-    badge: {
-      attributes: { tone: { type: String } },
-      children: ["text"],
-      render: "Badge",
-    },
-  },
-};
-
-const diagnostics = validateMarkdocTemplate(source, config);
-const output = renderMarkdocAsReact(source, {
-  config,
-  components: { Badge },
-});
-```
-
-For `info`, `switch`, and `case`, the first positional string is the `primary` attribute. These two
-`info` forms are therefore equivalent:
-
-```markdoc
-{% info "patient_name" /%}
-{% info primary="patient_name" /%}
-```
-
-## `cite`
-
-Marks inline content as a citation. Clicking the rendered mark asks the host application to resolve
-the source and show it in the source modal. Hovering highlights one citation; holding Command on
-macOS or Control on other platforms highlights all citations.
-
-```markdoc
-{% cite source="mdscribe://file/FILE_ID" quote="The phrase in the source" %}
-  visible cited text
-{% /cite %}
-```
-
-| Attribute | Required | Meaning |
-| --- | --- | --- |
-| `source` | Yes | URI-like source reference described below. |
-| `quote` | No | Phrase to find and highlight in the resolved source. Matching is case-insensitive and whitespace-normalized for MDScribe input and file sources. |
-
-The body is the visible citation mark and may contain text, emphasis, strong text, and inline code.
-Links, nested citations, other Markdoc tags, and block content are rejected at validation
-boundaries. Tolerant rendering keeps the visible body of malformed stored templates but makes an
-invalid citation inert. `quote` lookup is best-effort. If the phrase is not found, the source still
-opens without a text highlight or document bounding box.
-
-### Citation source forms
-
-| Source | Meaning |
-| --- | --- |
-| `mdscribe://file/<id>` | A file in the current MDScribe file context. Encode the ID as one URI path segment. |
-| `mdscribe://input/<id>` | A text field or immutable text snapshot in the current MDScribe text context. |
-| `https://...` | An external page displayed in a sandboxed, no-referrer modal iframe. |
-| `fhir://<FHIRPath>` | A non-empty FHIRPath expression evaluated against the configured FHIR Bundle, or handled by a custom FHIR resolver. |
-
-`source` is an application-resolved URI: its scheme selects a resolver and does not by itself
-authorize browser navigation. The built-in `mdscribe` scheme is an opaque registry format that a
-host may map to any storage system. Only credential-free HTTPS URLs are accepted as external
-sources; `http://` URLs and HTTPS URLs containing a username or password are rejected. Custom
-schemes are never passed to browser navigation. Bare file IDs and the legacy `file` and `url`
-attributes are not supported; use `source` and construct internal references with
-`createMdscribeSource`.
-
-Examples:
-
-```markdoc
-{% cite source="mdscribe://input/anamnese" quote="Keine bekannten Allergien" %}Allergies{% /cite %}
-
-{% cite source="https://example.org/report#results" %}published report{% /cite %}
-
-{% cite source="fhir://Observation.where(code.coding.code = '718-7').last().value" %}latest value{% /cite %}
-```
-
-### Citation fragments
-
-Everything before `#` is the source identity. The fragment is a source-specific locator. The
-following locator conventions are reserved:
-
-| Fragment | Intended source | Meaning |
-| --- | --- | --- |
-| `#page=<page>&bbox=<x>,<y>,<width>,<height>` | `mdscribe://file/...` | A rectangular document region. Pages are 1-based; bounding-box values use document/page coordinates. |
-| `#char=<start>,<end>` | `mdscribe://input/...` | A half-open character range (`start` inclusive, `end` exclusive) in an immutable text snapshot. |
-| `#path=<path>` | `fhir://...` | A structured subpath interpreted by a custom FHIR resolver. |
-| Any remote-defined fragment, such as `#results` | `https://...` | Passed through to the external page and interpreted by that page. |
-
-Examples:
-
-```text
-mdscribe://file/report-123#page=2&bbox=10,20,300,80
-mdscribe://input/anamnese#char=120,182
-fhir://Patient.where(id='123')#path=name.family
-https://example.org/report#results
-```
-
-There is currently no fragment allowlist: parsable URI fragments are retained even when they do
-not use one of these conventions. Unknown fragments have no built-in MDScribe behavior; an HTTPS
-page or a custom resolver may give them meaning.
-
-Current built-in behavior:
-
-- The parser preserves file and input fragments separately from their IDs.
-- The built-in file and input resolvers currently locate `quote` dynamically and do not yet apply
-  `page`/`bbox` or `char` fragments.
-- The default FHIR resolver evaluates the expression before `#`; a custom FHIR resolver may
-  interpret `#path`.
-- HTTPS fragments are part of the iframe URL and behave according to the remote page.
-
-Use a `quote` when a citation should locate content with the current built-in resolvers. Use a
-fragment when the application has a resolver that understands it, or when storing a stable locator
-for future/persisted resolution. Character offsets only remain valid when the referenced input is
-immutable or revisioned. Citations that must survive source edits should resolve against an
-immutable snapshot, content hash, or revision. The host registry owns source content, labels, MIME
-types, revisions, and access policy while the Markdoc citation stays compact.
-
-Citation sources are limited to 8,192 characters and quotes to 4,000 characters. The built-in
-input resolver accepts up to 2 MiB of source text. Matching is Unicode-normalized,
-case/diacritic-insensitive, whitespace-tolerant, and handles words hyphenated across line breaks.
-
-## `details`
-
-Collapsible section, matching GitHub's collapsed sections. The rendered document uses native
-`<details>`/`<summary>` elements, so the section expands without JavaScript and the document DOM
-matches GitHub's output.
-
-```markdoc
-{% details summary="Laborwerte" open=true %}
-**CRP** 12 mg/l
-
-- Leukozyten 9,8/nl
-{% /details %}
-```
-
-| Attribute | Required | Default | Meaning |
-| --- | --- | --- | --- |
-| `summary` | No | — | Section label. Without it the section renders the label `Details`. |
-| `open` | No | `false` | Expands the section by default. |
-
-Write the tag in block form, with the opening and closing tags on their own lines. The inline form
-(`{% details %}Text{% /details %}`) is reported as `tag-placement-invalid`, because Markdoc would
-otherwise nest the section inside a paragraph.
-
-The summary renders with the body font and line height, so it reads like one more line of text.
-A section written directly below or above a paragraph or another section, without a blank line
-between them, continues those lines without a paragraph gap; a blank line keeps the gap. This lets a
-run of lines mix plain lines and expandable ones:
-
-```markdoc
-01/24 Erstdiagnose
-{% details summary="02/24 Chemotherapie" %}
-Zyklus 1–4
-{% /details %}
-05/24 Gastrektomie
-```
-
-`renderTipTapHTML` shows each such blank line as an empty paragraph next to the section, and
-`htmlToMarkdoc` turns it back into the blank line, so the layout roundtrips through the editor.
-
-The body accepts rich Markdown, nested `details` sections, and nested template tags. Variables inside
-a collapsed section are still discovered as inputs, because input extraction reads the parsed
-document rather than the rendered one. Collapsed content is hidden from the rendered layout, so hosts
-that derive text from rendered HTML — copy actions and printing — must expand sections first.
-
-## `info`
-
-Renders one value from the renderer's `variables` object. The `primary` value is the variable key.
-If the key is absent, the tag renders an empty value.
-
-```markdoc
-{% info "weight" type="number" description="Current body weight" unit="kg" round=1 renderUnit=true /%}
-```
-
-| Attribute | Required | Default | Meaning |
-| --- | --- | --- | --- |
-| `primary` | Yes | — | Variable/input key. It may be written as the first positional string. |
-| `type` | No | `string` | Input contract: `string`, `number`, or `date`. |
-| `description` | No | — | Human-readable input guidance/metadata. |
-| `unit` | No | — | Unit metadata. |
-| `round` | No | — | For numeric inputs, rounds the rendered value to this many decimal places. `false` leaves it unrounded. |
-| `renderUnit` | No | `false` | Appends `unit` to the rendered value when true. |
-| `source` | No | — | Source metadata, for example a `fhir://...` expression used by an upstream value-population flow. The renderer itself does not fetch it. |
-
-## `switch`, `condition`, and `case`
-
-`switch` selects an immediate categorical `case`. `condition` selects numeric cases. A `case` is
-only meaningful inside one of those tags.
-
-```markdoc
-{% switch "smoking" type="boolean" %}
-  {% case "true" %}Current smoker{% /case %}
-  {% case "false" %}Not a current smoker{% /case %}
-{% /switch %}
-```
-
-### `switch` attributes
-
-| Attribute | Required | Default | Meaning |
-| --- | --- | --- | --- |
-| `primary` | Yes | — | Variable/input key. It may be written as the first positional string. |
-| `type` | No | `string` | `string`, `boolean`, or `checkbox`. Numeric and array switches are unsupported. |
-| `source` | No | — | Source metadata used by an upstream value-population flow. The renderer itself does not fetch it. |
-
-For `boolean` and `checkbox`, boolean values, `0`/`1`, and the strings `"false"`/`"true"` or
-`"0"`/`"1"` are normalized to the matching case name. String switches only match string values.
-Only immediate `case` children are rendered; unrelated child tags are discarded by the transform.
-
-### `case` attributes
-
-| Attribute | Required | Meaning |
-| --- | --- | --- |
-| `primary` | Yes | The value that must equal the enclosing switch value. It may be written as the first positional string. |
-
-The body may contain inline text and formatting. Categorical cases may have a finite numeric `value`
-for calculations. Repeated switch occurrences merge these mappings globally by variable and case key,
-but each occurrence renders only its own matching body. Boolean cases default to true → 1 and false → 0
-only when no explicit mapping exists.
-
-### Numeric conditions
-
-`condition` accepts a scalar primary or an array of numeric field names; no `type` is needed. Array
-members are individual inputs, never a combined input name. Every comparison array has equal length;
-finite numbers compare that member and `null` skips it. All active comparisons in one case must
-match (AND). Ordered alternative cases provide OR behavior; only the first matching case renders.
-
-```markdoc
-{% condition ["ivsd", "lvpwd"] description="Wall measurements" unit="mm" %}
-{% case gt=[11,null] %}First measurement exceeds 11.{% /case %}
-{% case gt=[null,14] %}Second measurement exceeds 14.{% /case %}
-{% case default=true %}Neither condition matched.{% /case %}
-{% /condition %}
-```
-
-For asymmetric ranges, `gte=[8,7] lte=[11,14]` requires both 8 ≤ ivsd ≤ 11 and
-7 ≤ lvpwd ≤ 14. A missing constrained value fails; a skipped missing value has no effect.
-Fallback does not establish that measurements are complete or normal. Default must be last and
-have no comparisons. Identical sibling predicates, string bounds and all-null cases are errors;
-overlapping nonidentical predicates are allowed. Scalar conditions use scalar bounds such as
-`gte=18 lt=65`. Conditions never accept case `value`; mappings belong to categorical switches.
-
-Array-condition `description` and `unit` describe that occurrence, not its member field contracts.
-Declare member metadata on individual `info` tags. Group `source` is rejected: put a source on
-each individual field. Reordering members also reorders every comparison.
-
-## `calc`
-
-Evaluates an `fparser` formula against the renderer's variables and displays the result. Boolean
-values and the strings `"true"`/`"false"` become `1`/`0`. Numeric results are rounded to at most two
-decimal places by default. Set `round` to another number of decimal places or to `false` to leave the
-result unrounded. Named calculations publish a dependency-resolved, rounded result globally, even
-when nested in a hidden case. Dependents consume that rounded publication. Formula references need
-not be children: an undeclared reference becomes a numeric input. A calculation stays unset until
-every input is filled in (an unchecked checkbox counts as `false`), and so do calculations that
-depend on it; `calc` and `info` tags then show `CALC_PLACEHOLDER` (`…`, exported from
-`markdoc-md/config`), and conditions on it fall back to their default case. Non-finite results such
-as a division by zero are unset too. Every `info` a formula uses must have `type="number"`; a text
-or date field is reported as `calc-variable-not-numeric`, since its value would otherwise silently
-count as 0. A non-empty value for a named calculation overrides its formula and is rounded the same way; an
-empty value resumes calculation. Switch variables use globally merged case mappings:
-
-```markdoc
-{% calc primary="risk_score" formula="[age] + [age_group] + [smoker]" unit="points" %}
-{% /calc %}
-{% switch "age_group" %}{% case "under-65" value=0 %}Under 65{% /case %}{% /switch %}
-{% switch "age_group" %}{% case "65-plus" value=2 %}65 or older{% /case %}{% /switch %}
-{% switch "smoker" type="checkbox" %}{% case "true" value=1 %}Yes{% /case %}{% case "false" value=0 %}No{% /case %}{% /switch %}
-```
-
-| Attribute | Required | Default | Meaning |
-| --- | --- | --- | --- |
-| `formula` | Yes | — | Formula evaluated by `fparser`; bracketed names refer to variables. |
-| `primary` | Yes | — | Non-empty stable name for the calculated value. Calculations without child declarations are supported. |
-| `unit` | No | — | Display unit. |
-| `round` | No | `2` | Number of decimal places, from `0` to `100`; `false` disables rounding. |
-| `renderUnit` | No | `false` | Appends `unit` to the result when true. |
-
-## Shared input contracts
-
-Repeated `info`, `switch`, or named `calc` tags with the same `primary` refer to one logical value.
-Repeated occurrences may omit metadata, but their non-empty contract attributes must not conflict:
-
-- `info`: `type`, `unit`, `description`, and `source`
-- `switch`: `type`, `source`, and numeric `value` for cases with the same key
-- scalar `condition`: `unit`, `description`, and `source`
-- named `calc`: `formula` and `round` (omitted means 2)
-
-Numeric `info`, `condition`, and `calc` mentions can share a primary; a categorical `switch` cannot
-share its primary with a numeric variable. Info `round` and `renderUnit` are presentation-only and
-may differ; conflicting named calc round policies are errors.
-
-Named calculations are global rather than branch-owned: hiding a branch does not stop its calculation.
-A manual or AI value remains an override; resetting it resumes dependency updates. Multiple compatible
-calc mentions share one result.
-
-## Rendering and validation
-
-Validate templates at editor and mutation boundaries with `validateMarkdocTemplate`. It combines
-Markdoc syntax/schema diagnostics, citation-source validation, and the shared input-contract checks
-used by `validateMarkdocTagContracts`:
+Use `analyzeMarkdocTemplate` to find the inputs needed for a form. It also returns validation
+diagnostics, so you can check the template before saving it.
 
 ```ts
-const diagnostics = validateMarkdocTemplate(template);
+import { analyzeMarkdocTemplate } from "markdoc-md";
+import type { InputTagType } from "markdoc-md";
+
+const { inputs, diagnostics } = analyzeMarkdocTemplate(template);
+const fields: InputTagType[] = inputs;
 const blocksSave = diagnostics.some((item) => item.severity === "error");
 ```
 
-Rendering intentionally remains tolerant for older stored templates. Invalid citations render as
-annotated, non-interactive text instead of throwing or invoking a resolver. Invalid or missing
-attributes on `info`, `switch`, `case`, and `calc` also render inertly or with the calculation `...`
-fallback. Malformed calc formulas are reported as `calc-formula-invalid` schema diagnostics.
+Each `InputTagType` has a `name`, `attributes`, and `children`. For example, the
+`classification` field is returned as:
 
-`score` remains accepted as a legacy alias for `calc`. Rendering and editor serialization normalize
-legacy `{% score %}` tags to canonical `{% calc %}` syntax.
-`analyzeMarkdocTemplate` returns the same complete diagnostics alongside discovered inputs.
-
-The package root and `markdoc-md/citations` export `parseCitationSource`, `createMdscribeSource`,
-`resolveCitation`, resolver types, limits, and quote-search helpers. `resolveCitation` always
-returns a resolution result, normalizes custom-resolver failures, and accepts an optional
-`AbortSignal` through its context. Context capabilities are optional: an HTTPS citation can be
-resolved with `{}`, while text, file, and FHIR sources only require their corresponding context.
-
-Document quote lookup can use the default HTTP endpoint or a host-provided resolver:
-
-```ts
-const result = await resolveCitation(citation, {
-  files,
-  createFileUrl: (file) => URL.createObjectURL(file),
-  documentResolver: async (file, quote, signal) => {
-    // Return a validated CitationDocumentLocation or null.
-    return locateQuoteInYourDocumentService(file, quote, signal);
+```json
+{
+  "name": "Info",
+  "attributes": {
+    "primary": "classification",
+    "type": "string",
+    "renderUnit": false
   },
-});
+  "children": []
+}
 ```
 
-File persistence, authentication, extraction, caching, request limits, and object-URL revocation
-remain host-application responsibilities. External HTTPS previews use a sandboxed, no-referrer
-iframe; sites that deny embedding through CSP or `X-Frame-Options` may not display in the modal.
+`name` identifies an `Info`, `Switch`, `Case`, or `Calc` input. Switches contain their cases;
+calculations contain their component inputs. Numeric conditions contribute individual numeric
+fields with branch-visibility metadata. Use `attributes.primary` as the variable name and
+`attributes.type` to choose the appropriate input control.
 
-Errors have a stable `code` discriminator suitable for localization; the bundled English message
-is a safe fallback. Host resolver exceptions are not exposed verbatim.
+Validation checks template syntax and shared input contracts, not clinical accuracy or
+patient-data completeness. Parsing and validation do not require React.
 
-`DynamicMarkdocRenderer` is exported from `markdoc-md/react` and receives the template and its
-current variables:
+## Reference
 
-```tsx
-<DynamicMarkdocRenderer
-  markdocContent={template}
-  variables={{ age: 42, smoker: true }}
-  onCitationSelect={(citation) => openCitation(citation)}
-  onTagSelect={(primary) => focusInput(primary)}
-/>
-```
-
-`onCitationSelect` receives `{ source: string, quote?: string }`. Citation source resolution and the
-modal are host-application responsibilities; the renderer only emits the selection event. The
-library does not bundle a source picker or preview modal. A host can offer inputs for every built-in
-source form—file registry entry, text snapshot, HTTPS URL, or FHIRPath—and serialize the selection
-with `createMdscribeSource` or the documented URI syntax.
-
-`renderMarkdocAsReact` is the lower-level SSR-safe renderer. It accepts custom `config` and
-`components` maps. `renderTipTapHTML` from `markdoc-md/editor` produces HTML without requiring a DOM.
-`htmlToMarkdoc` performs the reverse conversion and deliberately throws outside an environment with
-`DOMParser`; use `isHtmlToMarkdocSupported()` before offering that editor action.
+- **Language:** [inputs](docs/reference.md#info), [switches and conditions](docs/reference.md#switch-condition-and-case),
+  [calculations](docs/reference.md#calc), and [shared variable contracts](docs/reference.md#shared-input-contracts).
+- **Structure:** [tables and merged cells](docs/reference.md#tables-and-merged-cells) and
+  [collapsible sections](docs/reference.md#details).
+- **Sources:** [citations and source formats](docs/reference.md#cite), including FHIR and locator behavior.
+- **Developers:** [public entry points](docs/reference.md#public-entry-points),
+  [schema extensions](docs/reference.md#extending-the-schema), and
+  [rendering, validation, and editor integration](docs/reference.md#rendering-and-validation).

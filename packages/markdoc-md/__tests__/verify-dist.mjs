@@ -30,7 +30,7 @@ assert.equal(
 );
 assert.deepEqual(
 	packageJson.files,
-	["dist", "README.md", "LICENSE"],
+	["dist", "docs", "README.md", "LICENSE"],
 	"the package file allowlist changed unexpectedly",
 );
 
