@@ -23,6 +23,7 @@
 
 ### Changed
 
+- Update Markdoc to 0.5.10 and FHIRPath to 5.2.1, with React 19.3 and refreshed development types. Explicitly type the custom-schema integration fixture for Markdoc's stricter schema declarations.
 - `switch` is categorical only. `type="number"`, array primaries, and comparison cases are rejected (`number-switch-unsupported`, `array-switch-unsupported`, `comparison-in-switch`); repeated options merge globally, conflicting numeric values fail validation, and defaults cannot carry values. Boolean cases count as 1/0 unless mapped individually. Removed the number-switch helpers `toCaseCondition`, `hasCaseCondition`, `resolveMatchedCaseIndex`, and `serializeCaseCondition`.
 - `useResolvedVariable` no longer evaluates a variable's contract formula; `DynamicMarkdocRenderer` publishes every named calculation instead, and only a tag carrying its own `formula` (calc) evaluates it.
 - Formula constants such as `PI` and `E` are not reported as variables by `getFormulaVariables`, so they never become inputs.

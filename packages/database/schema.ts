@@ -182,8 +182,12 @@ export const templateCollection = pgTable("TemplateCollection", {
 });
 
 export const subscription = pgTable("Subscription", {
+	billingInterval: text("billingInterval", { enum: ["day", "week", "month", "year"] }),
+	cancelAt: timestamp("cancelAt", { mode: "date", precision: 3 }),
 	cancelAtPeriodEnd: boolean("cancelAtPeriodEnd"),
+	canceledAt: timestamp("canceledAt", { mode: "date", precision: 3 }),
 	createdAt: timestamp("createdAt", { mode: "date", precision: 3 }).notNull().defaultNow(),
+	endedAt: timestamp("endedAt", { mode: "date", precision: 3 }),
 	id: text("id")
 		.primaryKey()
 		.$defaultFn(() => crypto.randomUUID()),
@@ -196,6 +200,7 @@ export const subscription = pgTable("Subscription", {
 	seats: integer("seats"),
 	status: text("status").notNull(),
 	stripeCustomerId: text("stripeCustomerId"),
+	stripeScheduleId: text("stripeScheduleId"),
 	stripeSubscriptionId: text("stripeSubscriptionId"),
 	trialEnd: timestamp("trialEnd", { mode: "date", precision: 3 }),
 	trialStart: timestamp("trialStart", { mode: "date", precision: 3 }),

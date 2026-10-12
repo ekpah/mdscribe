@@ -26,6 +26,8 @@
 
 ### Changed
 
+- Refresh workspace and PaddleOCR dependencies, including Next.js 16.4, React 19.3, Tiptap 3.31, Nodemailer 10, Marked 18, and Diff 9. Keep AI SDK 6, TanStack Table 8, React-PDF 10, Stripe 22, Nano ID 5, and Lucide 0.x for existing API, peer, runtime, and icon compatibility. Align Node types with Node 24 and deduplicate Ajv and ProseMirror through overrides.
+- Refresh transitive dependencies while explicitly preserving Bun's hoisted workspace resolution. Deduplicate React for Mint's CLI, remove the incompatible blanket js-yaml 4 override, and add nullable Stripe subscription lifecycle and schedule columns required by Better Auth, with an additive migration and existing null-to-undefined normalization.
 - Orb review portals now build with Bun/Turbopack and serve production snapshots with Bun instead of running a persistent dev server. Bun is pinned to 1.3.14 in orb setup, package-manager metadata, and CI to match the Docker runtime; Webpack dev mode remains available on demand for agent iteration.
 - Stripe subscriptions are now optional. Instances without a Stripe secret key run on the free usage limit and no longer show pricing, upgrade, or billing controls.
 - Switches are now selections or checkboxes only: number switches and switches over several fields are rejected in favor of `condition`, and every calc needs a name. Template saves validate the complete template.

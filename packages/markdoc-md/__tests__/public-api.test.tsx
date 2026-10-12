@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
+import type { Config } from "@markdoc/markdoc";
 import React from "react";
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -15,7 +16,7 @@ import { DynamicMarkdocRenderer, renderMarkdocAsReact } from "../react";
 
 describe("public integration APIs", () => {
 	test("extends the schema and React component map without replacing defaults", () => {
-		const config = {
+		const config: Config = {
 			...markdocConfig,
 			tags: {
 				...markdocConfig.tags,

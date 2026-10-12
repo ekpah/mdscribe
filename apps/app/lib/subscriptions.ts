@@ -31,12 +31,17 @@ export const getActiveSubscription = async (input: {
 	return activeSubscription
 		? {
 				...activeSubscription,
+				billingInterval: activeSubscription.billingInterval ?? undefined,
+				cancelAt: activeSubscription.cancelAt ?? undefined,
 				cancelAtPeriodEnd: activeSubscription.cancelAtPeriodEnd ?? undefined,
+				canceledAt: activeSubscription.canceledAt ?? undefined,
+				endedAt: activeSubscription.endedAt ?? undefined,
 				periodEnd: activeSubscription.periodEnd ?? undefined,
 				periodStart: activeSubscription.periodStart ?? undefined,
 				seats: activeSubscription.seats ?? undefined,
 				status: activeSubscription.status as Subscription["status"],
 				stripeCustomerId: activeSubscription.stripeCustomerId ?? undefined,
+				stripeScheduleId: activeSubscription.stripeScheduleId ?? undefined,
 				stripeSubscriptionId: activeSubscription.stripeSubscriptionId ?? undefined,
 				trialEnd: activeSubscription.trialEnd ?? undefined,
 				trialStart: activeSubscription.trialStart ?? undefined,

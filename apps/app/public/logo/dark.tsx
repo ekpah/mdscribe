@@ -9,8 +9,10 @@ export default function DarkLogo() {
 		>
 			<defs>
 				<linearGradient id="a" x1="0%" x2="100%" y1="0%" y2="100%">
-					<stop offset="0%" stopColor="#93a1a1" /> {/* solarized-base1 - lighter blue */}
-					<stop offset="100%" stopColor="#839496" /> {/* solarized-base0 - lighter cyan */}
+					{/* solarized-base1 - lighter blue */}
+					<stop offset="0%" stopColor="#93a1a1" />
+					{/* solarized-base0 - lighter cyan */}
+					<stop offset="100%" stopColor="#839496" />
 				</linearGradient>
 			</defs>
 			<path

@@ -69,7 +69,7 @@ uv python install 3.12
 uv venv --python 3.12 --allow-existing "${PADDLEOCR_VENV}"
 uv pip install --python "${PADDLEOCR_VENV}/bin/python" \
 	--index-url https://www.paddlepaddle.org.cn/packages/stable/cpu/ \
-	paddlepaddle==3.3.0
+	paddlepaddle==3.3.1
 uv pip install --python "${PADDLEOCR_VENV}/bin/python" \
 	--requirement services/paddleocr/requirements.txt
 

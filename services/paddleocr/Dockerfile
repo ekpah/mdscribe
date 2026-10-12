@@ -19,7 +19,7 @@ COPY requirements.txt ./
 
 RUN python -m pip install --no-cache-dir \
         --index-url https://www.paddlepaddle.org.cn/packages/stable/cpu/ \
-        paddlepaddle==3.3.0 \
+        paddlepaddle==3.3.1 \
     && python -m pip install --no-cache-dir --requirement requirements.txt
 
 RUN groupadd --system paddleocr \

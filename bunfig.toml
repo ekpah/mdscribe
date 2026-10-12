@@ -3,6 +3,8 @@ root = "./apps/app"
 preload = ["./apps/app/__tests__/preload.ts"]
 
 [install]
+# Preserve the workspace's existing hoisted resolution when regenerating the lockfile.
+linker = "hoisted"
 # Only install package versions published at least 3 days ago
 minimumReleaseAge = 259200 # seconds
 minimumReleaseAgeExcludes = ["@shadcn/react"]
