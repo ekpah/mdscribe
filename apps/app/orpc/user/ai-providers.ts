@@ -17,7 +17,7 @@ const PROVIDER_PROTOCOLS = new Set<ProviderProtocol>([
 	"tinfoil",
 ]);
 
-const USER_MODEL_ROLES = ["text", "agent", "audio", "documents"] as const;
+const USER_MODEL_ROLES = ["text", "agent", "audio", "documents", "decisions"] as const;
 type UserModelRole = (typeof USER_MODEL_ROLES)[number];
 
 interface ModelRoleAssignment {
@@ -77,6 +77,7 @@ const getUserModelRoleAssignments = (
 		doesAgentSupportDocuments ? agentModelRecordId : defaults.defaultFileImageModelId,
 		"documents",
 	);
+	addAssignment(defaults.defaultDecisionModelId, "decisions");
 
 	return assignments;
 };

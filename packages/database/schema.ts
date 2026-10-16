@@ -438,6 +438,8 @@ export const aiModel = pgTable(
 			.notNull()
 			.references(() => aiProvider.id, { onDelete: "cascade" }),
 		supportedParameters: text("supportedParameters").array().notNull().default([]),
+		/** Answers OpenRouter Decisions requests (choice/box/noul) instead of chat. */
+		supportsDecisions: boolean("supportsDecisions").notNull().default(false),
 		supportsReasoning: boolean("supportsReasoning").notNull().default(false),
 	},
 	(table) => [uniqueIndex("AiModel_providerId_modelId_key").on(table.providerId, table.modelId)],
@@ -451,6 +453,10 @@ export const aiDefaults = pgTable("AiDefaults", {
 	defaultAgentSupportsAudio: boolean("defaultAgentSupportsAudio").notNull().default(false),
 	defaultAgentSupportsDocuments: boolean("defaultAgentSupportsDocuments").notNull().default(false),
 	defaultAgentTemperature: real("defaultAgentTemperature"),
+	/** Optional decision model for number, date and option autofill and citation location. */
+	defaultDecisionModelId: text("defaultDecisionModelId").references(() => aiModel.id, {
+		onDelete: "set null",
+	}),
 	defaultFileImageMode: text("defaultFileImageMode").notNull().default("multimodal"),
 	defaultFileImageModelId: text("defaultFileImageModelId").references(() => aiModel.id, {
 		onDelete: "set null",

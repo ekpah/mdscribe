@@ -68,6 +68,8 @@ interface FetchedProviderModel {
 	modelId: string;
 	displayName: string;
 	supportedParameters: string[];
+	/** Only OpenRouter reports Decisions API models (`output_modalities: ["decisions"]`). */
+	supportsDecisions?: boolean;
 	supportsReasoning: boolean;
 }
 
@@ -358,6 +360,7 @@ export const fetchProviderModels = async (
 				name?: string;
 				display_name?: string;
 				supported_parameters?: string[];
+				architecture?: { output_modalities?: string[] };
 			}[];
 		};
 
@@ -367,6 +370,7 @@ export const fetchProviderModels = async (
 				displayName: model.display_name ?? model.name ?? model.id,
 				modelId: model.id,
 				supportedParameters,
+				supportsDecisions: model.architecture?.output_modalities?.includes("decisions") ?? false,
 				supportsReasoning: parseOpenRouterReasoningSupport(supportedParameters),
 			};
 		});
@@ -495,6 +499,7 @@ const syncFetchedModelsForProvider = async (
 				modelId: model.modelId,
 				providerId,
 				supportedParameters: model.supportedParameters,
+				supportsDecisions: model.supportsDecisions ?? false,
 				supportsReasoning: model.supportsReasoning,
 			});
 			inserted += 1;
@@ -509,8 +514,14 @@ const syncFetchedModelsForProvider = async (
 			JSON.stringify(existingSupportedParameters) ===
 			JSON.stringify([...model.supportedParameters].toSorted());
 		const sameSupportsReasoning = existingSupportsReasoning === model.supportsReasoning;
+		const sameSupportsDecisions = existing.supportsDecisions === (model.supportsDecisions ?? false);
 
-		if (sameDisplayName && sameSupportedParameters && sameSupportsReasoning) {
+		if (
+			sameDisplayName &&
+			sameSupportedParameters &&
+			sameSupportsReasoning &&
+			sameSupportsDecisions
+		) {
 			continue;
 		}
 
@@ -519,6 +530,7 @@ const syncFetchedModelsForProvider = async (
 			.set({
 				displayName: model.displayName,
 				supportedParameters: model.supportedParameters,
+				supportsDecisions: model.supportsDecisions ?? false,
 				supportsReasoning: model.supportsReasoning,
 			})
 			.where(eq(aiModel.id, existing.id));
@@ -964,6 +976,7 @@ const buildDefaultsResponse = (defaults: Partial<typeof aiDefaults.$inferSelect>
 		defaultAgentSupportsAudio: d.defaultAgentSupportsAudio ?? false,
 		defaultAgentSupportsDocuments: d.defaultAgentSupportsDocuments ?? false,
 		defaultAgentTemperature: d.defaultAgentTemperature ?? null,
+		defaultDecisionModelId: d.defaultDecisionModelId ?? null,
 		defaultFileImageModelId: d.defaultFileImageModelId ?? null,
 		defaultFileImageReasoningEffort: normalizeReasoningEffort(d.defaultFileImageReasoningEffort),
 		defaultFileImageTemperature: d.defaultFileImageTemperature ?? null,
@@ -990,12 +1003,14 @@ const getDefaultsHandler = admin.handler(async ({ context }) => {
 	return buildDefaultsResponse(defaults);
 });
 
+// "decision" is not a generation slot: it has no reasoning or temperature settings.
 const DEFAULT_MODEL_SLOTS = [
 	"agent",
 	"text",
 	"file-image",
 	"speech-to-text",
-] as const satisfies readonly DefaultModelSlot[];
+	"decision",
+] as const satisfies readonly (DefaultModelSlot | "decision")[];
 
 const REASONING_EFFORT_VALUES = [
 	"none",
@@ -1027,6 +1042,7 @@ const buildAiDefaultsDraft = (
 		defaultAgentSupportsAudio: c.defaultAgentSupportsAudio ?? false,
 		defaultAgentSupportsDocuments: c.defaultAgentSupportsDocuments ?? false,
 		defaultAgentTemperature: c.defaultAgentTemperature ?? null,
+		defaultDecisionModelId: c.defaultDecisionModelId ?? null,
 		defaultFileImageMode: normalizeMediaMode(c.defaultFileImageMode, "multimodal"),
 		defaultFileImageModelId: c.defaultFileImageModelId ?? null,
 		defaultFileImageReasoningEffort: normalizeReasoningEffort(c.defaultFileImageReasoningEffort),
@@ -1058,6 +1074,7 @@ const persistAiDefaultsDraft = async (db: Database, hasCurrent: boolean, next: A
 					defaultAgentSupportsAudio: next.defaultAgentSupportsAudio,
 					defaultAgentSupportsDocuments: next.defaultAgentSupportsDocuments,
 					defaultAgentTemperature: next.defaultAgentTemperature,
+					defaultDecisionModelId: next.defaultDecisionModelId,
 					defaultFileImageMode: next.defaultFileImageMode,
 					defaultFileImageModelId: next.defaultFileImageModelId,
 					defaultFileImageReasoningEffort: next.defaultFileImageReasoningEffort,
@@ -1122,6 +1139,10 @@ const applyDefaultSelection = (next: AiDefaultsDraft, parsed: z.infer<typeof set
 			}
 			break;
 		}
+		case "decision": {
+			next.defaultDecisionModelId = parsed.modelId;
+			break;
+		}
 		default: {
 			throw new ORPCError("BAD_REQUEST", {
 				message: "Ungültiger Standardtyp",
@@ -1145,6 +1166,15 @@ const setDefaultHandler = admin
 			if (isOcrProvider(existing.provider.protocol) && parsed.defaultType !== "file-image") {
 				throw new ORPCError("BAD_REQUEST", {
 					message: "OCR HTTP kann nur als Dokumenten-Modell verwendet werden",
+				});
+			}
+			const isDecisionModel =
+				existing.supportsDecisions && existing.provider.protocol === "openrouter";
+			if (isDecisionModel !== (parsed.defaultType === "decision")) {
+				throw new ORPCError("BAD_REQUEST", {
+					message: isDecisionModel
+						? "Entscheidungsmodelle können nur als Entscheidungsmodell verwendet werden"
+						: "Als Entscheidungsmodell ist nur ein OpenRouter-Decisions-Modell möglich",
 				});
 			}
 		}

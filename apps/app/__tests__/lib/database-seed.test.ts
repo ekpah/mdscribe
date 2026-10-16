@@ -121,8 +121,16 @@ test("seeds all available providers, Gemini defaults, and preserves admin choice
 	for (const [index, provider] of providers.entries()) {
 		expect(await decrypt(provider.apiKey ?? "")).toBe(`test-${providerVariables[index]}`);
 	}
-	const [model] = await selectModels(db);
-	expect(model.modelId).toBe("google/gemini-3.8-flash");
+	const seededModels = await selectModels(db);
+	const model = seededModels.find(({ supportsDecisions }) => !supportsDecisions);
+	const decisionModel = seededModels.find(({ supportsDecisions }) => supportsDecisions);
+	expect([model?.modelId, decisionModel?.modelId]).toEqual([
+		"google/gemini-3.8-flash",
+		"typesafe/jev-1.14",
+	]);
+	if (!model) {
+		throw new Error("Missing seeded model");
+	}
 	// Keys for OCR-capable providers also make their OCR models selectable.
 	const allModels = await db.select().from(aiModel);
 	expect(allModels.filter(isOcrRow).map(({ modelId }) => modelId)).toEqual([
@@ -134,6 +142,7 @@ test("seeds all available providers, Gemini defaults, and preserves admin choice
 		defaultAgentModelId: model.id,
 		defaultAgentSupportsAudio: true,
 		defaultAgentSupportsDocuments: true,
+		defaultDecisionModelId: decisionModel?.id,
 		defaultFileImageModelId: model.id,
 		defaultSpeechToTextModelId: model.id,
 		defaultStandardSupportsAgent: true,
@@ -147,7 +156,7 @@ test("seeds all available providers, Gemini defaults, and preserves admin choice
 		.set({ defaultStandardSupportsAudio: false, defaultTextReasoningEffort: "high" });
 	await seedDatabase(db);
 	expect(await selectProviders(db)).toHaveLength(5);
-	expect(await selectModels(db)).toHaveLength(1);
+	expect(await selectModels(db)).toHaveLength(2);
 	expect(await db.select().from(user)).toHaveLength(1);
 	expect(await db.select().from(template)).toHaveLength(5);
 	const [preserved] = await db.select().from(aiDefaults);

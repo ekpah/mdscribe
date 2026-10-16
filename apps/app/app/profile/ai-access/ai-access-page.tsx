@@ -28,7 +28,7 @@ interface CredentialSummary {
 	verifiedAt: Date;
 }
 
-type AssignedModelRole = "agent" | "audio" | "documents" | "text";
+type AssignedModelRole = "agent" | "audio" | "decisions" | "documents" | "text";
 
 interface AssignedModelSummary {
 	displayName: string;
@@ -56,6 +56,7 @@ const PROTOCOL_LABELS: Record<string, string> = {
 const MODEL_ROLE_LABELS: Record<AssignedModelRole, string> = {
 	agent: USER_MESSAGES.byok.modelRoles.agent,
 	audio: USER_MESSAGES.byok.modelRoles.audio,
+	decisions: USER_MESSAGES.byok.modelRoles.decisions,
 	documents: USER_MESSAGES.byok.modelRoles.documents,
 	text: USER_MESSAGES.byok.modelRoles.text,
 };

@@ -31,6 +31,7 @@ interface AiModelData {
 	displayName: string;
 	openRouterRoutingMode: string;
 	supportedParameters?: string[];
+	supportsDecisions?: boolean;
 	supportsReasoning: boolean;
 }
 
@@ -52,7 +53,7 @@ interface ModelOption {
 	keywords: string[];
 }
 
-type DefaultType = "agent" | "text" | "file-image" | "speech-to-text";
+type DefaultType = "agent" | "text" | "file-image" | "speech-to-text" | "decision";
 type MediaMode = "direct" | "multimodal";
 type ModelMediaCapability = "audio" | "documents";
 type StandardCapability = "agent" | ModelMediaCapability;
@@ -124,6 +125,13 @@ const DEFAULT_MODEL_ROWS: DefaultModelRowConfig[] = [
 		mediaModeKey: "speechToTextMode",
 		placeholder: "Audio-Modell auswählen",
 		type: "speech-to-text",
+	},
+	{
+		description:
+			"Optional: Beantwortet Auswahlfragen (Schalter, Ja/Nein, Datum, Zahlen aus der Quelle) vor dem Standard-Modell. Nur sichere Entscheidungen werden übernommen; der Rest geht an das Standard-Modell.",
+		label: "Entscheidungsmodell",
+		placeholder: "Entscheidungsmodell auswählen",
+		type: "decision",
 	},
 ];
 
@@ -549,7 +557,7 @@ const DefaultModelRow = ({
 						value={mediaMode}
 					/>
 				) : null}
-				{isOcrHttp ? null : (
+				{isOcrHttp || row.type === "decision" ? null : (
 					<GenerationControls
 						disabled={rowDisabled}
 						onReasoningChange={onReasoningChange}
@@ -560,7 +568,7 @@ const DefaultModelRow = ({
 						temperature={temperature}
 					/>
 				)}
-				{selectedModel && isOpenRouter ? (
+				{selectedModel && isOpenRouter && row.type !== "decision" ? (
 					<OpenRouterRoutingControl
 						disabled={rowDisabled}
 						onValueChange={onRoutingModeChange}
@@ -648,11 +656,18 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 		() => new Map(connections.map((provider) => [provider.id, provider])),
 		[connections],
 	);
-	const nonOcrModelOptions = enabledModelOptions.filter(
+	const getProtocol = (modelId: string) =>
+		providerById.get(modelById.get(modelId)?.providerId ?? "")?.protocol ?? "";
+	// Decision models answer finite questions only; they cannot generate text.
+	const decisionModelOptions = enabledModelOptions.filter(
 		(option) =>
-			!isOcrProvider(
-				providerById.get(modelById.get(option.value)?.providerId ?? "")?.protocol ?? "",
-			),
+			modelById.get(option.value)?.supportsDecisions && getProtocol(option.value) === "openrouter",
+	);
+	const generativeModelOptions = enabledModelOptions.filter(
+		(option) => !modelById.get(option.value)?.supportsDecisions,
+	);
+	const nonOcrModelOptions = generativeModelOptions.filter(
+		(option) => !isOcrProvider(getProtocol(option.value)),
 	);
 
 	const isUpdatingDefaults =
@@ -672,6 +687,9 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 				}
 				case "speech-to-text": {
 					return defaults?.defaultSpeechToTextModelId ?? null;
+				}
+				case "decision": {
+					return defaults?.defaultDecisionModelId ?? null;
 				}
 				default: {
 					return null;
@@ -819,7 +837,10 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 							? isOcrProvider(providerById.get(selectedModel.providerId)?.protocol ?? "")
 							: false;
 						const rowModelOptions =
-							row.type === "file-image" ? enabledModelOptions : nonOcrModelOptions;
+							{
+								decision: decisionModelOptions,
+								"file-image": generativeModelOptions,
+							}[row.type as string] ?? nonOcrModelOptions;
 						const mediaMode = getMediaMode(row);
 						let renderCapabilities: (() => React.ReactNode) | undefined;
 						if (row.type === "text") {
@@ -921,6 +942,10 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 						<div>
 							Audio-Modell: transkribiert Aufnahmen, wenn die Fähigkeit Audio nicht angehakt ist —
 							direkt (Transkriptions-Endpoint) oder multimodal (Prompt + Audio).
+						</div>
+						<div>
+							Entscheidungsmodell (optional): entscheidet Auswahlfelder vorab per OpenRouter
+							Decisions API, z. B. Jev. Ohne Auswahl füllt das Standard-Modell alle Felder.
 						</div>
 					</div>
 				</CardContent>

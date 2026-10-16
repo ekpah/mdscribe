@@ -24,6 +24,7 @@
 - Users can now delete their own PDF document templates from the document editor.
 - Switches with the same name form one input offering all of their options. A case's numeric `value` applies to every switch with that name and option, conflicting values are rejected, and each switch still shows only its own text. Checkbox switches count as 1 and 0 in calculations unless a case sets its own value.
 - Number info, condition, and calc tags can share one variable. Every named calculation runs even when its section is hidden, and repeated calculations must agree on formula and rounding.
+- Admins can select an optional decision model (Entscheidungsmodell) next to the document and audio models. OpenRouter model sync marks Decisions API models (e.g. TypeSafe Jev, Perplexity Decider, Cloudflare Clef), which are selectable only in this slot; development seeding selects Jev 1.14 on a fresh database.
 
 ### Changed
 

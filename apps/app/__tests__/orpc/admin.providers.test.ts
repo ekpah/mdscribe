@@ -305,6 +305,53 @@ describe("Admin Providers Handler", () => {
 		expect(inserted).toBeDefined();
 	});
 
+	test("decision models sync from OpenRouter and are only selectable as decision model", async () => {
+		globalThis.fetch = (() =>
+			Response.json({
+				data: [
+					{ architecture: { output_modalities: ["text"] }, id: "google/gemini", name: "Gemini" },
+					{
+						architecture: { output_modalities: ["decisions"] },
+						id: "typesafe/jev-1.14",
+						name: "Jev",
+					},
+				],
+			})) as unknown as typeof fetch;
+		const created = await call(
+			providersHandler.connections.create,
+			{ apiKey: "or-key", name: "OpenRouter", protocol: "openrouter" },
+			{ context },
+		);
+		const models = await server.db.query.aiModel.findMany({
+			where: eq(aiModel.providerId, created.id),
+		});
+		const chat = models.find((model) => model.modelId === "google/gemini");
+		const decision = models.find((model) => model.modelId === "typesafe/jev-1.14");
+		expect([chat?.supportsDecisions, decision?.supportsDecisions]).toEqual([false, true]);
+
+		const selected = await call(
+			providersHandler.defaults.set,
+			{ defaultType: "decision", modelId: decision?.id ?? null },
+			{ context },
+		);
+		expect(selected.defaultDecisionModelId).toBe(decision?.id ?? "");
+		for (const [defaultType, modelId] of [
+			["text", decision?.id],
+			["decision", chat?.id],
+		] as const) {
+			await expect(
+				call(providersHandler.defaults.set, { defaultType, modelId: modelId ?? null }, { context }),
+			).rejects.toBeInstanceOf(ORPCError);
+		}
+		const defaults = await server.db.query.aiDefaults.findFirst({
+			where: eq(aiDefaults.id, "global"),
+		});
+		expect([defaults?.defaultDecisionModelId, defaults?.defaultTextModelId]).toEqual([
+			decision?.id,
+			null,
+		]);
+	});
+
 	test("connections.create rejects openai-compatible providers without base URL", async () => {
 		let fetchCalled = false;
 		globalThis.fetch = (() => {

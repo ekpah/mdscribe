@@ -254,6 +254,7 @@ export const USER_MESSAGES = {
 		modelRoles: {
 			agent: "Agent",
 			audio: "Audio",
+			decisions: "Entscheidungen",
 			documents: "Dokumente",
 			text: "Standardgenerierung",
 		},

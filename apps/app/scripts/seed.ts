@@ -204,11 +204,16 @@ const seedUsageEvents = async (db: SeedTransaction, userId: string): Promise<voi
 	console.log(`Seeded ${events.length} usage events`);
 };
 
-const seedAiDefaults = async (db: SeedTransaction, modelId: string): Promise<void> => {
+const seedAiDefaults = async (
+	db: SeedTransaction,
+	modelId: string,
+	decisionModelId: string,
+): Promise<void> => {
 	const defaults = {
 		defaultAgentModelId: modelId,
 		defaultAgentSupportsAudio: true,
 		defaultAgentSupportsDocuments: true,
+		defaultDecisionModelId: decisionModelId,
 		defaultFileImageModelId: modelId,
 		// Uploads run OCR immediately; Gemini's default thinking makes it slow.
 		defaultFileImageReasoningEffort: "minimal",
@@ -264,7 +269,21 @@ const seedAiModels = async (db: SeedTransaction, providerId: string): Promise<vo
 			target: [schema.aiModel.providerId, schema.aiModel.modelId],
 		})
 		.returning({ id: schema.aiModel.id });
-	await seedAiDefaults(db, model.id);
+	// Decision model for autofill and citation location via OpenRouter's Decisions API.
+	const [decisionModel] = await db
+		.insert(schema.aiModel)
+		.values({
+			displayName: "TypeSafe: Jev 1.14",
+			modelId: "typesafe/jev-1.14",
+			providerId,
+			supportsDecisions: true,
+		})
+		.onConflictDoUpdate({
+			set: { supportsDecisions: true },
+			target: [schema.aiModel.providerId, schema.aiModel.modelId],
+		})
+		.returning({ id: schema.aiModel.id });
+	await seedAiDefaults(db, model.id, decisionModel.id);
 };
 
 /**
