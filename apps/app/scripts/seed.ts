@@ -1,7 +1,7 @@
 import type { Database } from "@repo/database";
 import * as schema from "@repo/database/schema";
 import { hashPassword } from "better-auth/crypto";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 
 import { encryptApiKey } from "../lib/encryption-core";
 import { isOcrProvider, OCR_MODEL_IDS } from "../lib/ocr-protocol";
@@ -343,9 +343,44 @@ const seedAiProviders = async (db: SeedTransaction): Promise<void> => {
 	}
 };
 
+const seedTestSubscription = async (db: SeedTransaction) => {
+	const [testUser] = await db
+		.select({ id: schema.user.id })
+		.from(schema.user)
+		.where(eq(schema.user.email, SEED_USER.email));
+	if (!testUser) {
+		return;
+	}
+	const [active] = await db
+		.select({ id: schema.subscription.id })
+		.from(schema.subscription)
+		.where(
+			and(
+				eq(schema.subscription.referenceId, testUser.id),
+				inArray(schema.subscription.status, ["active", "trialing"]),
+			),
+		);
+	if (active) {
+		return;
+	}
+	await db
+		.insert(schema.subscription)
+		.values({
+			id: `seed-plus-${testUser.id}`,
+			periodStart: new Date(),
+			plan: "plus",
+			referenceId: testUser.id,
+			status: "active",
+		})
+		.onConflictDoUpdate({
+			set: { plan: "plus", status: "active" },
+			target: schema.subscription.id,
+		});
+};
+
 /**
- * Seed the database with test data for local development
- * User/template data runs once; available AI providers are refreshed on each call.
+ * Seed the database with test data for local development.
+ * User/templates run once; providers and the test account's Plus grant are ensured each time.
  */
 export const seedDatabase = async (db: Database): Promise<void> => {
 	if (process.env.MDSCRIBE_ALLOW_DEV_SEED !== "1") {
@@ -359,6 +394,8 @@ export const seedDatabase = async (db: Database): Promise<void> => {
 	// Providers may become available after the user/template seed (e.g. orb activation).
 	await db.transaction(seedAiProviders);
 	await db.transaction(seedPaddleOcr);
+	// Backfill old orb snapshots too, without resetting an existing Plus usage period.
+	await db.transaction(seedTestSubscription);
 
 	// Skip if already seeded (HMR protection)
 	if (globalForSeed.seeded) {
@@ -412,6 +449,7 @@ export const seedDatabase = async (db: Database): Promise<void> => {
 
 		await seedTemplates(transaction, userId);
 		await seedUsageEvents(transaction, userId);
+		await seedTestSubscription(transaction);
 	});
 
 	// Mark as seeded

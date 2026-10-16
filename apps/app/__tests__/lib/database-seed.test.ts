@@ -1,7 +1,14 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
 
 import type { Database } from "@repo/database";
-import { aiDefaults, aiModel, aiProvider, template, user } from "@repo/database/schema";
+import {
+	aiDefaults,
+	aiModel,
+	aiProvider,
+	subscription,
+	template,
+	user,
+} from "@repo/database/schema";
 
 import { env } from "@/env";
 import { decrypt } from "@/lib/encryption";
@@ -70,6 +77,31 @@ test("requires explicit development opt-in", async () => {
 	process.env.MDSCRIBE_ALLOW_DEV_SEED = "1";
 	Reflect.set(process.env, "NODE_ENV", "production");
 	await expect(seedDatabase({} as Database)).rejects.toThrow("NODE_ENV=development");
+});
+
+test("seeds Plus for the test account and backfills snapshots without resetting its usage period", async () => {
+	const { db } = await startTestServer("database-seed-plus");
+	await seedDatabase(db);
+	const [testUser] = await db.select().from(user);
+	const [plus] = await db.select().from(subscription);
+	expect(testUser.email).toBe("test@test.com");
+	expect(plus).toMatchObject({
+		plan: "plus",
+		referenceId: testUser.id,
+		status: "active",
+		stripeSubscriptionId: null,
+	});
+	expect(plus.periodStart).toBeInstanceOf(Date);
+	await seedDatabase(db);
+	expect(await db.select().from(subscription)).toEqual([plus]);
+
+	// Old snapshots already have a user, and resume/HMR may have marked them seeded.
+	await db.delete(subscription);
+	await seedDatabase(db);
+	expect(await db.select().from(subscription)).toHaveLength(1);
+	seedState.seeded = false;
+	await seedDatabase(db);
+	expect(await db.select().from(subscription)).toHaveLength(1);
 });
 
 test("seeds all available providers, Gemini defaults, and preserves admin choices on repeat", async () => {
