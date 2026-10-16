@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 
-test("real OpenRouter SDK sends the structured OCR contract for Mistral Large 4", async () => {
+test("real OpenRouter SDK keeps compact OCR private", async () => {
 	// Run outside the suite's global AI/provider mocks, using a local HTTP endpoint.
 	const child = Bun.spawn(
 		[
@@ -15,7 +15,7 @@ test("real OpenRouter SDK sends the structured OCR contract for Mistral Large 4"
 		const { createOpenRouter } = await import("@openrouter/ai-sdk-provider");
 		const { createLlmOcrAdapter } = await import("./orpc/scribe/ocr/adapters/llm");
 		const html = '<table><tr><td rowspan="2">A</td><td></td><td colspan="4">0,5 l<br>[x]</td></tr></table>';
-		let calls = 0, invalidGeometry = false, malformed = false;
+		let calls = 0, malformed = false;
 		const server = Bun.serve({hostname:"127.0.0.1",port:0,async fetch(request) {
 			assert.equal(new URL(request.url).pathname,"/chat/completions");
 			assert.equal(request.headers.get("authorization"),"Bearer synthetic-key");
@@ -23,16 +23,15 @@ test("real OpenRouter SDK sends the structured OCR contract for Mistral Large 4"
 			assert.equal(body.model,"mistralai/mistral-large-4-0");
 			assert.equal(body.response_format.type,"json_schema");
 			const schema = body.response_format.json_schema.schema;
-			assert.deepEqual(Object.keys(schema.properties).sort(),["blocks","text"]);
-			assert.deepEqual(Object.keys(schema.properties.blocks.items.properties).sort(),["box_2d","text"]);
+			assert.deepEqual(Object.keys(schema.properties),["t"]);
 			const prompt = body.messages[0].content.map(part => part.text).join("");
 			assert.match(prompt,/Represent every table as HTML/);
 			assert.ok(prompt.includes("colspan/rowspan"));
-			assert.match(prompt,/ymin, xmin, ymax, xmax/);
+			assert.match(prompt,/Do not return citation blocks/);
 			assert.ok(body.messages[1].content[0].image_url.url.startsWith("data:image/jpeg;base64,"));
 			assert.notEqual(body.stream,true);
 			calls++;
-			const output = {text:html,blocks:malformed ? "PRIVATE" : [{text:"Citation differs from full table",box_2d:invalidGeometry ? [100,-1,300,500] : [100,200,300,500]}]};
+			const output = {t:malformed ? {private:"PRIVATE"} : html};
 			return Response.json({id:"local",model:body.model,created:1,choices:[{index:0,finish_reason:"stop",message:{role:"assistant",content:JSON.stringify(output)}}],usage:{prompt_tokens:5,completion_tokens:10,total_tokens:15}});
 		}});
 		try {
@@ -44,15 +43,11 @@ test("real OpenRouter SDK sends the structured OCR contract for Mistral Large 4"
 			const recognize = () => adapter.recognizePage({image,imageWidth:600,imageHeight:800,page:{pageNum:1,width:600,height:800}});
 			const result = await recognize();
 			assert.equal(result.text,html);
-			assert.deepEqual(result.page.blocks[0].bbox,{x:120,y:80,width:180,height:160});
+			assert.equal(result.page,undefined);
 			assert.equal(usage.length,1);
-			invalidGeometry = true;
-			const invalid = await recognize();
-			assert.equal(invalid.text,html);
-			assert.equal(invalid.page,undefined);
 			malformed = true;
 			await assert.rejects(recognize(),/^Error: Die OCR-Modellanfrage ist fehlgeschlagen.$/);
-			assert.equal(calls,3);
+			assert.equal(calls,2);
 			console.log("Local OpenRouter structured OCR: OK");
 		} finally { server.stop(true); }
 	`,

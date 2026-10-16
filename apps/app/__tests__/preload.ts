@@ -334,7 +334,7 @@ mock.module("ai", () => ({
 			delete aiMockState.nextGenerateTextOutput;
 		} else if (promptText.includes("You are an OCR engine")) {
 			aiMockState.lastOcrGenerateTextOptions = options;
-			output = aiMockState.nextOcrOutputs?.shift() ??
+			const fixture = aiMockState.nextOcrOutputs?.shift() ??
 				aiMockState.nextOcrOutput ?? {
 					blocks: [
 						{
@@ -344,6 +344,14 @@ mock.module("ai", () => ({
 					],
 					text: aiMockState.nextGenerateTextText ?? MOCK_GENERATED_TEXT,
 				};
+			// Fixtures describe public text/geometry; the LLM uses compact wire keys.
+			const page = fixture as { blocks: { box_2d: number[]; text: string }[]; text: string };
+			output = {
+				b: Array.isArray(page.blocks)
+					? page.blocks.map((block) => ({ b: block.box_2d, t: block.text }))
+					: page.blocks,
+				t: page.text,
+			};
 			delete aiMockState.nextOcrOutput;
 			if (aiMockState.nextOcrOutputs?.length === 0) {
 				delete aiMockState.nextOcrOutputs;

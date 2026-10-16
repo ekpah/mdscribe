@@ -1,8 +1,11 @@
+import { nodes, Tag, tags as markdocTags } from "@markdoc/markdoc";
 import { parseDocument } from "htmlparser2";
+import { renderMarkdocAsReact } from "markdoc-md/react";
 import { marked } from "marked";
-import { createElement } from "react";
+import { createElement, Fragment } from "react";
 import type { ReactNode } from "react";
 
+import { formatOcrTextForPrompt } from "@/lib/ocr-prompt-text";
 import type { OcrPage } from "@/lib/ocr-types";
 
 const tags = new Set([
@@ -93,20 +96,70 @@ const renderNode = (node: ParsedNode, key: number): ReactNode => {
 	return createElement(node.name, props, ["br", "hr"].includes(node.name) ? undefined : children);
 };
 
+// OCR is untrusted data, not a template. Only table syntax/spans are active;
+// source links, images and all application tags must remain inert.
+const renderTable = (source: string) =>
+	renderMarkdocAsReact(
+		source.replaceAll(/\{%[\s\S]*?%\}/g, (tag) =>
+			/^\{%\s*\/?table\s*%\}$/.test(tag) ||
+			(/^\{%\s*(?:(?:colspan|rowspan)=\d+\s*)+%\}$/.test(tag) &&
+				[...tag.matchAll(/[=](\d+)/g)].every(
+					([, value]) => Number(value) > 0 && Number(value) <= 1000,
+				))
+				? tag
+				: tag.replaceAll("{", "&#123;"),
+		),
+		{
+			config: {
+				nodes: {
+					image: { ...nodes.image, transform: () => [] },
+					link: {
+						...nodes.link,
+						transform: (node, config) => node.transformChildren(config),
+					},
+					// OCR can span a header into a following row. HTML rowspans
+					// cannot cross thead/tbody boundaries; keep one row group.
+					table: {
+						...nodes.table,
+						transform: (node, config) =>
+							new Tag("table", {}, [
+								new Tag(
+									"tbody",
+									{},
+									node
+										.transformChildren(config)
+										.flatMap((child) =>
+											Tag.isTag(child) && ["thead", "tbody"].includes(child.name)
+												? child.children
+												: [child],
+										),
+								),
+							]),
+					},
+				},
+				tags: { table: markdocTags.table },
+			},
+			sanitize: false,
+		},
+	);
+
 export const OcrTextPreview = ({ text }: { text: string }) => (
 	<div className="prose prose-sm max-w-none whitespace-pre-wrap [&_table]:my-3 [&_table]:w-full [&_table]:border-collapse [&_table]:whitespace-normal [&_td]:border [&_td]:p-2 [&_th]:border [&_th]:bg-muted [&_th]:p-2">
-		{/* Markdown and source HTML share the same inert React allowlist. Escape
-		    unknown source tags first, preserving lab thresholds and template text.
-		    Markdown-generated links are unwrapped; images are discarded. */}
-		{parseDocument(
-			marked.parse(text.replaceAll(strayLessThan, "&lt;"), {
-				async: false,
-				breaks: true,
-				gfm: true,
-			}),
-		)
-			.children.filter((node) => node.type !== "text" || node.data.trim())
-			.map(renderNode)}
+		{/* Reuse the package's native table renderer; legacy prose/HTML keeps the
+		    inert allowlist so lab thresholds and selection markers remain visible. */}
+		{formatOcrTextForPrompt(text.replaceAll(strayLessThan, "&lt;"))
+			.split(/(\{%\s*table\s*%\}[\s\S]*?\{%\s*\/table\s*%\})/g)
+			.map((part, index) =>
+				createElement(
+					Fragment,
+					{ key: index },
+					/^\{%\s*table\s*%\}/.test(part)
+						? renderTable(part)
+						: parseDocument(marked.parse(part, { async: false, breaks: true, gfm: true }))
+								.children.filter((node) => node.type !== "text" || node.data.trim())
+								.map(renderNode),
+				),
+			)}
 	</div>
 );
 

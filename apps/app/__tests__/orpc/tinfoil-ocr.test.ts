@@ -25,7 +25,7 @@ test("Tinfoil OCR uses verified SDK transport for image and structured response,
 					assert.ok(body.messages[1].content[0].image_url.url.startsWith("data:image/jpeg;base64,"));
 					assert.ok(body.response_format);
 					calls++;
-					return Response.json({id:"test",model:body.model,created:1,choices:[{index:0,finish_reason:"stop",message:{role:"assistant",content:JSON.stringify({text:"dose",blocks:[{text:"dose",box_2d:[100,200,300,500]}]})}}],usage:{prompt_tokens:5,completion_tokens:10,total_tokens:15}});
+					return Response.json({id:"test",model:body.model,created:1,choices:[{index:0,finish_reason:"stop",message:{role:"assistant",content:JSON.stringify({t:"dose",b:[{t:"dose",b:[100,200,300,500]}]})}}],usage:{prompt_tokens:5,completion_tokens:10,total_tokens:15}});
 				};
 			}, TinfoilAI: class {}, toFile: () => {},
 		}));
@@ -40,7 +40,7 @@ test("Tinfoil OCR uses verified SDK transport for image and structured response,
 		const result = await adapter.recognizePage({image,imageWidth:600,imageHeight:800,page:{pageNum:1,width:600,height:800}});
 		assert.equal(calls,1);
 		assert.equal(result.text,"dose");
-		assert.deepEqual(result.page.blocks[0].bbox,{x:120,y:80,width:180,height:160});
+		assert.equal(result.page,undefined);
 		rejectAttestation = true;
 		row = {...row,provider:{...row.provider,id:"other",apiKey:"other"}};
 		await assert.rejects(resolveModelByRecordId("other",db),/attestation failed/);

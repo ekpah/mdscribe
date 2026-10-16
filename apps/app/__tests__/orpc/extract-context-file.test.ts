@@ -175,7 +175,7 @@ test("upload OCR uses the OCR slot and every generation consumer reuses the unsi
 		expect(reused.ocrResults).toEqual([uploaded.result]);
 		expect(calls).toBe(1);
 		expect(reused.textContext).toBe(
-			`<datei_kontext>\n${JSON.stringify([{ index: 1, name: "scan.png", ocrResult: uploaded.result }])}\n</datei_kontext>`,
+			`<datei_kontext>\n${JSON.stringify([{ index: 1, name: "scan.png", text: "Recognized" }])}\n</datei_kontext>`,
 		);
 		aiMockState.nextGenerateTextOutput = { fieldValues: { Age: 42 } };
 		const filled = await call(
@@ -189,9 +189,9 @@ test("upload OCR uses the OCR slot and every generation consumer reuses the unsi
 		expect(filled.fieldValues).toEqual({ Age: 42 });
 		const fillOptions = aiMockState.lastGenerateTextOptions as { messages: { content: unknown }[] };
 		expect(typeof fillOptions.messages[1].content).toBe("string");
-		expect(fillOptions.messages[1].content).toContain(
-			'"bbox":{"height":18,"width":29,"x":1,"y":2}',
-		);
+		expect(fillOptions.messages[1].content).not.toContain('"bbox"');
+		expect(fillOptions.messages[1].content).not.toContain('"pages"');
+		expect(fillOptions.messages[1].content).not.toContain('"ocrResult"');
 		expect(fillOptions.messages[1].content).not.toContain(file.data);
 		expect(fillOptions.messages[1].content).not.toContain("ocrResultToken");
 		const fileSummary = {
@@ -362,7 +362,11 @@ test.each(["elapsed-time", "model-change"])(
 			expect(calls).toBe(0);
 			expect(generated).toEqual(initial);
 			expect(generated.ocrResults).toEqual([result]);
-			expect(JSON.parse(generated.textContext.split("\n")[1])[0].ocrResult).toEqual(result);
+			const [promptDocument] = JSON.parse(generated.textContext.split("\n")[1]);
+			expect(Object.keys(promptDocument)).toEqual(["index", "name", "text"]);
+			expect(promptDocument.text).toContain("5 mg");
+			expect(promptDocument.text).toContain("[x] Ja");
+			expect(promptDocument.text).not.toContain("<table>");
 		} finally {
 			clock.mockRestore();
 			endpoint.stop(true);

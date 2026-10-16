@@ -431,18 +431,20 @@ const AgentComposer = forwardRef<
 					/>
 				</div>
 				<Button
-					aria-label="An Agent senden"
-					className="h-9 w-9 shrink-0"
+					aria-label={controller.hasPendingOcr ? "Dokumenterkennung…" : "An Agent senden"}
+					className={cn("h-9 shrink-0", !controller.hasPendingOcr && "w-9")}
 					disabled={!canSend}
 					onClick={onSend}
-					size="icon"
+					size={controller.hasPendingOcr ? "sm" : "icon"}
 					type="button"
 				>
-					{isLoading ? (
-						<Loader2 className="h-4 w-4 animate-spin" />
-					) : (
-						<SendHorizonal className="h-4 w-4" />
-					)}
+					{controller.hasPendingOcr && "Dokumenterkennung…"}
+					{!controller.hasPendingOcr &&
+						(isLoading ? (
+							<Loader2 className="h-4 w-4 animate-spin" />
+						) : (
+							<SendHorizonal className="h-4 w-4" />
+						))}
 				</Button>
 			</div>
 		</div>
@@ -592,11 +594,13 @@ export const DoctorsNoteAgentPanel = ({
 	}, [messages]);
 
 	const hasAttachments = inputContext.hasAudioRecordings || inputContext.hasContextFiles;
-	const canSend = !(isLoading || disabled) && (instruction.trim().length > 0 || hasAttachments);
+	const canSend =
+		!(isLoading || disabled || inputContext.hasPendingOcr) &&
+		(instruction.trim().length > 0 || hasAttachments);
 
 	const handleSend = useCallback(async () => {
 		const trimmed = instruction.trim();
-		if (isLoading || disabled) {
+		if (isLoading || disabled || inputContext.hasPendingOcr) {
 			return;
 		}
 		if (!trimmed && !hasAttachments) {

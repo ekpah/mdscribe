@@ -106,6 +106,7 @@ export const useInputContextState = ({
 	const hasTextContext = textContextFieldCount > 0;
 	const hasAudioRecordings = audioRecordings.length > 0;
 	const hasContextFiles = contextFiles.length > 0;
+	const hasPendingOcr = contextFiles.some((file) => file.ocrStatus === "pending");
 	const hasAnyContext = hasAudioRecordings || hasTextContext || hasContextFiles;
 
 	const addAudioFiles = useCallback(
@@ -259,6 +260,9 @@ export const useInputContextState = ({
 	);
 
 	const prepareSubmission = useCallback(async (): Promise<InputContextSubmission> => {
+		if (contextFilesRef.current.some((file) => file.ocrStatus === "pending")) {
+			throw new Error("Dokumenterkennung läuft noch. Bitte warten.");
+		}
 		let policy: DocumentInputPolicy | undefined;
 		if (contextFilesRef.current.length > 0) {
 			policy = await loadPolicy(true);
@@ -332,6 +336,7 @@ export const useInputContextState = ({
 		hasAnyContext,
 		hasAudioRecordings,
 		hasContextFiles,
+		hasPendingOcr,
 		hasTextContext,
 		ocrConfigured,
 		prepareSubmission,

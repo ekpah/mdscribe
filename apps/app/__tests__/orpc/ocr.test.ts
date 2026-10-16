@@ -163,7 +163,7 @@ describe("OCR module", () => {
 		expect(empty.text).toBe("");
 	});
 
-	test("returns text and direct-frame boxes in one call without requesting orientation", async () => {
+	test("returns text without geometry in one call without requesting orientation", async () => {
 		aiMockState.nextOcrOutputs = [
 			{
 				blocks: [{ box_2d: [100, 200, 300, 500], text: "cell" }],
@@ -177,17 +177,7 @@ describe("OCR module", () => {
 		});
 		expect(usages).toHaveLength(1);
 		expect(result.text).toBe("upright");
-		expect(result.pages?.[0]).toEqual({
-			blocks: [
-				{
-					bbox: { height: 160, width: 180, x: 120, y: 80 },
-					text: "cell",
-				},
-			],
-			height: 800,
-			pageNumber: 1,
-			width: 600,
-		});
+		expect(result.pages).toBeUndefined();
 		const request = aiMockState.lastGenerateTextOptions as { messages: { content: unknown }[] };
 		expect(request.messages[0].content).toContain(
 			"Do not detect, infer or correct its orientation",
@@ -214,73 +204,42 @@ describe("OCR module", () => {
 		expect(ocrMockState.closed).toBe(1);
 	});
 
-	test("calls the selected vision model directly and maps normalized boxes to page points", async () => {
+	test("calls the selected vision model directly for transcription only", async () => {
 		aiMockState.nextGenerateTextText = "  LLM OCR text  ";
 		const result = await extractOcrDocument({ ...input, zdr: true });
 		expect(result).toMatchObject({ backend: "llm", text: "  LLM OCR text  " });
-		expect(result.pages?.[0].blocks).toEqual([
-			{
-				bbox: { height: 175, width: 553.125, x: 9.375, y: 12.5 },
-				text: "  LLM OCR text  ",
-			},
-		]);
+		expect(result.pages).toBeUndefined();
 		const request = aiMockState.lastGenerateTextOptions as {
 			messages: { role: string; content: unknown }[];
 			output: unknown;
 		};
 		expect(request.messages).toHaveLength(2);
-		expect(request.messages[0].content).toContain("[ymin, xmin, ymax, xmax]");
+		expect(request.messages[0].content).toContain("Do not return citation blocks");
 		expect(request.output).toBeDefined();
 		expect(JSON.stringify(request)).not.toContain("private-file-bytes");
 		expect(ocrMockState.closed).toBe(1);
 	});
 
-	test("preserves document table markup instead of reconstructing it from citation boxes", async () => {
-		aiMockState.nextGenerateTextText =
-			"| Side | Selected |\n| --- | --- |\n| Left | [x] |\n| Right | [ ] |";
-		const result = await extractOcrDocument(input);
-		expect(result.text).toBe("| Side | Selected |\n| --- | --- |\n| Left | [x] |\n| Right | [ ] |");
-		expect(ocrMockState.config?.ocrEnabled).toBe(false);
-	});
-
-	test("preserves text while omitting invalid LLM geometry", async () => {
-		aiMockState.nextOcrOutput = {
-			blocks: [{ box_2d: [20, -1, 100, 200], text: "Invalid" }],
-			text: "  still useful  ",
-		};
-		const result = await extractOcrDocument(input);
-		expect(result).toEqual({ backend: "llm", text: "  still useful  " });
-		expect(ocrMockState.closed).toBe(1);
-	});
-
 	test.each([
-		[20, 10, 10, 50],
-		[0, 0, 1001, 80],
-		[0, 0, 10],
-	])("omits reversed, out-of-range or incomplete boxes: %j", async (...box) => {
-		aiMockState.nextOcrOutput = { blocks: [{ box_2d: box, text: "cell" }], text: "preserved" };
-		expect(await extractOcrDocument(input)).toEqual({ backend: "llm", text: "preserved" });
-	});
-
-	test("ignores empty labels without discarding valid citation boxes", async () => {
-		aiMockState.nextOcrOutput = {
-			blocks: [
-				{ box_2d: [0, 0, 0, 0], text: "  " },
-				{ box_2d: [10, 20, 30, 40], text: "cell" },
-			],
-			text: "cell",
-		};
-		const result = await extractOcrDocument(input);
-		expect(result.pages?.[0].blocks.map((block) => block.text)).toEqual(["cell"]);
-	});
+		"| Side | Selected |\n| --- | --- |\n| Left | [x] |\n| Right | [ ] |",
+		"Nach Belastung\n\n{% table %}\n* Parameter{% rowspan=2 %}\n* Messung{% colspan=2 %}\n---\n* vor O²\n* mit O²\n---\n* PAP mmHg\n* 52 / 26 (36)\n*\n{% /table %}",
+	])(
+		"preserves document table markup instead of reconstructing it from citation boxes",
+		async (text) => {
+			aiMockState.nextGenerateTextText = text;
+			const result = await extractOcrDocument(input);
+			expect(result.text).toBe(text);
+			expect(ocrMockState.config?.ocrEnabled).toBe(false);
+		},
+	);
 
 	test("does not expose malformed provider content in validation errors", async () => {
-		aiMockState.nextOcrOutput = { blocks: "not an array", text: "private medical content" };
+		aiMockState.nextOcrOutput = { text: { private: "private medical content" } };
 		await expect(extractOcrDocument(input)).rejects.toThrow("ungültiges Ergebnis");
 		expect(ocrMockState.closed).toBe(1);
 	});
 
-	test("inspects every page and maps each rendered box to its original page", async () => {
+	test("transcribes every page, preserving original page boundaries without geometry", async () => {
 		ocrMockState.result = {
 			pageErrors: [],
 			pages: [
@@ -302,20 +261,7 @@ describe("OCR module", () => {
 		];
 		const result = await extractOcrDocument(input);
 		expect(result.text).toBe("First\n\f\nSecond");
-		expect(result.pages).toEqual([
-			{
-				blocks: [{ bbox: { height: 100, width: 150, x: 37.5, y: 25 }, text: "First" }],
-				height: 800,
-				pageNumber: 3,
-				width: 600,
-			},
-			{
-				blocks: [{ bbox: { height: 25, width: 125, x: 500, y: 100 }, text: "Second" }],
-				height: 400,
-				pageNumber: 7,
-				width: 1000,
-			},
-		]);
+		expect(result.pages).toBeUndefined();
 		expect(aiMockState.nextOcrOutputs).toBeUndefined();
 	});
 
@@ -345,7 +291,7 @@ describe("OCR module", () => {
 
 describe("Scribe OCR adapter", () => {
 	test.each([false, true])(
-		"logs geometry only without ZDR (zdr=%s), while supplying document text and boxes",
+		"logs geometry only without ZDR (zdr=%s), while supplying text-only document context",
 		async (zdr) => {
 			const server = await startTestServer(`ocr-geometry-${zdr}`);
 			try {
@@ -374,10 +320,10 @@ describe("Scribe OCR adapter", () => {
 					{ index: 2, name: "two.pdf" },
 				]);
 				for (const document of documents) {
-					expect(document.ocrResult.text).toBe("Befund A\n\f\nBefund B");
-					expect(document.ocrResult.pages).toHaveLength(2);
+					expect(document.text).toBe("Befund A\n\f\nBefund B");
+					expect(document).not.toHaveProperty("ocrResult");
 				}
-				expect(text).toContain("bbox");
+				expect(text).not.toContain("bbox");
 				const events = await server.db
 					.select()
 					.from(usageEvent)

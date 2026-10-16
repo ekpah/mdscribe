@@ -40,7 +40,6 @@ test("native PDF and image rendering feeds the OCR entry point with bounded, upr
 			// Only inference and provider options are mocked, not LiteParse or OCR code.
 			const { mock } = await import("bun:test");
 			let inferenceCalls = 0;
-			let invalidGeometry = false;
 			let invalidOutput = false;
 			const rasterSizes = [];
 			mock.module("@/orpc/scribe/providers", () => ({
@@ -58,7 +57,7 @@ test("native PDF and image rendering feeds the OCR entry point with bounded, upr
 					assert.ok(width <= 3000 && height <= 3000);
 					assert.ok(width > 0 && height > 0);
 					rasterSizes.push([width, height]);
-					const output = { text: "[x] Ja    [ ] Nein", blocks: [{ text: "[x] Ja    [ ] Nein", box_2d: [200, invalidGeometry ? -1 : 100, 250, 350] }] };
+					const output = { t: "[x] Ja    [ ] Nein" };
 					return {
 						get output() {
 							if (invalidOutput) throw new Error("private provider response");
@@ -77,14 +76,7 @@ test("native PDF and image rendering feeds the OCR entry point with bounded, upr
 			for (const text of reconstructedPages) {
 				assert.match(text, /\\[x\\] Ja\\s+\\[ \\] Nein/);
 			}
-			assert.deepEqual(result.pages.map(p => [p.pageNumber,p.width,p.height]), [[1,600,800],[2,800,600]]);
-			for (const page of result.pages) {
-				const box = page.blocks[0].bbox;
-				assert.ok(Math.abs(box.x - page.width / 10) < 2);
-				assert.ok(Math.abs(box.y - page.height / 5) < 2);
-				assert.ok(Math.abs(box.width - page.width / 4) < 2);
-				assert.ok(Math.abs(box.height - page.height / 20) < 2);
-			}
+			assert.equal(result.pages, undefined);
 			// EXIF is baked into real pixels before the single model invocation.
 			const sharp = (await import("sharp")).default;
 			const jpeg = await sharp({create:{width:400,height:200,channels:3,background:"white"}})
@@ -93,18 +85,13 @@ test("native PDF and image rendering feeds the OCR entry point with bounded, upr
 			const oriented = await extractOcrDocument({data:jpeg,mimeType:"image/jpeg",modelSelection:selection,userId:"test"});
 			assert.equal(rasterSizes.length, 1);
 			assert.equal(rasterSizes[0][1], rasterSizes[0][0] * 2);
-			assert.equal(oriented.pages[0].rotation, undefined);
-			assert.ok(Math.abs(oriented.pages[0].height - oriented.pages[0].width * 2) < 0.001);
+			assert.equal(oriented.pages, undefined);
 			// Camera-sized input must not be sent as an unbounded inline PNG.
 			const large = await sharp({create:{width:4200,height:5600,channels:3,background:"white"}}).png().toBuffer();
 			rasterSizes.length = 0;
 			const largeResult = await extractOcrDocument({data:large,mimeType:"image/png",modelSelection:selection,userId:"test"});
 			assert.deepEqual(rasterSizes, [[2250, 3000]]);
-			assert.ok(Math.abs(largeResult.pages[0].blocks[0].bbox.x / largeResult.pages[0].width - 0.1) < 0.001);
-			invalidGeometry = true;
-			const fallback = await extractOcrDocument({data:bytes,mimeType:"application/pdf",modelSelection:selection,userId:"test"});
-			assert.equal(fallback.text, "[x] Ja    [ ] Nein\\n\\f\\n[x] Ja    [ ] Nein");
-			assert.equal(fallback.pages, undefined);
+			assert.equal(largeResult.pages, undefined);
 			invalidOutput = true;
 			await assert.rejects(
 				extractOcrDocument({data:bytes,mimeType:"application/pdf",modelSelection:selection,userId:"test"}),

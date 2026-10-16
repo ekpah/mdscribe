@@ -1015,12 +1015,6 @@ describe("Fill Inputs Handler", () => {
 				inputFields,
 			};
 			const expectedOcrResult = {
-				blocks: [
-					{
-						box_2d: [50, 100, 150, 400],
-						text: "Patient ist 75 Jahre alt.",
-					},
-				],
 				text: "Patient ist 75 Jahre alt.",
 			};
 			aiMockState.nextOcrOutput = expectedOcrResult;
@@ -1031,48 +1025,20 @@ describe("Fill Inputs Handler", () => {
 				backend: "llm",
 				text: expectedOcrResult.text,
 			});
-			expect(result.ocrResults[0].pages?.[0]).toMatchObject({
-				height: 800,
-				pageNumber: 1,
-				width: 600,
-			});
+			expect(result.ocrResults[0].pages).toBeUndefined();
 			const ocrOptions = aiMockState.lastOcrGenerateTextOptions as {
 				messages: { content: unknown }[];
 				output: { schema: z.ZodType };
 			};
-			expect(ocrOptions.messages[0]?.content).toContain("[ymin, xmin, ymax, xmax]");
+			expect(ocrOptions.messages[0]?.content).toContain("Do not return citation blocks");
 			const providerSchema = JSON.stringify(z.toJSONSchema(ocrOptions.output.schema));
 			expect(providerSchema).not.toContain("exclusiveMinimum");
 			expect(providerSchema).not.toContain("maxItems");
 			expect(providerSchema).not.toContain("minLength");
-			const invalidGeometryOutput = {
-				blocks: [
-					{
-						box_2d: [50, 100, 150, 1100],
-						text: "Patient ist 75 Jahre alt.",
-					},
-				],
-				text: "Patient ist 75 Jahre alt.",
-			};
-			expect(ocrOptions.output.schema.safeParse(invalidGeometryOutput).success).toBe(true);
-			aiMockState.nextOcrOutput = invalidGeometryOutput;
-			aiMockState.nextGenerateTextOutput = { fieldValues: { Alter: 75 } };
-			const resultWithoutGeometry = await call(fillInputsHandler, input, { context });
-			expect(resultWithoutGeometry).toMatchObject({
-				fieldValues: { Alter: 75 },
-				ocrResults: [
-					{
-						backend: "llm",
-						text: "Patient ist 75 Jahre alt.",
-					},
-				],
-			});
-			expect(resultWithoutGeometry.ocrResults[0]).not.toHaveProperty("pages");
 			const options = aiMockState.lastGenerateTextOptions as { messages: { content: unknown }[] };
 			expect(typeof options.messages[1].content).toBe("string");
-			expect(options.messages[1].content).toContain(
-				'"ocrResult":{"backend":"llm","text":"Patient ist 75 Jahre alt."}',
-			);
+			expect(options.messages[1].content).toContain('"text":"Patient ist 75 Jahre alt."');
+			expect(options.messages[1].content).not.toContain('"ocrResult"');
 			expect(options.messages[1].content).toContain(JSON.stringify(inputFields));
 			expect(options.messages[1].content).not.toContain(input.contextFiles[0].data);
 			const events = await server.db.select().from(usageEvent);
@@ -1095,22 +1061,7 @@ describe("Fill Inputs Handler", () => {
 					event.name === AI_SCRIBE_OCR_EVENT_NAME &&
 					(event.metadata as Record<string, unknown>)?.promptName === "ocr:document",
 			);
-			expect(ocrEvent?.metadata).toMatchObject({
-				ocr: {
-					coordinateSystem: "page-relative-top-left",
-					pages: [
-						{
-							blocks: [
-								{
-									bbox: { height: 80, width: 180, x: 60, y: 40 },
-									text: "Patient ist 75 Jahre alt.",
-								},
-							],
-							pageNumber: 1,
-						},
-					],
-				},
-			});
+			expect(ocrEvent?.metadata).not.toHaveProperty("ocr.pages");
 			const inferenceEvent = events.find(
 				(event) =>
 					event.name === AI_SCRIBE_OCR_EVENT_NAME &&
@@ -1124,7 +1075,7 @@ describe("Fill Inputs Handler", () => {
 				userId: user.id,
 			});
 
-			aiMockState.nextOcrOutput = { blocks: [], text: "  \n" };
+			aiMockState.nextOcrOutput = { text: "  \n" };
 			await expect(call(fillInputsHandler, input, { context })).rejects.toThrow(
 				"Die Dateianalyse hat keinen Text geliefert",
 			);
@@ -1132,7 +1083,7 @@ describe("Fill Inputs Handler", () => {
 				.select()
 				.from(usageEvent)
 				.where(eq(usageEvent.name, AI_INPUT_FILL_EVENT_NAME));
-			expect(fillEvents).toHaveLength(2);
+			expect(fillEvents).toHaveLength(1);
 		} finally {
 			delete aiMockState.nextGenerateTextText;
 			delete aiMockState.nextGenerateTextOutput;

@@ -66,6 +66,8 @@ export const AiscribeTemplateInputSection = ({
 }: AiscribeTemplateInputSectionProps) => {
 	const fallbackInputContextController = useInputContextState();
 	const resolvedInputContextController = inputContextController ?? fallbackInputContextController;
+	const isSubmitDisabled =
+		isLoading || submitDisabled || resolvedInputContextController.hasPendingOcr;
 	const handleInputPaste = useInputContextClipboardPaste({
 		controller: resolvedInputContextController,
 		disabled: isLoading,
@@ -86,12 +88,12 @@ export const AiscribeTemplateInputSection = ({
 	const handlePromptSubmit = useCallback(
 		(_: unknown, event: FormEvent<HTMLFormElement>) => {
 			event.preventDefault();
-			if (!onSubmit) {
+			if (!onSubmit || isSubmitDisabled) {
 				return;
 			}
 			void onSubmit();
 		},
-		[onSubmit],
+		[isSubmitDisabled, onSubmit],
 	);
 	const hasAdditionalInputValue = useMemo(
 		() =>
@@ -169,7 +171,7 @@ export const AiscribeTemplateInputSection = ({
 					}
 					onSubmitShortcut={onSubmit}
 					showSubmit={false}
-					submitShortcutDisabled={isLoading || submitDisabled}
+					submitShortcutDisabled={isSubmitDisabled}
 					textPanelContent={
 						<div className="space-y-4">
 							{additionalInputFields}
@@ -196,7 +198,17 @@ export const AiscribeTemplateInputSection = ({
 					textPanelHasValue={inputValue.trim().length > 0 || hasAdditionalInputValue}
 					textPanelTitle="Text"
 					trailingAction={
-						showSubmit ? <PromptInputSubmit disabled={isLoading || submitDisabled} /> : null
+						showSubmit ? (
+							<PromptInputSubmit
+								aria-label={
+									resolvedInputContextController.hasPendingOcr ? "Dokumenterkennung…" : "Generieren"
+								}
+								disabled={isSubmitDisabled}
+								size={resolvedInputContextController.hasPendingOcr ? "sm" : "icon-sm"}
+							>
+								{resolvedInputContextController.hasPendingOcr ? "Dokumenterkennung…" : undefined}
+							</PromptInputSubmit>
+						) : null
 					}
 					variant="tabs"
 				/>

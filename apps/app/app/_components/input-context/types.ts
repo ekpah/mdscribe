@@ -57,6 +57,7 @@ export interface InputContextController {
 	hasAnyContext: boolean;
 	hasAudioRecordings: boolean;
 	hasContextFiles: boolean;
+	hasPendingOcr: boolean;
 	hasTextContext: boolean;
 	prepareSubmission: () => Promise<InputContextSubmission>;
 	retryContextFileOcr: (id: string) => void;

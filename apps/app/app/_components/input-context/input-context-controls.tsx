@@ -447,6 +447,7 @@ const InputContextToolbar = ({
 	<div
 		className={cn(
 			"flex min-w-0 items-center gap-2",
+			controller.hasPendingOcr && "flex-wrap",
 			isTabVariant && "rounded-b-lg border border-solarized-blue/20 bg-solarized-blue/5 px-3 py-2",
 		)}
 	>
@@ -488,12 +489,12 @@ const InputContextToolbar = ({
 		) : null}
 		<SubmitButton
 			canShow={showSubmit}
-			disabled={!controller.hasAnyContext || isSubmitting}
+			disabled={!controller.hasAnyContext || isSubmitting || controller.hasPendingOcr}
 			hasTrailingAction={Boolean(trailingAction)}
 			isSubmitting={isSubmitting}
 			onClick={handleSubmit}
 			pendingLabel={pendingLabel}
-			submitLabel={submitLabel}
+			submitLabel={controller.hasPendingOcr ? "Dokumenterkennung…" : submitLabel}
 		/>
 	</div>
 );
@@ -568,7 +569,7 @@ export const InputContextControls = ({
 	}, []);
 
 	const handleSubmit = useCallback(async () => {
-		if (!onSubmit) {
+		if (!onSubmit || disabled || isSubmitting || controller.hasPendingOcr) {
 			return;
 		}
 
@@ -589,7 +590,7 @@ export const InputContextControls = ({
 		} finally {
 			setIsSubmitting(false);
 		}
-	}, [controller, onSubmit]);
+	}, [controller, disabled, isSubmitting, onSubmit]);
 
 	const handleTextContextLimitExceeded = useCallback((maxCharacters: number) => {
 		toast.error(
@@ -617,7 +618,7 @@ export const InputContextControls = ({
 	}, [focusFirstTextField, onFocusShortcut, openContextPanel]);
 
 	const handleSubmitShortcut = useCallback(() => {
-		if (disabled || isSubmitting || submitShortcutDisabled) {
+		if (disabled || isSubmitting || submitShortcutDisabled || controller.hasPendingOcr) {
 			return;
 		}
 
@@ -629,7 +630,15 @@ export const InputContextControls = ({
 		if (onSubmit) {
 			void handleSubmit();
 		}
-	}, [disabled, handleSubmit, isSubmitting, onSubmit, onSubmitShortcut, submitShortcutDisabled]);
+	}, [
+		controller.hasPendingOcr,
+		disabled,
+		handleSubmit,
+		isSubmitting,
+		onSubmit,
+		onSubmitShortcut,
+		submitShortcutDisabled,
+	]);
 
 	const requestRecordingToggle = useCallback(() => {
 		if (disabled) {

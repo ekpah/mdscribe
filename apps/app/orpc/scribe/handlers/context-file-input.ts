@@ -2,6 +2,7 @@ import { ORPCError } from "@orpc/server";
 import type { Database } from "@repo/database";
 
 import { getBase64Payload } from "@/lib/input-fill-limits";
+import { formatOcrTextForPrompt } from "@/lib/ocr-prompt-text";
 import { ocrResultSchema } from "@/lib/ocr-types";
 import type { OcrResult } from "@/lib/ocr-types";
 import { AI_SCRIBE_OCR_EVENT_NAME } from "@/lib/usage-event-names";
@@ -64,8 +65,8 @@ export const formatContextFileMetadataForPrompt = (
 };
 
 /**
- * Supplies indexed OCR text and citation geometry as JSON in Scribe's prompt.
- * Each document gets its own usage event so geometry has an unambiguous source.
+ * Supplies only OCR text in Scribe's prompt.
+ * Geometry stays in the returned OCR results and document-level usage metadata.
  * Raw files and rendered page images are never included in usage events.
  */
 export const extractContextFiles = async ({
@@ -86,7 +87,6 @@ export const extractContextFiles = async ({
 	}
 
 	const ocrResults: OcrResult[] = [];
-	const documents: { index: number; name: string; ocrResult: OcrResult }[] = [];
 	// Bound document-level memory/concurrency, particularly for rasterized PDFs.
 	for (const [index, file] of contextFiles.entries()) {
 		if (file.kind === "ocr") {
@@ -95,11 +95,6 @@ export const extractContextFiles = async ({
 				throw new ORPCError("BAD_REQUEST", { message: "Das OCR-Ergebnis ist ungültig." });
 			}
 			ocrResults.push(result.data);
-			documents.push({
-				index: index + 1,
-				name: file.name,
-				ocrResult: result.data,
-			});
 			continue;
 		}
 		const data = Buffer.from(getBase64Payload(file.data), "base64");
@@ -178,15 +173,15 @@ export const extractContextFiles = async ({
 			zdr,
 		});
 		ocrResults.push(result);
-		documents.push({
-			index: index + 1,
-			name: file.name,
-			ocrResult: result,
-		});
 	}
+	const documents = ocrResults.map((result, index) => ({
+		index: index + 1,
+		name: contextFiles[index].name,
+		text: formatOcrTextForPrompt(result.text),
+	}));
 	return {
 		ocrResults,
-		textContext: documents.some(({ ocrResult }) => ocrResult.text)
+		textContext: documents.some(({ text }) => text)
 			? `<datei_kontext>\n${JSON.stringify(documents)}\n</datei_kontext>`
 			: "",
 	};

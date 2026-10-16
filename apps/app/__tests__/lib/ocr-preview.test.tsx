@@ -7,6 +7,7 @@ import {
 	OcrImagePreview,
 	OcrTextPreview,
 } from "@/app/_components/input-context/inputs/document/ocr-preview";
+import { formatOcrTextForPrompt } from "@/lib/ocr-prompt-text";
 
 test("OCR preview preserves merged cells without trusting model HTML attributes", () => {
 	const html = renderToStaticMarkup(
@@ -29,6 +30,35 @@ test("keeps text that only looks like markup, such as lab thresholds", () => {
 		<OcrTextPreview text={"Troponin <Nachweisgrenze, CRP 3\nKOF 1,73 m<sup>2</sup>"} />,
 	);
 	expect(html).toContain("Troponin &lt;Nachweisgrenze, CRP 3<br/>KOF 1,73 m<sup>2</sup>");
+});
+
+test("OCR table values stay literal and render identically from raw OCR and agent context", () => {
+	const values = [
+		"<NWG",
+		"<5 mg/l",
+		"- 2",
+		"---",
+		"+ 3",
+		"1. text",
+		"2) text",
+		"# Befund",
+		"~~~",
+		"[x] Ja",
+		"[ ] Nein",
+		"4,78",
+		"5.12",
+	];
+	const source = `<table><tr><th>Parameter</th><th>Wert</th></tr>${values
+		.map((value, index) => `<tr><td>Wert ${index + 1}</td><td>${value}</td></tr>`)
+		.join("")}</table>`;
+	const html = renderToStaticMarkup(<OcrTextPreview text={source} />);
+	const formatted = formatOcrTextForPrompt(source);
+	expect(renderToStaticMarkup(<OcrTextPreview text={formatted} />)).toBe(html);
+	for (const value of values) {
+		expect(html).toContain(`<td>${value.replaceAll("<", "&lt;")}</td>`);
+	}
+	expect(formatted).toContain("* 4,78\n");
+	expect(formatted).toContain("* 5.12\n");
 });
 
 test("renders mixed Markdown and HTML tables through the inert allowlist", () => {
@@ -78,21 +108,51 @@ test("only retains integer cell spans from 1 through 1000", () => {
 	const text =
 		'<table><tr><td colspan="1000" rowspan="1">ok</td><td colspan="1001" rowspan="0">large</td><td colspan="-2" rowspan="1.5">invalid</td></tr></table>';
 	const html = renderToStaticMarkup(<OcrTextPreview text={text} />);
-	expect(html).toContain('<td colSpan="1000" rowSpan="1">ok</td>');
+	expect(html).toContain('<td colSpan="1000">ok</td>');
 	expect(html).toContain("<td>large</td><td>invalid</td>");
 });
 
-test("indented tables keep adjacent rows in one row group for rowspan", () => {
+test("OCR header and body spans stay in one row group so browsers cannot shift columns", () => {
 	const html = renderToStaticMarkup(
 		<OcrTextPreview
 			text={
-				'<table>\n<tr>\n<td rowspan="2">Dose</td><td>1</td>\n</tr>\n<tr><td>0</td></tr>\n</table>'
+				'<table>\n<tr><th rowspan="2">Parameter</th><th colspan="2">Ruhe</th></tr><tr><th>vor</th><th>nach</th></tr><tr><td rowspan="2">Dose</td><td>1</td><td>2</td></tr><tr><td>0</td><td></td></tr>\n</table>'
 			}
 		/>,
 	);
 	expect(html).toContain(
-		'<table><tbody><tr><td rowSpan="2">Dose</td><td>1</td></tr><tr><td>0</td></tr></tbody></table>',
+		'<tbody><tr><th rowSpan="2">Parameter</th><th colSpan="2">Ruhe</th></tr><tr><td>vor</td><td>nach</td></tr><tr><td rowSpan="2">Dose</td><td>1</td><td>2</td></tr><tr><td>0</td><td></td></tr></tbody>',
 	);
+});
+
+test("native Markdoc OCR tables keep empty cells and captions, but never execute template tags", () => {
+	const html = renderToStaticMarkup(
+		<OcrTextPreview
+			text={`Nach Belastung
+
+{% table %}
+* Parameter
+* Wert
+---
+* PAP
+* 52 / 26 (36)
+---
+* {% info "secret" /%} [x] <5
+* &nbsp;
+---
+* [label](https://tracker.invalid){% colspan=2 %}
+---
+* ![image](https://tracker.invalid/pixel)
+* {% if $secret %}nicht auswerten{% /if %}
+{% /table %}`}
+		/>,
+	);
+	expect(html).toContain("Nach Belastung");
+	expect(html).toContain("<td>PAP</td><td>52 / 26 (36)</td>");
+	expect(html).toContain("{% info &quot;secret&quot; /%} [x] &lt;5");
+	expect(html).toContain('<td colSpan="2">label</td>');
+	expect(html).toContain("{% if $secret %}nicht auswerten{% /if %}");
+	expect(html).not.toMatch(/<(a|img|input|script)\b|\s(href|src|on\w+)=/);
 });
 
 const page = {
@@ -207,7 +267,7 @@ test("generation OCR replaces existing preview text and boxes without clearing u
 	expect(stdout).toContain("Generation OCR preview refresh: OK");
 });
 
-test("images wait for manual alignment even on submit; PDFs and confirmed images run OCR", async () => {
+test("images require alignment and submissions stay blocked until OCR completes", async () => {
 	const child = Bun.spawn(
 		[
 			execPath,
@@ -220,6 +280,8 @@ test("images wait for manual alignment even on submit; PDFs and confirmed images
 			const states = [], refs = [], calls = [];
 			let native = false;
 			let configured = true, documentModel = "document-v1", encodes = 0;
+			let releaseOcr;
+			const pendingOcr = new Promise(resolve => { releaseOcr = resolve; });
 			mock.module("react", () => ({
 				...React,
 				useCallback: fn => fn,
@@ -240,6 +302,7 @@ test("images wait for manual alignment even on submit; PDFs and confirmed images
 				documentInputPolicy:{call:async()=>({ocrConfigured:configured,supportsDocuments:native,agentSupportsDocuments:native})},
 				extractContextFile:{call:async({file})=>{
 					calls.push(file.name);
+					await pendingOcr;
 					return {result:{backend:"llm",text:documentModel+" "+file.name,pages:[{pageNumber:1,width:600,height:800,blocks:[{text:"confirmed",bbox:{x:17,y:39,width:83,height:21}}]}]}};
 				}},
 			}}}));
@@ -262,6 +325,17 @@ test("images wait for manual alignment even on submit; PDFs and confirmed images
 			await assert.rejects(controller.prepareSubmission(),/manuell ausrichten/);
 			assert.deepEqual(calls,[]);
 			controller.retryContextFileOcr(controller.contextFiles[0].id);
+			controller = render();
+			assert.equal(controller.hasPendingOcr,true);
+			await assert.rejects(controller.prepareSubmission(),/Dokumenterkennung läuft noch/);
+			await new Promise(resolve => setTimeout(resolve,0));
+			controller = render();
+			assert.equal(controller.hasPendingOcr,true);
+			await assert.rejects(controller.prepareSubmission(),/Dokumenterkennung läuft noch/);
+			releaseOcr();
+			await new Promise(resolve => setTimeout(resolve,0));
+			controller = render();
+			assert.equal(controller.hasPendingOcr,false);
 			const submission = await controller.prepareSubmission();
 			assert.equal(submission.contextFiles[0].kind,"ocr");
 			assert.ok(!("data" in submission.contextFiles[0]));
@@ -286,6 +360,9 @@ test("images wait for manual alignment even on submit; PDFs and confirmed images
 			assert.equal(encodes,1);
 			// An explicit retry still runs OCR with the new model and updates the submitted result.
 			controller.retryContextFileOcr(controller.contextFiles[0].id);
+			controller = render();
+			await new Promise(resolve => setTimeout(resolve,0));
+			controller = render();
 			const retried = await controller.prepareSubmission();
 			assert.equal(retried.contextFiles[0].ocrResult.text,"document-v2 scan.png");
 			assert.equal(calls.length,2);
@@ -297,6 +374,10 @@ test("images wait for manual alignment even on submit; PDFs and confirmed images
 			assert.deepEqual(calls,["scan.png","scan.png"]);
 			controller.setContextFiles([]);
 			controller.addContextFiles([new File(["pdf"],"letter.pdf",{type:"application/pdf"})]);
+			controller = render();
+			assert.equal(controller.hasPendingOcr,true);
+			await assert.rejects(controller.prepareSubmission(),/Dokumenterkennung läuft noch/);
+			await new Promise(resolve => setTimeout(resolve,0));
 			controller = render();
 			await controller.prepareSubmission();
 			assert.deepEqual(calls,["scan.png","scan.png","letter.pdf"]);
