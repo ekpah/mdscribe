@@ -35,6 +35,7 @@ import type {
 	InputContextController,
 	InputContextTextContext,
 	InputContextTextContextKey,
+	UploadedContextFile,
 } from "@/app/_components/input-context/types";
 import { blobToBase64 } from "@/app/_components/inputs/audio-submission";
 import {
@@ -94,8 +95,12 @@ const improvedAdjectiveEndings: Record<ReturnType<typeof getPromptHarnessGender>
 	plural: "e",
 };
 
-const toContextFilePayload = async ({ file }: { file: File }): Promise<RawContextDocument> => ({
+const toContextFilePayload = async ({
+	file,
+	id,
+}: UploadedContextFile): Promise<RawContextDocument> => ({
 	data: await blobToBase64(file),
+	id,
 	mimeType: file.type || "application/octet-stream",
 	name: file.name,
 	size: file.size,

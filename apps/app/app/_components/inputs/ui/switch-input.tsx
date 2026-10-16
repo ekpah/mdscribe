@@ -99,6 +99,7 @@ export const SwitchInput = ({
 	suggestedValue,
 	suggestionLabel = "Vorschlag",
 	onAcceptSuggestedValue,
+	onShowSuggestedValueSource,
 	inputClassName,
 }: {
 	input: SwitchInputTagType;
@@ -107,6 +108,7 @@ export const SwitchInput = ({
 	suggestedValue?: string | number | boolean;
 	suggestionLabel?: string;
 	onAcceptSuggestedValue?: () => void;
+	onShowSuggestedValueSource?: () => void;
 	inputClassName?: string;
 }) => {
 	const controlId = useId();
@@ -174,6 +176,7 @@ export const SwitchInput = ({
 						hasExistingValue={hasValue}
 						label={suggestionLabel}
 						onAccept={onAcceptSuggestedValue}
+						onShowSource={onShowSuggestedValueSource}
 						value={normalizedSuggestionBoolean ? "Angehakt" : "Nicht angehakt"}
 					/>
 				)}
@@ -239,6 +242,7 @@ export const SwitchInput = ({
 					hasExistingValue={hasValue}
 					label={suggestionLabel}
 					onAccept={onAcceptSuggestedValue}
+					onShowSource={onShowSuggestedValueSource}
 					value={normalizedSuggestionString ?? ""}
 				/>
 			)}

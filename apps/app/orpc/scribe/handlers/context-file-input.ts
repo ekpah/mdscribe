@@ -1,5 +1,6 @@
 import { ORPCError } from "@orpc/server";
 import type { Database } from "@repo/database";
+import { createMdscribeSource } from "markdoc-md/citations";
 
 import { getBase64Payload } from "@/lib/input-fill-limits";
 import { formatOcrTextForPrompt } from "@/lib/ocr-prompt-text";
@@ -65,17 +66,20 @@ export const formatContextFileMetadataForPrompt = (
 };
 
 /**
- * Supplies only OCR text in Scribe's prompt.
+ * Supplies only OCR text and source references in Scribe's prompt.
  * Geometry stays in the returned OCR results and document-level usage metadata.
  * Raw files and rendered page images are never included in usage events.
  */
 export const extractContextFiles = async ({
+	citationSources,
 	contextFiles,
 	db,
 	modelSelection,
 	userId,
 	zdr,
 }: {
+	/** FillInputs uses this request's one-based source numbers; other consumers keep URIs. */
+	citationSources?: readonly string[];
 	contextFiles: FillInputsContextFile[] | undefined;
 	db?: Database;
 	modelSelection: ResolvedOcrSelection;
@@ -174,11 +178,25 @@ export const extractContextFiles = async ({
 		});
 		ocrResults.push(result);
 	}
-	const documents = ocrResults.map((result, index) => ({
-		index: index + 1,
-		name: contextFiles[index].name,
-		text: formatOcrTextForPrompt(result.text),
-	}));
+	const documents = ocrResults.map((result, index) => {
+		const file = contextFiles[index];
+		const id = file.id?.trim();
+		let source: number | string | undefined;
+		if (id) {
+			const uri = createMdscribeSource("file", id);
+			source = uri;
+			if (citationSources) {
+				const sourceIndex = citationSources.indexOf(uri);
+				source = sourceIndex === -1 ? undefined : sourceIndex + 1;
+			}
+		}
+		return {
+			index: index + 1,
+			name: file.name,
+			...(source === undefined ? {} : { source }),
+			text: formatOcrTextForPrompt(result.text),
+		};
+	});
 	return {
 		ocrResults,
 		textContext: documents.some(({ text }) => text)

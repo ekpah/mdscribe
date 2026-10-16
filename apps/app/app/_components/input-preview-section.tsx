@@ -3,11 +3,15 @@
 import { Card } from "@repo/design-system/components/ui/card";
 import { cn } from "@repo/design-system/lib/utils";
 import { FileText, ListChecks } from "lucide-react";
+import { createMdscribeSource, resolveCitation } from "markdoc-md/citations";
+import type { CitationRequest, CitationTextSource } from "markdoc-md/citations";
 import type { InputTagType } from "markdoc-md/parse";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { CitationPreviewDialog } from "@/app/_components/citation-preview-dialog";
+import type { CitationPreview } from "@/app/_components/citation-preview-dialog";
 import { consumeContextTransferFromFragment } from "@/app/_components/context-transfer/client";
 import { hydrateInputContextController } from "@/app/_components/context-transfer/hydrate";
 import {
@@ -16,6 +20,8 @@ import {
 } from "@/app/_components/input-context/input-context-controls";
 import { trackEvent } from "@/lib/analytics";
 import { useSession } from "@/lib/auth-client";
+import { resolveOcrDocumentCitation } from "@/lib/citations/resolve-ocr-document-citation";
+import type { OcrResult } from "@/lib/ocr-types";
 import { orpc } from "@/lib/orpc";
 
 import type {
@@ -38,12 +44,43 @@ interface InputPreviewSectionProps {
 	onInputBlur?: (inputName: string) => void;
 	onInputSelect?: (inputName: string) => void;
 	onValuesChange?: (values: Record<string, unknown>) => void;
-	preview: (values: Record<string, unknown>) => ReactNode;
+	preview: (
+		values: Record<string, unknown>,
+		onCitationSelect: (citation: CitationRequest) => void,
+	) => ReactNode;
 	previewToolbar?: ReactNode;
 	resetKey?: string;
 	templateExamples?: string[];
 	templateInformation?: string;
 }
+
+const TEXT_CONTEXT_LABELS: Record<keyof FillInputsTextContext, string> = {
+	anamnese: "Anamnese",
+	befunde: "Befunde",
+	diagnoseblock: "Diagnosen",
+	epikrise: "Epikrise",
+	notes: "Notizen",
+};
+
+const createTextSourceSnapshot = (
+	textContext: FillInputsTextContext,
+): ReadonlyMap<string, CitationTextSource> =>
+	new Map(
+		Object.entries(textContext)
+			.filter((entry): entry is [keyof FillInputsTextContext, string] => Boolean(entry[1]?.trim()))
+			.map(([id, text]) => [
+				createMdscribeSource("input", id),
+				{ label: TEXT_CONTEXT_LABELS[id], text },
+			]),
+	);
+
+const revokePreviewUrls = (previews: CitationPreview[] | null) => {
+	for (const preview of previews ?? []) {
+		if (preview.kind === "document" && preview.url.startsWith("blob:")) {
+			URL.revokeObjectURL(preview.url);
+		}
+	}
+};
 
 const getMobileTabClassName = (isActive: boolean) =>
 	cn(
@@ -164,7 +201,13 @@ export const InputPreviewSection = ({
 	const [mobilePanel, setMobilePanel] = useState<MobilePanel>("preview");
 	const [previewPanelElement, setPreviewPanelElement] = useState<HTMLDivElement | null>(null);
 	const [usesPreviewPanelPortal, setUsesPreviewPanelPortal] = useState(false);
+	const [citationPreviews, setCitationPreviews] = useState<CitationPreview[] | null>(null);
 	const inputContextController = useInputContextState();
+	const citationAbortControllerRef = useRef<AbortController | null>(null);
+	const citationFilesRef = useRef<ReadonlyMap<string, File>>(new Map());
+	const citationOcrResultsRef = useRef<ReadonlyMap<File, OcrResult>>(new Map());
+	const citationPreviewsRef = useRef<CitationPreview[] | null>(null);
+	const citationTextSourcesRef = useRef<ReadonlyMap<string, CitationTextSource>>(new Map());
 	const lastInputFocusKeyRef = useRef(activeInputFocusKey);
 	const lastPreviewFocusKeyRef = useRef(activePreviewFocusKey);
 	const mobileTabId = useId();
@@ -271,6 +314,13 @@ export const InputPreviewSection = ({
 			textContext: FillInputsTextContext,
 			contextFiles: FillInputsContextFile[],
 		) => {
+			const textSourceSnapshot = createTextSourceSnapshot(textContext);
+			const submittedFileIds = new Set(contextFiles.map(({ id }) => id));
+			const fileSourceSnapshot = new Map(
+				inputContextController.contextFiles
+					.filter(({ id }) => submittedFileIds.has(id))
+					.map(({ file, id }) => [id, file]),
+			);
 			const result = await orpc.scribe.fillInputs.call({
 				audioFiles,
 				contextFiles,
@@ -280,10 +330,88 @@ export const InputPreviewSection = ({
 				textContext,
 			});
 			inputContextController.setContextFileOcrResults(result.ocrResults);
+			citationFilesRef.current = fileSourceSnapshot;
+			citationOcrResultsRef.current = new Map(
+				contextFiles.flatMap((contextFile, index) => {
+					const file = contextFile.id ? fileSourceSnapshot.get(contextFile.id) : undefined;
+					const ocrResult =
+						contextFile.kind === "ocr" ? contextFile.ocrResult : result.ocrResults[index];
+					return file && ocrResult ? [[file, ocrResult] as const] : [];
+				}),
+			);
+			citationTextSourcesRef.current = textSourceSnapshot;
 			trackEvent(`${contentType}-filled-with-ai`);
-			return result.fieldValues;
+			return result;
 		},
 		[contentType, inputContextController, templateExamples, templateInformation],
+	);
+
+	const handleCitationsSelect = useCallback(
+		(citations: CitationRequest[]) => {
+			if (citations.length === 0) {
+				return;
+			}
+			citationAbortControllerRef.current?.abort();
+			const abortController = new AbortController();
+			citationAbortControllerRef.current = abortController;
+			setCitationPreviews((current) => {
+				revokePreviewUrls(current);
+				return citations.map(({ source }) => ({ kind: "loading", source }));
+			});
+
+			void (async () => {
+				const resolutions = await Promise.all(
+					citations.map((citation) =>
+						resolveCitation(citation, {
+							documentResolver: (file, quote, signal) =>
+								resolveOcrDocumentCitation(file, quote, {
+									ocrResult: citationOcrResultsRef.current.get(file),
+									signal,
+								}),
+							files: citationFilesRef.current,
+							signal: abortController.signal,
+							texts: citationTextSourcesRef.current,
+						}),
+					),
+				);
+				if (abortController.signal.aborted) {
+					return;
+				}
+				setCitationPreviews((current) => {
+					revokePreviewUrls(current);
+					return resolutions;
+				});
+			})();
+		},
+		[],
+	);
+	const handleCitationSelect = useCallback(
+		(citation: CitationRequest) => handleCitationsSelect([citation]),
+		[handleCitationsSelect],
+	);
+
+	const handleCitationDialogChange = useCallback((open: boolean) => {
+		if (open) {
+			return;
+		}
+		citationAbortControllerRef.current?.abort();
+		citationAbortControllerRef.current = null;
+		setCitationPreviews((current) => {
+			revokePreviewUrls(current);
+			return null;
+		});
+	}, []);
+
+	useEffect(() => {
+		citationPreviewsRef.current = citationPreviews;
+	}, [citationPreviews]);
+
+	useEffect(
+		() => () => {
+			citationAbortControllerRef.current?.abort();
+			revokePreviewUrls(citationPreviewsRef.current);
+		},
+		[],
 	);
 
 	const inputPanelClassName = getInputPanelClassName(hasInputTags, mobilePanel);
@@ -294,57 +422,66 @@ export const InputPreviewSection = ({
 	);
 
 	return (
-		<Card className="relative flex h-[calc(100vh-(--spacing(16))-(--spacing(10))-2rem)] overflow-hidden md:grid md:grid-cols-3">
-			{hasInputTags ? (
-				<MobilePanelTabs
-					mobilePanel={mobilePanel}
-					mobileTabId={mobileTabId}
-					onPanelChange={setMobilePanel}
-				/>
-			) : null}
-			<div
-				aria-labelledby={hasInputTags ? `${mobileTabId}-inputs-tab` : undefined}
-				className={inputPanelClassName}
-				id={`${mobileTabId}-inputs-panel`}
-				key="Inputs"
-				role={hasInputTags ? "tabpanel" : undefined}
-			>
-				<Inputs
-					activeInputFocusKey={mobilePanel === "inputs" ? activeInputFocusKey : undefined}
-					activeInputName={activeInputName}
-					key={resetKey}
-					inputTags={inputTags}
-					onChange={handleFormChange}
-					onFillInputs={isLoggedIn ? handleFillInputs : undefined}
-					onInputBlur={onInputBlur}
-					onInputSelect={onInputSelect}
-					renderFillControls={({ onSubmit }) => (
-						<InputContextControls
-							className="shrink-0 border-t border-t-solarized-blue/30 bg-solarized-blue/5 px-4 py-3"
-							controller={inputContextController}
-							onSubmit={async ({ audioFiles, contextFiles, textContext }) => {
-								await onSubmit(audioFiles, textContext, contextFiles);
-							}}
-							panelPortalTarget={usesPreviewPanelPortal ? previewPanelElement : null}
-						/>
-					)}
-					showFillInputs={isLoggedIn}
-				/>
-			</div>
-			{edgeTabs}
-			<div
-				aria-labelledby={hasInputTags ? `${mobileTabId}-preview-tab` : undefined}
-				className={previewPanelClassName}
-				id={`${mobileTabId}-preview-panel`}
-				key="Preview"
-				ref={handlePreviewPanelRef}
-				role={hasInputTags ? "tabpanel" : undefined}
-			>
-				{previewToolbar ? (
-					<div className="mb-3 flex items-center gap-2">{previewToolbar}</div>
+		<>
+			<Card className="relative flex h-[calc(100vh-(--spacing(16))-(--spacing(10))-2rem)] overflow-hidden md:grid md:grid-cols-3">
+				{hasInputTags ? (
+					<MobilePanelTabs
+						mobilePanel={mobilePanel}
+						mobileTabId={mobileTabId}
+						onPanelChange={setMobilePanel}
+					/>
 				) : null}
-				<div className="min-h-0 flex-1 overflow-y-auto overscroll-none">{preview(values)}</div>
-			</div>
-		</Card>
+				<div
+					aria-labelledby={hasInputTags ? `${mobileTabId}-inputs-tab` : undefined}
+					className={inputPanelClassName}
+					id={`${mobileTabId}-inputs-panel`}
+					key="Inputs"
+					role={hasInputTags ? "tabpanel" : undefined}
+				>
+					<Inputs
+						activeInputFocusKey={mobilePanel === "inputs" ? activeInputFocusKey : undefined}
+						activeInputName={activeInputName}
+						key={resetKey}
+						inputTags={inputTags}
+						onChange={handleFormChange}
+						onCitationsSelect={handleCitationsSelect}
+						onFillInputs={isLoggedIn ? handleFillInputs : undefined}
+						onInputBlur={onInputBlur}
+						onInputSelect={onInputSelect}
+						renderFillControls={({ onSubmit }) => (
+							<InputContextControls
+								className="shrink-0 border-t border-t-solarized-blue/30 bg-solarized-blue/5 px-4 py-3"
+								controller={inputContextController}
+								onSubmit={async ({ audioFiles, contextFiles, textContext }) => {
+									await onSubmit(audioFiles, textContext, contextFiles);
+								}}
+								panelPortalTarget={usesPreviewPanelPortal ? previewPanelElement : null}
+							/>
+						)}
+						showFillInputs={isLoggedIn}
+					/>
+				</div>
+				{edgeTabs}
+				<div
+					aria-labelledby={hasInputTags ? `${mobileTabId}-preview-tab` : undefined}
+					className={previewPanelClassName}
+					id={`${mobileTabId}-preview-panel`}
+					key="Preview"
+					ref={handlePreviewPanelRef}
+					role={hasInputTags ? "tabpanel" : undefined}
+				>
+					{previewToolbar ? (
+						<div className="mb-3 flex items-center gap-2">{previewToolbar}</div>
+					) : null}
+					<div className="min-h-0 flex-1 overflow-y-auto overscroll-none">
+						{preview(values, handleCitationSelect)}
+					</div>
+				</div>
+			</Card>
+			<CitationPreviewDialog
+				onOpenChange={handleCitationDialogChange}
+				previews={citationPreviews}
+			/>
+		</>
 	);
 };

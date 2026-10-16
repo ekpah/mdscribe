@@ -1,4 +1,6 @@
-import type { ContextDocument } from "@/lib/ocr-types";
+import type { CitationRequest } from "markdoc-md/citations";
+
+import type { ContextDocument, OcrResult } from "@/lib/ocr-types";
 
 /**
  * Model configuration for streaming responses
@@ -70,6 +72,16 @@ export interface FillInputsInputPayload {
 	templateExamples?: string[];
 	templateInformation?: string;
 	textContext?: FillInputsTextContext;
+}
+
+export interface FillInputSuggestion {
+	citations?: CitationRequest[];
+	value: boolean | number | string;
+}
+
+export interface FillInputsResult {
+	ocrResults: OcrResult[];
+	suggestions: Record<string, FillInputSuggestion>;
 }
 
 /**

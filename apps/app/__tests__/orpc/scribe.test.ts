@@ -52,6 +52,7 @@ import type { DocumentType } from "@/orpc/scribe/types";
  * - Integration tests for streaming handlers (with mocked AI SDK)
  * - Usage limit and subscription tests
  */
+
 describe("Document Type Configurations", () => {
 	test("all document types have required config", () => {
 		const documentTypes: DocumentType[] = [
@@ -975,7 +976,7 @@ describe("Fill Inputs Handler", () => {
 			`<input_fields>\n${JSON.stringify(inputFields)}\n</input_fields>`,
 		);
 		expect(messages[0].content).toContain("bevorzuge die einzelnen Komponenten");
-		expect(messages[0].content).toContain("Score-Wert hat Vorrang");
+		expect(messages[0].content).toContain("Wert hat Vorrang vor der Berechnung");
 	});
 
 	test("passes OCR text and field definitions to the separate text model", async () => {
@@ -1018,9 +1019,11 @@ describe("Fill Inputs Handler", () => {
 				text: "Patient ist 75 Jahre alt.",
 			};
 			aiMockState.nextOcrOutput = expectedOcrResult;
-			aiMockState.nextGenerateTextOutput = { fieldValues: { Alter: 75 } };
+			aiMockState.nextGenerateTextOutput = {
+				suggestions: [{ citations: [], field: "Alter", value: 75 }],
+			};
 			const result = await call(fillInputsHandler, input, { context });
-			expect(result.fieldValues).toEqual({ Alter: 75 });
+			expect(result.suggestions).toEqual({ Alter: { value: 75 } });
 			expect(result.ocrResults[0]).toMatchObject({
 				backend: "llm",
 				text: expectedOcrResult.text,
@@ -1052,7 +1055,7 @@ describe("Fill Inputs Handler", () => {
 					expect.objectContaining({
 						model: "openrouter/test-model",
 						name: AI_INPUT_FILL_EVENT_NAME,
-						result: '{"Alter":75}',
+						result: '{"Alter":{"value":75}}',
 					}),
 				]),
 			);
@@ -1144,7 +1147,18 @@ describe("Fill Inputs Handler", () => {
 				session: createMockSession(user),
 			});
 			aiMockState.nextGenerateTextOutput = {
-				fieldValues: { Aufnahmediagnose: "I50.1 Akute Linksherzinsuffizienz" },
+				suggestions: [
+					{
+						citations: [
+							{
+								quote: "I50.1 Akute Linksherzinsuffizienz",
+								source: 1,
+							},
+						],
+						field: "Aufnahmediagnose",
+						value: "I50.1 Akute Linksherzinsuffizienz",
+					},
+				],
 			};
 			const result = await call(
 				fillInputsHandler,
@@ -1164,8 +1178,16 @@ describe("Fill Inputs Handler", () => {
 				{ context },
 			);
 
-			expect(result.fieldValues).toEqual({
-				Aufnahmediagnose: "I50.1 Akute Linksherzinsuffizienz",
+			expect(result.suggestions).toEqual({
+				Aufnahmediagnose: {
+					citations: [
+						{
+							quote: "I50.1 Akute Linksherzinsuffizienz",
+							source: "mdscribe://input/diagnoseblock",
+						},
+					],
+					value: "I50.1 Akute Linksherzinsuffizienz",
+				},
 			});
 			expect(aiMockState.lastGenerateTextOptions).toMatchObject({
 				model: {
@@ -1314,11 +1336,11 @@ describe("Fill Inputs Handler", () => {
 				session: createMockSession(user),
 			});
 			aiMockState.nextGenerateTextOutput = {
-				fieldValues: {
-					Alter: 75,
-					"Aufklärung erfolgt": true,
-					"Seite Punktion": "rechts",
-				},
+				suggestions: [
+					{ citations: [], field: "Alter", value: 75 },
+					{ citations: [], field: "Aufklärung erfolgt", value: true },
+					{ citations: [], field: "Seite Punktion", value: "rechts" },
+				],
 			};
 
 			const result = await call(
@@ -1355,10 +1377,10 @@ describe("Fill Inputs Handler", () => {
 				},
 				{ context },
 			);
-			expect(result.fieldValues).toEqual({
-				Alter: 75,
-				"Aufklärung erfolgt": true,
-				"Seite Punktion": "rechts",
+			expect(result.suggestions).toEqual({
+				Alter: { value: 75 },
+				"Aufklärung erfolgt": { value: true },
+				"Seite Punktion": { value: "rechts" },
 			});
 
 			const generationOptions = aiMockState.lastGenerateTextOptions as {
@@ -1370,33 +1392,38 @@ describe("Fill Inputs Handler", () => {
 				output?: { schema?: { safeParse: (value: unknown) => { success: boolean } } };
 			};
 			const outputSchema = generationOptions.output?.schema;
-			const sparseFieldValues = {
-				Alter: 75,
-				"Aufklärung erfolgt": true,
-				"Seite Punktion": "rechts",
+			const sparseSuggestions = {
+				Alter: { value: 75 },
+				"Aufklärung erfolgt": { value: true },
+				"Seite Punktion": { value: "rechts" },
 			};
-			expect(outputSchema?.safeParse({ fieldValues: {} }).success).toBe(true);
+			const suggestionItems = Object.entries(sparseSuggestions).map(([field, suggestion]) => ({
+				citations: [],
+				field,
+				...suggestion,
+			}));
+			expect(outputSchema?.safeParse({ suggestions: [] }).success).toBe(true);
 			expect(
 				outputSchema?.safeParse({
-					fieldValues: { ...sparseFieldValues, Unbekannt: "Wert" },
+					suggestions: [...suggestionItems, { citations: [], field: "Unbekannt", value: "Wert" }],
 				}).success,
 			).toBe(false);
 			expect(
 				outputSchema?.safeParse({
-					fieldValues: { ...sparseFieldValues, "Seite Punktion": "mittig" },
+					suggestions: [{ citations: [], field: "Seite Punktion", value: "mittig" }],
 				}).success,
 			).toBe(false);
 			expect(
 				outputSchema?.safeParse({
-					fieldValues: { ...sparseFieldValues, "Aufklärung erfolgt": "true" },
+					suggestions: [{ citations: [], field: "Aufklärung erfolgt", value: "true" }],
 				}).success,
 			).toBe(false);
-			expect(outputSchema?.safeParse({ fieldValues: sparseFieldValues })).toMatchObject({
-				data: { fieldValues: sparseFieldValues },
+			expect(outputSchema?.safeParse({ suggestions: suggestionItems })).toMatchObject({
+				data: { suggestions: suggestionItems },
 				success: true,
 			});
 			const transform = generationOptions.model?.wrappedLanguageModel?.middleware?.transform;
-			const validJson = JSON.stringify({ fieldValues: { Alter: 75 } });
+			const validJson = JSON.stringify({ suggestions: [{ field: "Alter", value: 75 }] });
 			expect(transform?.(`\`\`\`json\n${validJson}\n\`\`\``)).toBe(validJson);
 			expect(transform?.(JSON.stringify(validJson))).toBe(validJson);
 

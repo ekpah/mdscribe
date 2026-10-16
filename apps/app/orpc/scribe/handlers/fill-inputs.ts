@@ -2,6 +2,7 @@ import { ORPCError, type } from "@orpc/server";
 import { usageEvent } from "@repo/database";
 import type { Database } from "@repo/database";
 import { extractJsonMiddleware, generateText, Output, wrapLanguageModel } from "ai";
+import { createMdscribeSource } from "markdoc-md/citations";
 import { z } from "zod";
 
 import {
@@ -10,7 +11,6 @@ import {
 	getBase64DecodedByteLength,
 	getContextDocumentPayloadByteLength,
 } from "@/lib/input-fill-limits";
-import type { OcrResult } from "@/lib/ocr-types";
 import { AI_INPUT_FILL_EVENT_NAME } from "@/lib/usage-event-names";
 import { buildUsageEventData, extractOpenRouterUsage } from "@/lib/usage-logging";
 import type { StandardUsage, UsageInputData, UsageMetadata } from "@/lib/usage-logging";
@@ -22,13 +22,14 @@ import {
 	composeFillInputsPrompt,
 	FILL_INPUTS_PROMPT_NAME,
 } from "@/orpc/scribe/prompts/core/fill-inputs";
+import type { FillInputsCitationSource } from "@/orpc/scribe/prompts/core/fill-inputs";
 import {
 	buildProviderOptions,
 	isGenerationStrategyFullyByok,
 	resolveGenerationStrategy,
 } from "@/orpc/scribe/providers";
 import type { MediaPlan } from "@/orpc/scribe/providers";
-import type { FillInputsInputPayload, InputField } from "@/orpc/scribe/types";
+import type { FillInputsInputPayload, FillInputsResult, InputField } from "@/orpc/scribe/types";
 
 import {
 	formatAudioTranscriptsForPrompt,
@@ -37,12 +38,6 @@ import {
 } from "./audio-input";
 import { createContextFileParts, extractContextFiles } from "./context-file-input";
 import { enforceScribeUsageLimit } from "./usage-limit";
-
-type FieldValue = boolean | number | string;
-interface FillInputsResult {
-	fieldValues: Record<string, FieldValue>;
-	ocrResults: OcrResult[];
-}
 
 interface FillInputAudioPayloadSummary {
 	index: number;
@@ -71,40 +66,63 @@ interface FillInputPayloadSummary {
 	totalPayloadBytes: number;
 }
 
-const describeField = (field: InputField) =>
-	[
-		field.description,
-		field.calculation
-			? `calculated score | formula=${field.calculation.formula} | components=${field.calculation.components.join(", ")} | Prefer returning all components. Return this score only when not all components can be sourced; a returned score overrides calculation.`
-			: undefined,
-		field.unit ? `unit=${field.unit}` : undefined,
-	]
-		.filter(Boolean)
-		.join(" | ");
-
 const getFieldValueSchema = (field: InputField) => {
-	const description = describeField(field);
 	if (field.type === "switch" && field.options?.length) {
-		return z.enum(field.options).meta({ description });
+		return z.enum(field.options);
 	}
 	if (field.type === "number") {
-		return z.union([z.number(), z.string()]).meta({ description });
+		return z.union([z.number(), z.string()]);
 	}
 	if (field.type === "boolean") {
-		return z.boolean().meta({ description });
+		return z.boolean();
 	}
-	return z.string().meta({ description });
+	return z.string();
 };
 
-const createFillInputsSchema = (inputFields: InputField[]) => {
-	const fieldValuesShape: Record<string, z.ZodTypeAny> = {};
-	for (const field of inputFields) {
-		fieldValuesShape[field.label] = getFieldValueSchema(field);
-	}
+const createFillInputsSchema = (
+	inputFields: InputField[],
+	citationSources: string[],
+	hasAudio: boolean,
+) => {
+	const fields = new Map(inputFields.map((field) => [field.label, getFieldValueSchema(field)]));
+	// One fixed item schema instead of repeating a nested citation schema for
+	// every field. Keep field-specific types and source constraints local.
+	const citationSchema = z
+		.object({
+			quote: z.string().refine((quote) => quote.length >= 1 && quote.length <= 4000),
+			source: z
+				.number()
+				.refine(
+					(source) => Number.isInteger(source) && source >= 1 && source <= citationSources.length,
+				),
+		})
+		.strict();
+	const suggestionSchema = z
+		.object({
+			citations: z
+				.array(citationSchema)
+				.refine(
+					(citations) =>
+						citations.length <= 10 &&
+						(hasAudio || citationSources.length === 0 || citations.length >= 1),
+				),
+			field: z.string().refine((label) => fields.has(label)),
+			value: z.union([z.string(), z.number(), z.boolean()]),
+		})
+		.strict()
+		.refine(
+			(suggestion) => fields.get(suggestion.field)?.safeParse(suggestion.value).success ?? false,
+		);
 
 	return z
 		.object({
-			fieldValues: z.object(fieldValuesShape).partial().strict(),
+			suggestions: z
+				.array(suggestionSchema)
+				.refine(
+					(items) =>
+						items.length <= fields.size &&
+						new Set(items.map((item) => item.field)).size === items.length,
+				),
 		})
 		.strict();
 };
@@ -112,10 +130,29 @@ const createFillInputsSchema = (inputFields: InputField[]) => {
 const toFillInputsResult = (
 	object: unknown,
 	schema: ReturnType<typeof createFillInputsSchema>,
+	citationSources: string[],
 ): FillInputsResult => {
 	const parsed = schema.safeParse(object);
 	if (parsed.success) {
-		return { ...parsed.data, ocrResults: [] } as FillInputsResult;
+		return {
+			ocrResults: [],
+			suggestions: Object.fromEntries(
+				parsed.data.suggestions.map(({ citations, field, value }) => [
+					field,
+					{
+						...(citations.length
+							? {
+									citations: citations.map(({ quote, source }) => ({
+										quote,
+										source: citationSources[source - 1],
+									})),
+								}
+							: {}),
+						value,
+					},
+				]),
+			),
+		};
 	}
 	throw new ORPCError("BAD_REQUEST", {
 		message:
@@ -138,6 +175,31 @@ const normalizeGeneratedJson = (text: string): string => {
 	} catch {
 		return normalized;
 	}
+};
+
+const getCitationSources = (input: FillInputsInputPayload): FillInputsCitationSource[] => {
+	const sources = Object.entries(input.textContext ?? {})
+		.filter((entry): entry is [string, string] => Boolean(entry[1]?.trim()))
+		.map(([id]) => ({
+			label: `Textkontext: ${id}`,
+			source: createMdscribeSource("input", id),
+		}));
+	const seen = new Set(sources.map(({ source }) => source));
+
+	for (const file of input.contextFiles ?? []) {
+		const id = file.id?.trim();
+		if (!id || id.length > 1024) {
+			continue;
+		}
+		const source = createMdscribeSource("file", id);
+		if (seen.has(source)) {
+			continue;
+		}
+		seen.add(source);
+		sources.push({ label: `Datei: ${file.name}`, source });
+	}
+
+	return sources;
 };
 
 /**
@@ -424,6 +486,7 @@ const prepareFillInputsAudio = async ({
 };
 
 const extractFillInputFileText = async ({
+	citationSources,
 	contextFiles,
 	db,
 	generationStrategy,
@@ -431,6 +494,7 @@ const extractFillInputFileText = async ({
 	userId,
 	zdr,
 }: {
+	citationSources: string[];
 	contextFiles: FillInputsInputPayload["contextFiles"];
 	db: Database;
 	generationStrategy: FillInputsGenerationStrategy;
@@ -441,6 +505,7 @@ const extractFillInputFileText = async ({
 	const filesPlan = generationStrategy.files;
 	if (hasFiles && filesPlan?.mode === "preprocess") {
 		const extractedFiles = await extractContextFiles({
+			citationSources,
 			contextFiles: contextFiles ?? [],
 			db,
 			modelSelection: filesPlan.selection,
@@ -587,7 +652,10 @@ const fillInputs = async ({ input, context }: FillInputsOptions): Promise<FillIn
 		const message = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
 		throw new ORPCError("BAD_REQUEST", { message });
 	});
+	const citationSources = getCitationSources(input);
+	const sourceUris = citationSources.map(({ source }) => source);
 	const extractedFiles = await extractFillInputFileText({
+		citationSources: sourceUris,
 		contextFiles,
 		db: context.db,
 		generationStrategy,
@@ -599,13 +667,14 @@ const fillInputs = async ({ input, context }: FillInputsOptions): Promise<FillIn
 	const nativeContextFiles = filesAreNative ? contextFiles : [];
 	const messages = composeFillInputsPrompt({
 		audioTranscripts: formatAudioTranscriptsForPrompt(preparedAudio.transcripts),
+		citationSources,
 		contextFiles: nativeContextFiles,
 		contextXml: buildFillInputContext(input),
 		fileTextContext: extractedFiles.textContext,
 		inputFields: input.inputFields,
 	});
 
-	const outputSchema = createFillInputsSchema(input.inputFields);
+	const outputSchema = createFillInputsSchema(input.inputFields, sourceUris, hasAudio);
 
 	const userContent = buildFillInputUserContent({
 		nativeContextFiles,
@@ -657,7 +726,7 @@ const fillInputs = async ({ input, context }: FillInputsOptions): Promise<FillIn
 		});
 	}
 
-	const fillResult = toFillInputsResult(resultOutput, outputSchema);
+	const fillResult = toFillInputsResult(resultOutput, outputSchema, sourceUris);
 	const openRouterUsage = generationSelection.model.isOpenRouter
 		? extractOpenRouterUsage(
 				(result as { providerMetadata?: Record<string, unknown> }).providerMetadata,
@@ -683,13 +752,13 @@ const fillInputs = async ({ input, context }: FillInputsOptions): Promise<FillIn
 			openRouterUsage,
 			result: entitlements.hasActiveSubscription
 				? "[zdr - content redacted]"
-				: JSON.stringify(fillResult.fieldValues),
+				: JSON.stringify(fillResult.suggestions),
 			standardUsage: result.usage as StandardUsage,
 			userId: context.session.user.id,
 		}),
 	);
 
-	return { ...fillResult, ocrResults: extractedFiles.ocrResults };
+	return { ocrResults: extractedFiles.ocrResults, suggestions: fillResult.suggestions };
 };
 
 export const fillInputsHandler = fillInputsProcedure.handler(fillInputs);

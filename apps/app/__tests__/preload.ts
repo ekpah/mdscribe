@@ -320,17 +320,40 @@ mock.module("ai", () => ({
 			},
 		});
 	},
-	generateText: (options?: { messages?: { content?: unknown }[] }) => {
+	// oxlint-disable-next-line complexity -- one mock dispatches every generateText caller
+	generateText: (options?: {
+		messages?: { content?: unknown }[];
+		output?: {
+			schema?: {
+				shape?: { suggestions?: { shape?: Record<string, unknown> } };
+			};
+		};
+	}) => {
 		aiMockState.generateTextCallCount += 1;
 		aiMockState.lastGenerateTextOptions = options;
 		const promptText =
 			options?.messages
 				?.map((message) => (typeof message.content === "string" ? message.content : ""))
 				.join("\n") ?? "";
-		const isFillInputsRequest = promptText.includes("fieldValues");
+		const isFillInputsRequest = promptText.includes('"suggestions"');
 		let output: unknown;
 		if (isFillInputsRequest) {
-			output = aiMockState.nextGenerateTextOutput ?? { fieldValues: {} };
+			const fieldDefinitions = promptText.match(/<input_fields>\n(.*?)\n<\/input_fields>/s)?.[1];
+			const suggestionLabel = fieldDefinitions ? JSON.parse(fieldDefinitions)[0]?.label : undefined;
+			const citationSource = promptText.match(/source=(mdscribe:\/\/[^\s|<]+)/u)?.[1];
+			output =
+				aiMockState.nextGenerateTextOutput ??
+				(suggestionLabel
+					? {
+							suggestions: [
+								{
+									citations: citationSource ? [{ quote: "I50.1", source: citationSource }] : [],
+									field: suggestionLabel,
+									value: "value",
+								},
+							],
+						}
+					: { suggestions: [] });
 			delete aiMockState.nextGenerateTextOutput;
 		} else if (promptText.includes("You are an OCR engine")) {
 			aiMockState.lastOcrGenerateTextOptions = options;

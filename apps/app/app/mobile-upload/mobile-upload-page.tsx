@@ -94,6 +94,7 @@ export const MobileUploadPage = () => {
 				contextFiles: [
 					{
 						data: await blobToBase64(file),
+						id: `mobile-file-${file.name}-${file.size}-${file.lastModified}`,
 						mimeType: file.type || "application/octet-stream",
 						name: file.name || `foto-${Date.now()}.jpg`,
 						size: file.size,

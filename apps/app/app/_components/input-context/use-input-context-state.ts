@@ -43,6 +43,7 @@ type DocumentInputPolicy = Awaited<ReturnType<typeof orpc.scribe.documentInputPo
 
 const fileToContextFile = async (uploaded: UploadedContextFile): Promise<RawContextDocument> => ({
 	data: await blobToBase64(uploaded.file),
+	id: uploaded.id,
 	mimeType: uploaded.file.type || "application/octet-stream",
 	name: uploaded.file.name,
 	size: uploaded.file.size,
@@ -313,6 +314,7 @@ export const useInputContextState = ({
 						);
 					}
 					return {
+						id: file.id,
 						kind: "ocr" as const,
 						name: file.file.name,
 						ocrResult: file.ocrResult,

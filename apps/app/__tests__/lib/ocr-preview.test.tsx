@@ -339,7 +339,8 @@ test("images require alignment and submissions stay blocked until OCR completes"
 			const submission = await controller.prepareSubmission();
 			assert.equal(submission.contextFiles[0].kind,"ocr");
 			assert.ok(!("data" in submission.contextFiles[0]));
-			assert.deepEqual(Object.keys(submission.contextFiles[0]).sort(),["kind","name","ocrResult"]);
+			assert.equal(submission.contextFiles[0].id,controller.contextFiles[0].id);
+			assert.deepEqual(Object.keys(submission.contextFiles[0]).sort(),["id","kind","name","ocrResult"]);
 			assert.deepEqual(submission.contextFiles[0].ocrResult.pages[0].blocks[0].bbox,{x:17,y:39,width:83,height:21});
 			assert.equal(encodes,1);
 			await controller.prepareSubmission();

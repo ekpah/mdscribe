@@ -51,7 +51,12 @@ const Harness = () => {
 					if (fillFailure) {
 						throw new Error("expected failure");
 					}
-					return fillResponse;
+					return {
+						ocrResults: [],
+						suggestions: Object.fromEntries(
+							Object.entries(fillResponse).map(([key, value]) => [key, { value }]),
+						),
+					};
 				}}
 				renderFillControls={({ onSubmit }) => (
 					<button type="button" onClick={() => void onSubmit([], {}, [])}>

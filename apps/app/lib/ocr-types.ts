@@ -12,7 +12,7 @@ export interface OcrPageSource {
 }
 
 /** Adapter-normalized citation region, never provider-specific pixel coordinates. */
-interface OcrBlock {
+export interface OcrBlock {
 	/** Page-relative coordinates: PDF points or image pixels, with top-left origin. */
 	bbox: { height: number; width: number; x: number; y: number };
 	text: string;
@@ -73,6 +73,7 @@ export const ocrResultSchema: z.ZodType<OcrResult> = z.object({
 /** Original bytes are used only for OCR upload or direct vision without a document model. */
 export interface RawContextDocument {
 	data: string;
+	id?: string;
 	kind?: "file";
 	mimeType: string;
 	name: string;
@@ -81,6 +82,7 @@ export interface RawContextDocument {
 
 /** Generation receives user-provided transcription and geometry, never image bytes. */
 export interface OcrContextDocument {
+	id?: string;
 	kind: "ocr";
 	name: string;
 	ocrResult: OcrResult;

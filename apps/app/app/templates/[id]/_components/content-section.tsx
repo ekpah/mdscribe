@@ -177,7 +177,7 @@ export default function ContentSection({
 			edgeTabs={contentTabs}
 			inputTags={inputTags}
 			onInputSelect={handleInputSelect}
-			preview={(values) => {
+			preview={(values, onCitationSelect) => {
 				if (contentView === "examples") {
 					return <ExamplesPreview examples={examples} />;
 				}
@@ -190,6 +190,7 @@ export default function ContentSection({
 						className="prose prose-slate grow"
 						layout="template"
 						markdocContent={note as string}
+						onCitationSelect={onCitationSelect}
 						onTagSelect={handleMarkdocTagSelect}
 						variables={values}
 					/>

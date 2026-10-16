@@ -13,7 +13,8 @@ import {
 	TooltipTrigger,
 } from "@repo/design-system/components/ui/tooltip";
 import { cn } from "@repo/design-system/lib/utils";
-import { ArrowUpRight, Bot, Pencil, RotateCcw, Sigma } from "lucide-react";
+import { ArrowUpRight, Bot, FileSearch, Pencil, RotateCcw, Sigma } from "lucide-react";
+import type { CitationRequest } from "markdoc-md/citations";
 import { CALC_PLACEHOLDER } from "markdoc-md/config";
 import {
 	isBranchVisible,
@@ -23,10 +24,11 @@ import {
 	toVoiceBooleanValue as toFillInputsBooleanValue,
 } from "markdoc-md/parse";
 import type { CalcInputTagType, InputTagType } from "markdoc-md/parse";
+import { useCitationModifier } from "markdoc-md/react";
 import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import type { ContextDocument } from "@/lib/ocr-types";
+import type { ContextDocument, OcrResult } from "@/lib/ocr-types";
 
 import { normalizeDateValue } from "./ui/date-utils";
 import { LazyInfoInput } from "./ui/lazy-info-input";
@@ -58,6 +60,7 @@ interface InputsProps {
 	onChange: (data: Record<string, unknown>) => void;
 	onInputBlur?: (inputName: string) => void;
 	onInputSelect?: (inputName: string) => void;
+	onCitationsSelect?: (citations: CitationRequest[]) => void;
 	showFillInputs?: boolean;
 	onFillInputs?: (
 		inputFields: FillInputsInputField[],
@@ -88,11 +91,20 @@ export interface FillInputsInputField {
 	type?: InputMeta["type"];
 }
 
-type FillInputsResult = Record<string, boolean | number | string>;
+export interface FillInputSuggestion {
+	citations?: CitationRequest[];
+	value: boolean | number | string;
+}
+
+export interface FillInputsResult {
+	ocrResults: OcrResult[];
+	suggestions: Record<string, FillInputSuggestion>;
+}
 
 type SuggestedValueSource = "ai" | "note" | "document" | "prefill";
 
-interface SuggestedValue {
+export interface SuggestedValue {
+	citations?: CitationRequest[];
 	value: string | number | boolean;
 	source?: SuggestedValueSource;
 	label?: string;
@@ -291,12 +303,17 @@ const getInputStateClassName = (source?: InputSource) => {
 	return "";
 };
 
-const getInputWrapperClassName = (isActive: boolean, canSelect: boolean) =>
+const getInputWrapperClassName = (
+	isActive: boolean,
+	canSelect: boolean,
+	isCitationHighlighted: boolean,
+) =>
 	cn(
 		"relative rounded-lg border border-transparent p-1 transition-colors",
 		canSelect && "cursor-pointer",
 		canSelect && !isActive && "hover:bg-muted/40",
 		isActive && "border-solarized-orange/60 bg-solarized-orange/10",
+		isCitationHighlighted && "border-solarized-blue/60 bg-solarized-blue/10",
 	);
 
 const isInteractiveElement = (element: HTMLElement): boolean =>
@@ -326,7 +343,13 @@ const focusFirstInputControl = (container: HTMLElement): void => {
 	}
 };
 
-const SourceIndicator = ({ source }: { source: InputSource | undefined }) => {
+const SourceIndicator = ({
+	onShowSource,
+	source,
+}: {
+	onShowSource?: () => void;
+	source: InputSource | undefined;
+}) => {
 	if (!source) {
 		return null;
 	}
@@ -355,6 +378,34 @@ const SourceIndicator = ({ source }: { source: InputSource | undefined }) => {
 
 	const Icon = config.icon;
 
+	if (onShowSource) {
+		return (
+			<TooltipProvider delay={200}>
+				<Tooltip>
+					<TooltipTrigger
+						render={
+							<button
+								aria-label="Quellen des KI-Werts anzeigen"
+								className={cn(
+									"inline-flex h-9 items-center justify-center gap-2 rounded-md bg-background px-2 shadow-xs hover:bg-solarized-blue/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-solarized-blue/40 sm:h-7",
+									config.className,
+								)}
+								onClick={onShowSource}
+								type="button"
+							>
+								<Icon aria-hidden="true" className="h-3.5 w-3.5" />
+								<FileSearch aria-hidden="true" className="h-3.5 w-3.5" />
+							</button>
+						}
+					/>
+					<TooltipContent side="top" className="text-xs">
+						{config.label} – Quellen anzeigen
+					</TooltipContent>
+				</Tooltip>
+			</TooltipProvider>
+		);
+	}
+
 	return (
 		<TooltipProvider delay={200}>
 			<Tooltip>
@@ -379,6 +430,7 @@ interface RenderContext {
 	calculations: Map<string, CalcInputTagType>;
 	/** Per variable, the mention that focusing it from the document scrolls to. */
 	scrollRanks: Map<InputTagType, number>;
+	areCitationsHighlighted: boolean;
 	changeHandlers: Record<string, (value: unknown) => void>;
 	/**
 	 * Drops a field's manual value, revealing its AI suggestion. For a calculation
@@ -391,13 +443,41 @@ interface RenderContext {
 	isFocusSelectionSuppressed: React.MutableRefObject<boolean>;
 	onInputBlur?: (inputName: string) => void;
 	onInputSelect?: (inputName: string) => void;
+	onCitationsSelect?: (citations: CitationRequest[]) => void;
 	suggestedValues: Record<string, SuggestedValue>;
 	values: Record<string, unknown>;
 }
 
+const getAppliedCitations = (
+	fieldKey: string,
+	context: RenderContext,
+): CitationRequest[] | undefined => {
+	if (!["ai", "ai-confirmed"].includes(context.fieldSources[fieldKey])) {
+		return undefined;
+	}
+	return context.suggestedValues[fieldKey]?.citations;
+};
+
+const createCitationsSelectHandler = (
+	citations: CitationRequest[] | undefined,
+	onCitationsSelect: RenderContext["onCitationsSelect"],
+): (() => void) | undefined => {
+	if (!citations?.length || !onCitationsSelect) {
+		return undefined;
+	}
+	return () => onCitationsSelect(citations);
+};
+
+const isFieldCitationHighlighted = (
+	citations: CitationRequest[] | undefined,
+	context: RenderContext,
+): boolean =>
+	Boolean(citations?.length && context.onCitationsSelect && context.areCitationsHighlighted);
+
 const getSelectableFieldHandlers = (
 	fieldKey: string,
 	context: RenderContext,
+	citationFieldKey = fieldKey,
 ): {
 	onBlurCapture?: (event: React.FocusEvent<HTMLDivElement>) => void;
 	onClick?: (event: React.MouseEvent<HTMLDivElement>) => void;
@@ -405,6 +485,7 @@ const getSelectableFieldHandlers = (
 	onKeyDown?: (event: React.KeyboardEvent<HTMLDivElement>) => void;
 	role?: "group";
 } => {
+	const citations = getAppliedCitations(citationFieldKey, context);
 	const handleInputSelect = context.onInputSelect
 		? () => {
 				if (context.isFocusSelectionSuppressed.current) {
@@ -413,6 +494,7 @@ const getSelectableFieldHandlers = (
 				context.onInputSelect?.(fieldKey);
 			}
 		: undefined;
+	const handleCitationsSelect = createCitationsSelectHandler(citations, context.onCitationsSelect);
 
 	return {
 		onBlurCapture: context.onInputBlur
@@ -424,27 +506,52 @@ const getSelectableFieldHandlers = (
 					context.onInputBlur?.(fieldKey);
 				}
 			: undefined,
-		onClick: handleInputSelect
-			? (event) => {
-					const { target } = event;
-					if (!(target instanceof HTMLElement) || isInteractiveElement(target)) {
-						return;
+		onClick:
+			handleInputSelect || handleCitationsSelect
+				? (event) => {
+						if ((event.metaKey || event.ctrlKey) && handleCitationsSelect) {
+							event.preventDefault();
+							event.stopPropagation();
+							handleCitationsSelect();
+							return;
+						}
+						const { target } = event;
+						if (
+							!handleInputSelect ||
+							!(target instanceof HTMLElement) ||
+							isInteractiveElement(target)
+						) {
+							return;
+						}
+						handleInputSelect();
+						focusFirstInputControl(event.currentTarget);
 					}
-					handleInputSelect();
-					focusFirstInputControl(event.currentTarget);
-				}
-			: undefined,
+				: undefined,
 		onFocusCapture: handleInputSelect,
-		onKeyDown: handleInputSelect
-			? (event) => {
-					if (event.target !== event.currentTarget || ![" ", "Enter"].includes(event.key)) {
-						return;
+		onKeyDown:
+			handleInputSelect || handleCitationsSelect
+				? (event) => {
+						if (
+							(event.metaKey || event.ctrlKey) &&
+							event.key === "Enter" &&
+							handleCitationsSelect
+						) {
+							event.preventDefault();
+							event.stopPropagation();
+							handleCitationsSelect();
+							return;
+						}
+						if (event.target !== event.currentTarget || ![" ", "Enter"].includes(event.key)) {
+							return;
+						}
+						if (!handleInputSelect) {
+							return;
+						}
+						event.preventDefault();
+						handleInputSelect();
+						focusFirstInputControl(event.currentTarget);
 					}
-					event.preventDefault();
-					handleInputSelect();
-					focusFirstInputControl(event.currentTarget);
-				}
-			: undefined,
+				: undefined,
 		role: handleInputSelect ? "group" : undefined,
 	};
 };
@@ -608,19 +715,22 @@ const CalcInputField = ({
 	const fieldKey = input.attributes.primary;
 	const inputState = context.fieldSources[fieldKey];
 	const { children } = input;
+	const activeCitations = getAppliedCitations(fieldKey, context);
+	const handleShowSource = createCitationsSelectHandler(activeCitations, context.onCitationsSelect);
 
 	return (
 		<div
 			className={getInputWrapperClassName(
 				context.activeInputName === fieldKey,
 				Boolean(context.onInputSelect),
+				isFieldCitationHighlighted(activeCitations, context),
 			)}
 			ref={registerFieldRef(context, fieldKey, input)}
 			{...getSelectableFieldHandlers(fieldKey, context)}
 		>
 			{inputState && (
 				<div className="absolute -top-1 right-0 z-10">
-					<SourceIndicator source={inputState} />
+					<SourceIndicator source={inputState} onShowSource={handleShowSource} />
 				</div>
 			)}
 			<CalcValueField calculation={input} context={context} />
@@ -713,6 +823,7 @@ const CalcReference = ({
 			className="my-2"
 			data-calc-reference=""
 			ref={registerFieldRef(context, fieldKey, mention, 500)}
+			{...getSelectableFieldHandlers(fieldKey, context)}
 		>
 			<CalcValueField
 				calculation={calculation}
@@ -781,19 +892,30 @@ const renderInputTag = (
 	const handleFieldChange = context.changeHandlers[fieldKey];
 	const handleApplySuggestion = context.clearHandlers[fieldKey];
 	const isActiveInput = !parentCalcKey && context.activeInputName === fieldKey;
-	const selectableFieldHandlers = getSelectableFieldHandlers(selectionFieldKey, context);
+	const activeCitations = getAppliedCitations(fieldKey, context);
+	const handleShowSource = createCitationsSelectHandler(activeCitations, context.onCitationsSelect);
+	const isCitationHighlighted = isFieldCitationHighlighted(activeCitations, context);
+	const handleShowSuggestedSource = createCitationsSelectHandler(
+		suggestedValue?.citations,
+		context.onCitationsSelect,
+	);
+	const selectableFieldHandlers = getSelectableFieldHandlers(selectionFieldKey, context, fieldKey);
 	const handleFieldRef = registerFieldRef(context, fieldKey, input);
 
 	if (input.name === "Info") {
 		return (
 			<div
-				className={getInputWrapperClassName(isActiveInput, Boolean(context.onInputSelect))}
+				className={getInputWrapperClassName(
+					isActiveInput,
+					Boolean(context.onInputSelect),
+					isCitationHighlighted,
+				)}
 				ref={handleFieldRef}
 				{...selectableFieldHandlers}
 			>
 				{inputState && (
 					<div className="absolute -top-1 right-0 z-10">
-						<SourceIndicator source={inputState} />
+						<SourceIndicator onShowSource={handleShowSource} source={inputState} />
 					</div>
 				)}
 				<LazyInfoInput
@@ -801,6 +923,7 @@ const renderInputTag = (
 					inputClassName={inputStateClassName}
 					onAcceptSuggestedValue={suggestedValue ? handleApplySuggestion : undefined}
 					onChange={handleFieldChange}
+					onShowSuggestedValueSource={handleShowSuggestedSource}
 					suggestedValue={toTextOrNumberSuggestion(suggestedValue?.value)}
 					suggestionLabel={getSuggestionLabel(suggestedValue)}
 					value={context.values[fieldKey] as string | number | undefined}
@@ -817,13 +940,17 @@ const renderInputTag = (
 
 		return (
 			<div
-				className={getInputWrapperClassName(isActiveInput, Boolean(context.onInputSelect))}
+				className={getInputWrapperClassName(
+					isActiveInput,
+					Boolean(context.onInputSelect),
+					isCitationHighlighted,
+				)}
 				ref={handleFieldRef}
 				{...selectableFieldHandlers}
 			>
 				{inputState && (
 					<div className="absolute -top-1 right-0 z-10">
-						<SourceIndicator source={inputState} />
+						<SourceIndicator onShowSource={handleShowSource} source={inputState} />
 					</div>
 				)}
 				<SwitchInput
@@ -831,6 +958,7 @@ const renderInputTag = (
 					onChange={handleFieldChange}
 					onAcceptSuggestedValue={suggestedValue ? handleApplySuggestion : undefined}
 					inputClassName={inputStateClassName}
+					onShowSuggestedValueSource={handleShowSuggestedSource}
 					suggestedValue={suggestedValue?.value}
 					suggestionLabel={getSuggestionLabel(suggestedValue)}
 					value={currentValue}
@@ -865,12 +993,14 @@ export default function Inputs({
 	onChange,
 	onInputBlur,
 	onInputSelect,
+	onCitationsSelect,
 	showFillInputs = false,
 	onFillInputs,
 	renderFillControls,
 	suggestedValues: suggestedValuesProp,
 	onSuggestedValuesChange,
 }: InputsProps) {
+	const areCitationsHighlighted = useCitationModifier();
 	const [userValues, setUserValues] = useState<Record<string, unknown>>({});
 	const [suggestedValues, setSuggestedValues] = useState<Record<string, SuggestedValue>>(
 		suggestedValuesProp ?? {},
@@ -1061,7 +1191,7 @@ export default function Inputs({
 			});
 
 			try {
-				const fieldValues = await onFillInputs(
+				const result = await onFillInputs(
 					fillInputFields,
 					audioFiles,
 					textContext,
@@ -1069,12 +1199,16 @@ export default function Inputs({
 				);
 
 				const nextSuggestions: Record<string, SuggestedValue> = {};
-				for (const [field, value] of Object.entries(fieldValues)) {
-					const normalizedValue = normalizeFillInputsValue(value, fillInputMeta.get(field));
+				for (const [field, suggestion] of Object.entries(result.suggestions)) {
+					const normalizedValue = normalizeFillInputsValue(
+						suggestion.value,
+						fillInputMeta.get(field),
+					);
 					if (normalizedValue === undefined || isEmptyValue(normalizedValue)) {
 						continue;
 					}
 					nextSuggestions[field] = {
+						citations: suggestion.citations,
 						source: "ai",
 						value: normalizedValue,
 					};
@@ -1111,12 +1245,14 @@ export default function Inputs({
 	const shouldShowFillInputs = Boolean(showFillInputs && onFillInputs && renderFillControls);
 	const renderContext: RenderContext = {
 		activeInputName,
+		areCitationsHighlighted,
 		calculations,
 		changeHandlers,
 		clearHandlers,
 		fieldRefs,
 		fieldSources,
 		isFocusSelectionSuppressed,
+		onCitationsSelect,
 		onInputBlur,
 		onInputSelect,
 		scrollRanks,

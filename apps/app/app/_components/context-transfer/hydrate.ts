@@ -27,7 +27,7 @@ export const createUploadedFilesFromTransferPayload = (
 		});
 		return {
 			file,
-			id: `transfer-file-${index}-${contextFile.name}-${contextFile.size}`,
+			id: contextFile.id || `transfer-file-${index}-${contextFile.name}-${contextFile.size}`,
 		};
 	});
 

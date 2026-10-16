@@ -64,6 +64,7 @@ const InfoInput = ({
 	suggestedValue,
 	suggestionLabel = "Vorschlag",
 	onAcceptSuggestedValue,
+	onShowSuggestedValueSource,
 	inputClassName,
 }: {
 	input: InfoInputTagType;
@@ -72,6 +73,7 @@ const InfoInput = ({
 	suggestedValue?: string | number;
 	suggestionLabel?: string;
 	onAcceptSuggestedValue?: () => void;
+	onShowSuggestedValueSource?: () => void;
 	inputClassName?: string;
 }) => {
 	const controlId = useId();
@@ -143,6 +145,7 @@ const InfoInput = ({
 			hasExistingValue={hasValue}
 			label={suggestionLabel}
 			onAccept={onAcceptSuggestedValue}
+			onShowSource={onShowSuggestedValueSource}
 			unit={isDateType ? undefined : input.attributes.unit}
 			value={formattedSuggestedValue ?? suggestedValue ?? ""}
 		/>

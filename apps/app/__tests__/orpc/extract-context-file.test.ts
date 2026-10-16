@@ -3,6 +3,7 @@ import { expect, spyOn, test } from "bun:test";
 import { call } from "@orpc/server";
 import { aiDefaults, aiModel, aiProvider, eq, usageEvent } from "@repo/database";
 import sharp from "sharp";
+import { z } from "zod";
 
 import { aiMockState, ocrMockState } from "@/__tests__/preload";
 import {
@@ -58,12 +59,15 @@ test("native vision is used only without a selected document model", async () =>
 				supportsDocuments: true,
 			});
 			ocrMockState.error = new Error("preview OCR unavailable");
-			aiMockState.nextGenerateTextOutput = { fieldValues: { Age: 42 } };
+			aiMockState.nextGenerateTextOutput = {
+				suggestions: [{ citations: [{ quote: "Age 42", source: 2 }], field: "Age", value: 42 }],
+			};
 			const request = call(
 				fillInputsHandler,
 				{
-					contextFiles: [{ ...file, mimeType: "application/pdf" }],
+					contextFiles: [{ ...file, id: "native", mimeType: "application/pdf" }],
 					inputFields: [{ label: "Age", type: "number" }],
+					textContext: { notes: "Native report" },
 				},
 				{ context },
 			);
@@ -72,9 +76,13 @@ test("native vision is used only without a selected document model", async () =>
 				continue;
 			}
 			const result = await request;
-			expect(result.fieldValues).toEqual({ Age: 42 });
+			expect(result.suggestions).toEqual({
+				Age: { citations: [{ quote: "Age 42", source: "mdscribe://file/native" }], value: 42 },
+			});
 			expect(result.ocrResults).toEqual([]);
 			const options = aiMockState.lastGenerateTextOptions as { messages: { content: unknown }[] };
+			expect(JSON.stringify(options.messages)).not.toContain("mdscribe://");
+			expect(JSON.stringify(options.messages)).toContain('\\"source\\":2');
 			expect(options.messages[1].content).toEqual(
 				expect.arrayContaining([
 					expect.objectContaining({
@@ -177,32 +185,154 @@ test("upload OCR uses the OCR slot and every generation consumer reuses the unsi
 		expect(reused.textContext).toBe(
 			`<datei_kontext>\n${JSON.stringify([{ index: 1, name: "scan.png", text: "Recognized" }])}\n</datei_kontext>`,
 		);
-		aiMockState.nextGenerateTextOutput = { fieldValues: { Age: 42 } };
-		const filled = await call(
+		const secondResult: OcrResult = {
+			backend: "ocr-http",
+			pages: [
+				{
+					blocks: [{ bbox: { height: 19, width: 82, x: 11, y: 45 }, text: "Second" }],
+					height: 700,
+					pageNumber: 2,
+					width: 400,
+				},
+			],
+			text: "Second",
+		};
+		const citations = [
+			{ quote: "Recognized", source: "mdscribe://file/first" },
+			{ quote: "History", source: "mdscribe://input/anamnese" },
+			{ quote: "Second", source: "mdscribe://file/second" },
+		];
+		const modelCitations = [
+			{ quote: "Recognized", source: 2 },
+			{ quote: "History", source: 1 },
+			{ quote: "Second", source: 3 },
+		];
+		const suggestions = {
+			Finding: { citations, value: "Recognized / History / Second" },
+		};
+		const fillInput = {
+			contextFiles: [
+				{ ...document, id: "first" },
+				{ ...document, id: "second", ocrResult: secondResult },
+			],
+			inputFields: [
+				{ label: "Age", type: "number" as const },
+				{ label: "Finding", type: "string" as const },
+				...Array.from({ length: 28 }, (_, index) => ({
+					label: `Additional field ${index + 1}`,
+					type: "string" as const,
+				})),
+			],
+			textContext: { anamnese: "History", notes: " " },
+		};
+		aiMockState.nextGenerateTextOutput = {
+			suggestions: Object.entries(suggestions).map(([field, suggestion]) => ({
+				field,
+				...suggestion,
+				citations: modelCitations,
+			})),
+		};
+		const filled = await call(fillInputsHandler, fillInput, { context });
+		expect(filled.suggestions).toEqual(suggestions);
+		expect(filled.ocrResults).toEqual([uploaded.result, secondResult]);
+		const fillOptions = aiMockState.lastGenerateTextOptions as {
+			messages: { content: unknown }[];
+			output: { schema: z.ZodType };
+		};
+		// Repeated constrained citations caused Google AI Studio to reject 30-field forms.
+		const providerSchema = JSON.stringify(z.toJSONSchema(fillOptions.output.schema));
+		for (const constraint of ["minLength", "maxLength", "minItems", "maxItems", "enum"]) {
+			expect(providerSchema).not.toContain(`"${constraint}"`);
+		}
+		// Numbers belong to this request, not filenames or a previous request's ordering.
+		aiMockState.nextGenerateTextOutput = {
+			suggestions: [
+				{ citations: [{ quote: "Second", source: 1 }], field: "Finding", value: "Second" },
+			],
+		};
+		const reordered = await call(
 			fillInputsHandler,
 			{
-				contextFiles: [document],
-				inputFields: [{ label: "Age", type: "number" }],
+				...fillInput,
+				contextFiles: fillInput.contextFiles.toReversed(),
+				textContext: {},
 			},
 			{ context },
 		);
-		expect(filled.fieldValues).toEqual({ Age: 42 });
-		const fillOptions = aiMockState.lastGenerateTextOptions as { messages: { content: unknown }[] };
+		expect(reordered.suggestions).toEqual({
+			Finding: { citations: [citations[2]], value: "Second" },
+		});
+		// Those constraints still apply to the model response at the public handler boundary.
+		for (const invalidCitations of [
+			[citations[0]],
+			[{ quote: "Recognized", source: "mdscribe://file/unsubmitted" }],
+			...[-1, 0, 1.5, 4, "2"].map((source) => [{ quote: "Recognized", source }]),
+			[{ ...modelCitations[0], quote: "" }],
+			[{ ...modelCitations[0], quote: "x".repeat(4001) }],
+			[],
+			Array.from({ length: 11 }, () => modelCitations[0]),
+		]) {
+			aiMockState.nextGenerateTextOutput = {
+				suggestions: [{ citations: invalidCitations, field: "Finding", value: "Recognized" }],
+			};
+			await expect(call(fillInputsHandler, fillInput, { context })).rejects.toThrow(
+				"Die Modellantwort entspricht nicht dem erwarteten Schema",
+			);
+		}
+		for (const invalidSuggestions of [
+			[{ citations: modelCitations, field: "Unsubmitted", value: "text" }],
+			[{ citations: modelCitations, field: "Finding", value: true }],
+			[{ field: "Finding", value: "Recognized" }],
+			[
+				{ citations: modelCitations, field: "Age", value: 42 },
+				{ citations: modelCitations, field: "Age", value: 43 },
+			],
+		]) {
+			aiMockState.nextGenerateTextOutput = { suggestions: invalidSuggestions };
+			await expect(call(fillInputsHandler, fillInput, { context })).rejects.toThrow(
+				"Die Modellantwort entspricht nicht dem erwarteten Schema",
+			);
+		}
 		expect(typeof fillOptions.messages[1].content).toBe("string");
+		const contextJson = String(fillOptions.messages[1].content).match(
+			/<datei_kontext>\n(.*?)\n<\/datei_kontext>/s,
+		)?.[1];
+		expect(JSON.parse(contextJson ?? "null")).toEqual([
+			{
+				index: 1,
+				name: file.name,
+				source: 2,
+				text: "Recognized",
+			},
+			{
+				index: 2,
+				name: file.name,
+				source: 3,
+				text: "Second",
+			},
+		]);
+		expect(JSON.stringify(fillOptions.messages)).not.toContain("mdscribe://");
 		expect(fillOptions.messages[1].content).not.toContain('"bbox"');
 		expect(fillOptions.messages[1].content).not.toContain('"pages"');
 		expect(fillOptions.messages[1].content).not.toContain('"ocrResult"');
 		expect(fillOptions.messages[1].content).not.toContain(file.data);
 		expect(fillOptions.messages[1].content).not.toContain("ocrResultToken");
-		const fileSummary = {
-			index: 1,
-			name: "scan.png",
-			payloadBytes: Buffer.byteLength(JSON.stringify(document)),
-		};
+		const fileSummaries = [
+			{
+				index: 1,
+				name: "scan.png",
+				payloadBytes: Buffer.byteLength(JSON.stringify(fillInput.contextFiles[0])),
+			},
+			{
+				index: 2,
+				name: "scan.png",
+				payloadBytes: Buffer.byteLength(JSON.stringify(fillInput.contextFiles[1])),
+			},
+		];
 		const events = await server.db.select().from(usageEvent);
 		const fillEvent = events.find((event) => event.name === AI_INPUT_FILL_EVENT_NAME);
-		expect(fillEvent).toHaveProperty("inputData.contextFiles", [fileSummary]);
-		expect(fillEvent).toHaveProperty("metadata.payloadSummary.contextFiles", [fileSummary]);
+		expect(fillEvent).toHaveProperty("inputData.contextFiles", fileSummaries);
+		expect(fillEvent).toHaveProperty("metadata.payloadSummary.contextFiles", fileSummaries);
 		const ocrEvent = events.find((event) => event.name === AI_SCRIBE_OCR_EVENT_NAME);
 		expect(ocrEvent?.inputData).toEqual({
 			contextFiles: [
@@ -245,7 +375,9 @@ test("upload OCR uses the OCR slot and every generation consumer reuses the unsi
 		});
 		expect(prepared.nativeContentParts).toEqual([]);
 		expect(prepared.fileTextContext).toBe(reused.textContext);
-		expect(prepared.fileSummaries).toEqual([fileSummary]);
+		expect(prepared.fileSummaries).toEqual([
+			{ index: 1, name: "scan.png", payloadBytes: Buffer.byteLength(JSON.stringify(document)) },
+		]);
 		expect(calls).toBe(1);
 		// OCR context is user-provided data, like any other text context, not authenticated provenance.
 		const edited = await extractContextFiles({
