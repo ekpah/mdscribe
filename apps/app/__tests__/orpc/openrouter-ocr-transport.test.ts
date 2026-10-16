@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 
-test("real OpenRouter SDK keeps compact OCR private", async () => {
+test("real OpenRouter SDK keeps compact OCR private and chooses supported minimum reasoning", async () => {
 	// Run outside the suite's global AI/provider mocks, using a local HTTP endpoint.
 	const child = Bun.spawn(
 		[
@@ -16,11 +16,21 @@ test("real OpenRouter SDK keeps compact OCR private", async () => {
 		const { createLlmOcrAdapter } = await import("./orpc/scribe/ocr/adapters/llm");
 		const html = '<table><tr><td rowspan="2">A</td><td></td><td colspan="4">0,5 l<br>[x]</td></tr></table>';
 		let calls = 0, malformed = false;
+		let expectedModel = "mistralai/mistral-large-4-0", expectedReasoning;
+		let catalogUnavailable = false;
+		const originalFetch = globalThis.fetch;
+		globalThis.fetch = (url, init) => String(url) === "https://openrouter.ai/api/v1/models"
+			? Promise.resolve(Response.json({data:[
+				{id:"mandatory",reasoning:{mandatory:true,supported_efforts:["high","medium","low"]}},
+				{id:"optional",reasoning:{mandatory:false}},
+			]}, {status:catalogUnavailable ? 503 : 200}))
+			: originalFetch(url, init);
 		const server = Bun.serve({hostname:"127.0.0.1",port:0,async fetch(request) {
 			assert.equal(new URL(request.url).pathname,"/chat/completions");
 			assert.equal(request.headers.get("authorization"),"Bearer synthetic-key");
 			const body = await request.json();
-			assert.equal(body.model,"mistralai/mistral-large-4-0");
+			assert.equal(body.model,expectedModel);
+			assert.deepEqual(body.reasoning,expectedReasoning);
 			assert.equal(body.response_format.type,"json_schema");
 			const schema = body.response_format.json_schema.schema;
 			assert.deepEqual(Object.keys(schema.properties),["t"]);
@@ -48,6 +58,21 @@ test("real OpenRouter SDK keeps compact OCR private", async () => {
 			malformed = true;
 			await assert.rejects(recognize(),/^Error: Die OCR-Modellanfrage ist fehlgeschlagen.$/);
 			assert.equal(calls,2);
+			malformed = false;
+			for (const [id,effort,expected,unavailable] of [
+				["mandatory","none",{effort:"low"},false],
+				["optional","none",{effort:"none"},false],
+				["mandatory","high",{effort:"high"},false],
+				["mandatory","none",undefined,true],
+			]) {
+				expectedModel = id; expectedReasoning = expected; catalogUnavailable = unavailable;
+				const selectedModel = {...model,model:provider(id),modelName:id,supportsReasoning:true,supportedParameters:["structured_outputs","reasoning"]};
+				const selectedAdapter = createLlmOcrAdapter({modelSelection:{model:selectedModel,slot:"file-image",reasoningEffort:effort,defaultTemperature:0},userId:"test"});
+				const page = await selectedAdapter.recognizePage({image,imageWidth:600,imageHeight:800,page:{pageNum:1,width:600,height:800}});
+				assert.equal(page.text,html);
+				assert.equal(page.page,undefined);
+			}
+			assert.equal(calls,6);
 			console.log("Local OpenRouter structured OCR: OK");
 		} finally { server.stop(true); }
 	`,

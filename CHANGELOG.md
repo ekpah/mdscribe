@@ -53,6 +53,7 @@
 ### Fixed
 
 - Date inputs now show AI-filled dates: values are stored as `DD.MM.YYYY` with a four-digit year instead of `07.10.26`, which the field could not read back and displayed as empty. Typing a year no longer clears the day and month.
+- OpenRouter OCR configured with no reasoning now explicitly disables optional thinking or selects the model's lowest advertised mandatory effort instead of silently using provider defaults. Public capabilities are cached; unavailable or unknown capabilities retain the existing provider fallback.
 - Stripe-disabled instances no longer expose upgrade messaging in quota warnings or private-content controls, initialize the client billing integration during ordinary authentication, or report stored subscriptions as active in admin user management. Free quotas and private-content restrictions remain enforced.
 - Template previews and copied output now preserve the editor's line breaks and explicit blank lines without inserting Markdown paragraph gaps. Rich-text copies carry compact typography, plain-text copies retain list markers and collapsed-section contents, and Enter creates a line break in ordinary template text while preserving heading and list behavior.
 - Bun app startup now uses Webpack in development and production builds to avoid Turbopack's unresolvable hashed ESM externals on a cold start. Privatemode's SDK and the PDF renderer load only when needed; the application and Docker runner remain on Bun.
