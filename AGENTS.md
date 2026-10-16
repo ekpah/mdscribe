@@ -19,6 +19,12 @@
 - Dev mode is optional for rapid agent iteration. Start an internal server with `amp orb service start app-dev --port 3000 --command 'bun --bun next dev apps/app --webpack -p "$PORT"'`; do not add a second default portal.
 - Stop it with `amp orb service stop app-dev` before handoff. Keep the production snapshot under `.next/preview` separate from dev output, and do not present a dev server as the final review preview.
 
+## Temporary previews
+
+- Put temporary review code in a `__preview__` directory anywhere under `apps/` or `packages/`; these directories are intentionally gitignored.
+- For a routable Next.js preview, use `apps/<app>/app/%5F%5Fpreview__/<preview-name>/page.tsx` and open it at `/__preview__/<preview-name>`. Next.js treats a literal underscore-prefixed App Router folder as private, so `%5F%5Fpreview__` is the required filesystem escape for the `__preview__` URL segment and is also gitignored.
+- Do not place temporary previews in tracked source or route folders. Treat previews as review aids rather than automated verification, and remove them when the user is finished reviewing them.
+
 <!-- BEGIN:turborepo-agent-rules -->
 
 # This is NOT the Turborepo you know

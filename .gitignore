@@ -70,5 +70,12 @@ packages/database/prisma/generated/
 # Agent-generated implementation plans
 plans/
 
+# Temporary preview work across apps and packages
+/apps/**/__preview__/
+/packages/**/__preview__/
+
+# Next.js filesystem escape for routable /__preview__/ pages
+/apps/**/%5F%5Fpreview__/
+
 # Legacy local signing material; never commit
 .license-signing-key.local
