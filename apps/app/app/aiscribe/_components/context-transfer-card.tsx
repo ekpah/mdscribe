@@ -1,6 +1,5 @@
 "use client";
 
-import { blobToBase64 } from "@repo/design-system/components/inputs/audio-submission";
 import { Button } from "@repo/design-system/components/ui/button";
 import {
 	Card,
@@ -37,6 +36,7 @@ import type {
 	InputContextTextContext,
 	InputContextTextContextKey,
 } from "@/app/_components/input-context/types";
+import { blobToBase64 } from "@/app/_components/inputs/audio-submission";
 import {
 	BUILT_IN_AISCRIBE_OVERRIDE_KEYS,
 	getBuiltInAiscribeOverride,

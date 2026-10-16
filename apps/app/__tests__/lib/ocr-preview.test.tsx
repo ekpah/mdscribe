@@ -159,7 +159,7 @@ test("generation OCR replaces existing preview text and boxes without clearing u
 					return [initial, next => { if (index === 1) files = next; }];
 				},
 			}));
-			mock.module("@repo/design-system/components/inputs/audio-submission", () => ({
+			mock.module("@/app/_components/inputs/audio-submission", () => ({
 				blobToBase64: async () => "",
 				createAudioSubmissionFile: async () => ({}),
 			}));
@@ -231,7 +231,7 @@ test("images wait for manual alignment even on submit; PDFs and confirmed images
 					return [states[index], next => states[index] = typeof next === "function" ? next(states[index]) : next];
 				},
 			}));
-			mock.module("@repo/design-system/components/inputs/audio-submission", () => ({
+			mock.module("@/app/_components/inputs/audio-submission", () => ({
 				blobToBase64: async file => { encodes++; return Buffer.from(await file.arrayBuffer()).toString("base64"); },
 				createAudioSubmissionFile: async () => ({}),
 			}));

@@ -1,12 +1,9 @@
 "use client";
 
-import {
-	blobToBase64,
-	createAudioSubmissionFile,
-} from "@repo/design-system/components/inputs/audio-submission";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { blobToBase64, createAudioSubmissionFile } from "@/app/_components/inputs/audio-submission";
 import {
 	FILL_INPUT_PAYLOAD_LIMITS,
 	formatPayloadBytes,

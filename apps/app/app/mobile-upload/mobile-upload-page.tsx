@@ -1,6 +1,5 @@
 "use client";
 
-import { blobToBase64 } from "@repo/design-system/components/inputs/audio-submission";
 import { Button } from "@repo/design-system/components/ui/button";
 import {
 	Card,
@@ -15,6 +14,7 @@ import type { ChangeEvent } from "react";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import type { ContextTransferPayload } from "@/app/_components/context-transfer/types";
+import { blobToBase64 } from "@/app/_components/inputs/audio-submission";
 import { encryptTransferEnvelope } from "@/lib/context-transfer-crypto";
 import { FILL_INPUT_PAYLOAD_LIMITS, formatPayloadBytes } from "@/lib/input-fill-limits";
 import { orpc } from "@/lib/orpc";
