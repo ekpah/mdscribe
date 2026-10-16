@@ -46,6 +46,7 @@
 - Renamed the Markdoc `score` tag to `calc`, while retaining `score` as a backward-compatible alias across parsing, rendering, the editor, and documentation.
 - Fill Inputs now receives template guidance and examples and can prefer component values while accepting an explicit calculated result when components are incomplete.
 - Split the generic design primitives, Markdoc TipTap editor, and app-owned input renderer into explicit package boundaries.
+- Values manually entered exactly as suggested by AI now retain a green bot indicator; diverging edits remain reversible to the AI suggestion.
 - Aligned the landing-page feature previews with their vertical scroll interaction, including right-side pagination, consistent clinical titles, and matching inline vital-sign examples.
 - Reworked the landing page copy to address doctors instead of developers: replaced technical terms like "Markdown" and "Markdoc" with "Textbausteine" throughout hero, feature sections, demo labels, and metadata.
 - Unified all workspaces on TypeScript 7.0.2 via the root package catalog (workspaces previously used 5.9.3 while the root used 7.0.2).

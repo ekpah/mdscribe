@@ -104,7 +104,7 @@ interface InputMeta {
 	type: "string" | "number" | "date" | "switch" | "boolean";
 }
 
-type InputSource = "ai" | "manual";
+type InputSource = "ai" | "ai-confirmed" | "manual";
 
 export const collectFillInputFields = (inputTags: InputTagType[]) => {
 	const fields: FillInputsInputField[] = [];
@@ -285,7 +285,7 @@ const getInputStateClassName = (source?: InputSource) => {
 	if (source === "ai") {
 		return "border-solarized-orange/60 focus-visible:border-solarized-orange focus-visible:ring-solarized-orange/30 data-focus-within:border-solarized-orange data-focus-within:ring-solarized-orange/30";
 	}
-	if (source === "manual") {
+	if (source === "ai-confirmed" || source === "manual") {
 		return "border-solarized-green/60 focus-visible:border-solarized-green focus-visible:ring-solarized-green/30 data-focus-within:border-solarized-green data-focus-within:ring-solarized-green/30";
 	}
 	return "";
@@ -336,6 +336,11 @@ const SourceIndicator = ({ source }: { source: InputSource | undefined }) => {
 			className: "text-solarized-orange",
 			icon: Bot,
 			label: "KI-Erkennung",
+		},
+		"ai-confirmed": {
+			className: "text-solarized-green",
+			icon: Bot,
+			label: "KI-Vorschlag bestätigt",
 		},
 		manual: {
 			className: "text-solarized-green",
@@ -911,11 +916,16 @@ export default function Inputs({
 			if (isEmptyValue(value)) {
 				sources.delete(key);
 			} else {
-				sources.set(key, "manual");
+				sources.set(
+					key,
+					!calculations.has(key) && Object.is(value, suggestedValues[key]?.value)
+						? "ai-confirmed"
+						: "manual",
+				);
 			}
 		}
 		return Object.fromEntries(sources);
-	}, [suggestedValues, userValues]);
+	}, [calculations, suggestedValues, userValues]);
 
 	useEffect(() => {
 		onChange(resolvedValues);
