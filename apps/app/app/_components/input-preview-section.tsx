@@ -232,9 +232,9 @@ export const InputPreviewSection = ({
 		if (!activeInputName || !previewPanelElement) {
 			return;
 		}
-		const activeTag = Array.from(
-			previewPanelElement.querySelectorAll<HTMLElement>("[data-markdoc-input]"),
-		).find((element) => element.dataset.markdocInput === activeInputName);
+		const activeTag = [
+			...previewPanelElement.querySelectorAll<HTMLElement>("[data-markdoc-input]"),
+		].find((element) => element.dataset.markdocInput === activeInputName);
 		activeTag?.scrollIntoView({ behavior: "smooth", block: "center" });
 	}, [activeInputName, activePreviewFocusKey, mobilePanel, previewPanelElement]);
 

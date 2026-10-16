@@ -1,11 +1,7 @@
 "use client";
 
 import { Label } from "@repo/design-system/components/ui/label";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-} from "@repo/design-system/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/design-system/components/ui/tooltip";
 import { Info } from "lucide-react";
 
 const InfoHint = ({ text }: { text: string }) => (
