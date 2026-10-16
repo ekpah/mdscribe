@@ -8,6 +8,7 @@
 
 ### Added
 
+- `serializeMarkdocTable` (exported from `markdoc-md/parse`) serializes rows of cells with colspan/rowspan into built-in Markdoc list tables; `htmlToMarkdoc` and OCR prompt formatting share it.
 - Editor HTML tables serialize to built-in Markdoc list tables with colspan/rowspan annotations, inline formatting, and line breaks, without custom table schemas or layout metadata. Template rendering and rich-text copying include portable table styling.
 - React renderers support an opt-in `layout="template"` that preserves soft breaks, explicit empty lines, and Details-adjacent gaps as real HTML structure, with portable compact typography for rich-text copying. Standard Markdown rendering remains unchanged.
 - `details` tags render GitHub-style collapsible sections with an optional `summary` and an `open` default, using native `<details>`/`<summary>` elements. The summary keeps the body font and line height, and the body follows with normal line spacing. A section written directly next to a paragraph or another section (no blank line) continues those lines without a paragraph gap; a blank line keeps the gap, and `renderTipTapHTML`/`htmlToMarkdoc` roundtrip it as an empty editor paragraph. Sections accept rich Markdown, nested tags, and nested sections; inputs inside a collapsed section are still discovered, and editor HTML roundtrips through `{% details %}` blocks.

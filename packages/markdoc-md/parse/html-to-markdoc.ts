@@ -3,6 +3,8 @@
  * Supports cite, details, info, switch, and case tags.
  */
 
+import { serializeMarkdocTable } from "./serialize-markdoc-table";
+
 const headingPrefixes: Record<string, string> = {
 	h1: "#",
 	h2: "##",
@@ -242,34 +244,22 @@ const renderTable = (element: Element, processNode: (node: Node) => string): str
 	const rows = [...(element as HTMLTableElement).rows];
 	const hasHeader =
 		rows[0]?.cells.length > 0 && [...rows[0].cells].every((cell) => cell.tagName === "TH");
-	const content = rows
-		.map((row) =>
-			[...row.cells]
-				.map((cell) => {
-					const paragraph =
-						cell.children.length === 1 && cell.firstElementChild?.tagName === "P"
-							? cell.firstElementChild
-							: cell;
-					let source = preserveEmptyLines(
-						[...paragraph.childNodes].map(processNode).join(""),
-					).trimEnd();
-					const spans = ["colspan", "rowspan"].flatMap((name) => {
-						const value = Number(cell.getAttribute(name));
-						return value > 1 ? [`${name}=${value}`] : [];
-					});
-					if (spans.length > 0) {
-						source += `{% ${spans.join(" ")} %}`;
-					}
-					const lines = source.split("\n");
-					return `* ${lines[0]}${lines
-						.slice(1)
-						.map((line) => `\n  ${line}`)
-						.join("")}`;
-				})
-				.join("\n"),
-		)
-		.join("\n---\n");
-	return `{% table %}\n${hasHeader ? "" : "---\n"}${content}\n{% /table %}\n\n`;
+	return serializeMarkdocTable(
+		rows.map((row) =>
+			[...row.cells].map((cell) => {
+				const paragraph =
+					cell.children.length === 1 && cell.firstElementChild?.tagName === "P"
+						? cell.firstElementChild
+						: cell;
+				return {
+					colspan: Number(cell.getAttribute("colspan")),
+					content: preserveEmptyLines([...paragraph.childNodes].map(processNode).join("")),
+					rowspan: Number(cell.getAttribute("rowspan")),
+				};
+			}),
+		),
+		hasHeader,
+	);
 };
 
 const htmlElementRenderers: Partial<

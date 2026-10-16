@@ -58,3 +58,5 @@ export type {
 } from "./parse/validate-markdoc-tag-contracts";
 export { validateMarkdocTemplate } from "./parse/validate-markdoc-template";
 export type { MarkdocTemplateDiagnostic } from "./parse/validate-markdoc-template";
+export { serializeMarkdocTable } from "./parse/serialize-markdoc-table";
+export type { MarkdocTableCell } from "./parse/serialize-markdoc-table";
