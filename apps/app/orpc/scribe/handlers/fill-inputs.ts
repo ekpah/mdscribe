@@ -524,186 +524,172 @@ const buildFillInputUsageMetadata = ({
 	zdrEnabled: zdr,
 });
 
-/**
- * Simple MVP autofill handler.
- *
- * Input:
- * - inputFields: compact list of fields the model should fill
- * - audioFiles/textContext/contextFiles: source material
- *
- * Output:
- * - { fieldValues: { [fieldLabel]: value } }
- */
-export const fillInputsHandler = authed
-	.use(scribeEntitlementsMiddleware)
-	.input(type<FillInputsInputPayload>())
-	.handler(async ({ input, context }) => {
-		const audioFiles = input.audioFiles ?? [];
-		const contextFiles = input.contextFiles ?? [];
-		const hasAudio = audioFiles.length > 0;
-		const hasFiles = contextFiles.length > 0;
-		const hasText = hasTextContext(input);
-		const payloadSummary = summarizeAndValidatePayload(input);
-
-		assertFillInputsRequest({
-			hasAudio,
-			hasFiles,
-			hasText,
-			inputFieldCount: input.inputFields.length,
-		});
-
-		const generationStrategy = await resolveGenerationStrategy(context.db, {
-			hasAudio,
-			hasFiles,
-			userId: context.session.user.id,
-		}).catch((error: unknown) => {
-			const message = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
-			throw new ORPCError("BAD_REQUEST", { message });
-		});
-		const { entitlements } = await enforceScribeUsageLimit({
-			db: context.db,
-			entitlements: context.entitlements.scribe,
-			isQuotaExempt: isGenerationStrategyFullyByok(generationStrategy),
-			session: context.session,
-		});
-
-		const generationSelection = generationStrategy.generation;
-		const preparedAudio = await prepareFillInputsAudio({
-			audioFiles,
-			db: context.db,
-			generationStrategy,
-			userId: context.session.user.id,
-			zdr: entitlements.hasActiveSubscription,
-		}).catch((error: unknown) => {
-			if (error instanceof ORPCError) {
-				throw error;
-			}
-			const message = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
-			throw new ORPCError("BAD_REQUEST", { message });
-		});
-		const extractedFiles = await extractFillInputFileText({
-			contextFiles,
-			db: context.db,
-			generationStrategy,
-			hasFiles,
-			userId: context.session.user.id,
-			zdr: entitlements.hasActiveSubscription,
-		});
-		const fileTextContext = extractedFiles.textContext;
-		const filesAreNative = generationStrategy.files?.mode === "native";
-		// Reuse the shared scribe context pipeline so the clinical fields render
-		// through the same tunable <patient_context> as the main scribe flow.
-		const templateExamples = (input.templateExamples ?? [])
-			.map((example) => example.trim())
-			.filter(Boolean);
-		const templateInformation = input.templateInformation?.trim();
-		const hasTemplateContext = Boolean(templateInformation || templateExamples.length > 0);
-		const { contextXml } = composeScribeContext({
-			formData: { ...input.textContext },
-			template: hasTemplateContext
-				? {
-						content: "",
-						examples: templateExamples,
-						information: templateInformation,
-						title: "Ausfüllhinweise",
-					}
+const buildFillInputContext = (input: FillInputsInputPayload) => {
+	const examples = (input.templateExamples ?? []).map((example) => example.trim()).filter(Boolean);
+	const information = input.templateInformation?.trim();
+	return composeScribeContext({
+		formData: { ...input.textContext },
+		template:
+			information || examples.length
+				? { content: "", examples, information, title: "Ausfüllhinweise" }
 				: null,
-		});
-		const messages = composeFillInputsPrompt({
-			audioTranscripts: formatAudioTranscriptsForPrompt(preparedAudio.transcripts),
-			contextFiles: filesAreNative ? contextFiles : undefined,
-			contextXml,
-			fileTextContext,
-			inputFields: input.inputFields,
-		});
+	}).contextXml;
+};
 
-		const outputSchema = createFillInputsSchema(input.inputFields);
-		const nativeContextFiles = filesAreNative ? contextFiles : [];
+const fillInputsProcedure = authed
+	.use(scribeEntitlementsMiddleware)
+	.input(type<FillInputsInputPayload>());
 
-		const userContent = buildFillInputUserContent({
-			nativeContextFiles,
-			preparedAudio,
-			userPrompt: messages[1]?.content ?? "",
-		});
-		const generationModel = generationSelection.model.model;
+type FillInputsOptions = Parameters<Parameters<typeof fillInputsProcedure.handler>[0]>[0];
 
-		const result = await generateText({
-			messages: [
-				{ content: messages[0]?.content ?? "", role: "system" },
-				{ content: userContent, role: "user" },
-			],
-			model:
-				typeof generationModel === "string" || generationModel.specificationVersion !== "v3"
-					? generationModel
-					: wrapLanguageModel({
-							middleware: extractJsonMiddleware({ transform: normalizeGeneratedJson }),
-							model: generationModel,
-						}),
-			output: Output.object({
-				description: "Suggested field values for the requested input fields.",
-				name: "FillInputsResult",
-				schema: outputSchema,
-			}),
-			providerOptions: buildProviderOptions({
-				includeUsage: true,
-				model: generationSelection.model,
-				reasoningEffort: generationSelection.reasoningEffort,
-				userId: context.session.user.id,
-				zdr: entitlements.hasActiveSubscription,
-			}),
-			temperature: generationSelection.defaultTemperature ?? undefined,
-		}).catch((error: unknown) => {
-			const details = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
-			throw new ORPCError("BAD_REQUEST", {
-				message: `Ausfüllen fehlgeschlagen. (${details})`,
-			});
-		});
+/** Fills `inputFields` from audio, text context and context files. */
+const fillInputs = async ({ input, context }: FillInputsOptions): Promise<FillInputsResult> => {
+	const audioFiles = input.audioFiles ?? [];
+	const contextFiles = input.contextFiles ?? [];
+	const hasAudio = audioFiles.length > 0;
+	const hasFiles = contextFiles.length > 0;
+	const hasText = hasTextContext(input);
+	const payloadSummary = summarizeAndValidatePayload(input);
 
-		// `result.output` is a lazy getter that throws NoOutputGeneratedError when
-		// the model did not finish with reason "stop" (e.g. truncated on length or
-		// stopped by a content filter), so the structured output was never parsed.
-		// Surface that as a clean BAD_REQUEST instead of an uncaught 500.
-		const resultOutput = readStructuredOutput(result);
-		if (resultOutput === null || resultOutput === undefined) {
-			throw new ORPCError("BAD_REQUEST", {
-				message: `Ausfüllen fehlgeschlagen. (Modell lieferte keine verwertbare Ausgabe, finishReason=${result.finishReason}.)`,
-			});
-		}
-
-		const fillResult = toFillInputsResult(resultOutput, outputSchema);
-		const openRouterUsage = generationSelection.model.isOpenRouter
-			? extractOpenRouterUsage(
-					(result as { providerMetadata?: Record<string, unknown> }).providerMetadata,
-				)
-			: undefined;
-		const usageMetadata = buildFillInputUsageMetadata({
-			fileTextContext,
-			generationSelection,
-			generationStrategy,
-			payloadSummary,
-			preparedAudio,
-			zdr: entitlements.hasActiveSubscription,
-		});
-
-		await context.db.insert(usageEvent).values(
-			buildUsageEventData({
-				inputData: entitlements.hasActiveSubscription
-					? undefined
-					: buildFillInputUsageInputData(input, payloadSummary),
-				metadata: usageMetadata,
-				model: generationSelection.model.modelName,
-				name: AI_INPUT_FILL_EVENT_NAME,
-				openRouterUsage,
-				result: entitlements.hasActiveSubscription
-					? "[zdr - content redacted]"
-					: JSON.stringify(fillResult.fieldValues),
-				standardUsage: result.usage as StandardUsage,
-				userId: context.session.user.id,
-			}),
-		);
-
-		return {
-			...fillResult,
-			ocrResults: extractedFiles.ocrResults,
-		};
+	assertFillInputsRequest({
+		hasAudio,
+		hasFiles,
+		hasText,
+		inputFieldCount: input.inputFields.length,
 	});
+
+	const generationStrategy = await resolveGenerationStrategy(context.db, {
+		hasAudio,
+		hasFiles,
+		userId: context.session.user.id,
+	}).catch((error: unknown) => {
+		const message = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
+		throw new ORPCError("BAD_REQUEST", { message });
+	});
+	const { entitlements } = await enforceScribeUsageLimit({
+		db: context.db,
+		entitlements: context.entitlements.scribe,
+		isQuotaExempt: isGenerationStrategyFullyByok(generationStrategy),
+		session: context.session,
+	});
+
+	const generationSelection = generationStrategy.generation;
+	const preparedAudio = await prepareFillInputsAudio({
+		audioFiles,
+		db: context.db,
+		generationStrategy,
+		userId: context.session.user.id,
+		zdr: entitlements.hasActiveSubscription,
+	}).catch((error: unknown) => {
+		if (error instanceof ORPCError) {
+			throw error;
+		}
+		const message = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
+		throw new ORPCError("BAD_REQUEST", { message });
+	});
+	const extractedFiles = await extractFillInputFileText({
+		contextFiles,
+		db: context.db,
+		generationStrategy,
+		hasFiles,
+		userId: context.session.user.id,
+		zdr: entitlements.hasActiveSubscription,
+	});
+	const filesAreNative = generationStrategy.files?.mode === "native";
+	const nativeContextFiles = filesAreNative ? contextFiles : [];
+	const messages = composeFillInputsPrompt({
+		audioTranscripts: formatAudioTranscriptsForPrompt(preparedAudio.transcripts),
+		contextFiles: nativeContextFiles,
+		contextXml: buildFillInputContext(input),
+		fileTextContext: extractedFiles.textContext,
+		inputFields: input.inputFields,
+	});
+
+	const outputSchema = createFillInputsSchema(input.inputFields);
+
+	const userContent = buildFillInputUserContent({
+		nativeContextFiles,
+		preparedAudio,
+		userPrompt: messages[1]?.content ?? "",
+	});
+	const generationModel = generationSelection.model.model;
+
+	const result = await generateText({
+		messages: [
+			{ content: messages[0]?.content ?? "", role: "system" },
+			{ content: userContent, role: "user" },
+		],
+		model:
+			typeof generationModel === "string" || generationModel.specificationVersion !== "v3"
+				? generationModel
+				: wrapLanguageModel({
+						middleware: extractJsonMiddleware({ transform: normalizeGeneratedJson }),
+						model: generationModel,
+					}),
+		output: Output.object({
+			description: "Suggested field values for the requested input fields.",
+			name: "FillInputsResult",
+			schema: outputSchema,
+		}),
+		providerOptions: buildProviderOptions({
+			includeUsage: true,
+			model: generationSelection.model,
+			reasoningEffort: generationSelection.reasoningEffort,
+			userId: context.session.user.id,
+			zdr: entitlements.hasActiveSubscription,
+		}),
+		temperature: generationSelection.defaultTemperature ?? undefined,
+	}).catch((error: unknown) => {
+		const details = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
+		throw new ORPCError("BAD_REQUEST", {
+			message: `Ausfüllen fehlgeschlagen. (${details})`,
+		});
+	});
+
+	// `result.output` is a lazy getter that throws NoOutputGeneratedError when
+	// the model did not finish with reason "stop" (e.g. truncated on length or
+	// stopped by a content filter), so the structured output was never parsed.
+	// Surface that as a clean BAD_REQUEST instead of an uncaught 500.
+	const resultOutput = readStructuredOutput(result);
+	if (resultOutput === null || resultOutput === undefined) {
+		throw new ORPCError("BAD_REQUEST", {
+			message: `Ausfüllen fehlgeschlagen. (Modell lieferte keine verwertbare Ausgabe, finishReason=${result.finishReason}.)`,
+		});
+	}
+
+	const fillResult = toFillInputsResult(resultOutput, outputSchema);
+	const openRouterUsage = generationSelection.model.isOpenRouter
+		? extractOpenRouterUsage(
+				(result as { providerMetadata?: Record<string, unknown> }).providerMetadata,
+			)
+		: undefined;
+	const usageMetadata = buildFillInputUsageMetadata({
+		fileTextContext: extractedFiles.textContext,
+		generationSelection,
+		generationStrategy,
+		payloadSummary,
+		preparedAudio,
+		zdr: entitlements.hasActiveSubscription,
+	});
+
+	await context.db.insert(usageEvent).values(
+		buildUsageEventData({
+			inputData: entitlements.hasActiveSubscription
+				? undefined
+				: buildFillInputUsageInputData(input, payloadSummary),
+			metadata: usageMetadata,
+			model: generationSelection.model.modelName,
+			name: AI_INPUT_FILL_EVENT_NAME,
+			openRouterUsage,
+			result: entitlements.hasActiveSubscription
+				? "[zdr - content redacted]"
+				: JSON.stringify(fillResult.fieldValues),
+			standardUsage: result.usage as StandardUsage,
+			userId: context.session.user.id,
+		}),
+	);
+
+	return { ...fillResult, ocrResults: extractedFiles.ocrResults };
+};
+
+export const fillInputsHandler = fillInputsProcedure.handler(fillInputs);
