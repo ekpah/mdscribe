@@ -12,6 +12,13 @@ import { resolveOcrSelection } from "@/orpc/scribe/providers";
 const isSupported = (mimeType: string) =>
 	mimeType === "application/pdf" || mimeType.startsWith("image/");
 
+export const contextFileUploadSchema = z.object({
+	data: z.string().max(Math.ceil((FILL_INPUT_PAYLOAD_LIMITS.maxContextFileBytes * 4) / 3) + 1024),
+	mimeType: z.string(),
+	name: z.string().max(1024),
+	size: z.number().nonnegative(),
+});
+
 export const documentInputPolicyHandler = authed.handler(async ({ context }) => {
 	const [defaults] = await context.db
 		.select({
@@ -35,18 +42,7 @@ export const documentInputPolicyHandler = authed.handler(async ({ context }) => 
 
 export const extractContextFileHandler = authed
 	.use(scribeEntitlementsMiddleware)
-	.input(
-		z.object({
-			file: z.object({
-				data: z
-					.string()
-					.max(Math.ceil((FILL_INPUT_PAYLOAD_LIMITS.maxContextFileBytes * 4) / 3) + 1024),
-				mimeType: z.string(),
-				name: z.string().max(1024),
-				size: z.number().nonnegative(),
-			}),
-		}),
-	)
+	.input(z.object({ file: contextFileUploadSchema }))
 	.handler(async ({ input, context }) => {
 		const bytes = getBase64DecodedByteLength(input.file.data);
 		if (!isSupported(input.file.mimeType) || bytes === 0) {

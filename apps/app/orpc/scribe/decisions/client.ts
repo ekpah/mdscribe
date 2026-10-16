@@ -33,7 +33,7 @@ export const requestDecision = async ({
 	model: string;
 	questions: DecisionQuestions;
 	signal: AbortSignal;
-	state: string;
+	state: string | unknown[];
 	zdr?: boolean;
 }): Promise<DecisionResponse> => {
 	const response = await fetch("https://openrouter.ai/api/alpha/decisions", {
@@ -46,6 +46,10 @@ export const requestDecision = async ({
 		headers: {
 			Authorization: `Bearer ${apiKey}`,
 			"Content-Type": "application/json",
+			// TypeSafe's models only accept experimental image state with this opt-in.
+			...(Array.isArray(state) && model.startsWith("typesafe/")
+				? { "TypeSafe-Danger-Zone-Images": "true" }
+				: {}),
 		},
 		method: "POST",
 		signal,

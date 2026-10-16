@@ -9,17 +9,23 @@ import { renderDocumentPage } from "./render-document-page";
 type OcrQuoteMatcher = (document: OcrResult, quote: string) => OcrQuoteMatch | null;
 
 interface ResolveOcrDocumentCitationOptions {
+	locateQuote?: (file: File, quote: string, signal?: AbortSignal) => Promise<OcrQuoteMatch | null>;
 	matcher?: OcrQuoteMatcher;
 	ocrResult?: OcrResult;
 	renderPage?: typeof renderDocumentPage;
 	signal?: AbortSignal;
 }
 
-/** Reuse the submitted OCR boxes; without a match the original source stays available. */
+/** Documents without OCR boxes need the quote locator to highlight a citation. */
+export const hasOcrBoxes = (ocrResult: OcrResult | undefined) =>
+	Boolean(ocrResult?.pages?.some((page) => page.blocks.length > 0));
+
+/** Reuse OCR boxes; only text-only documents need an on-demand quote locator. */
 export const resolveOcrDocumentCitation = async (
 	file: File,
 	quote: string,
 	{
+		locateQuote,
 		matcher = matchOcrQuote,
 		ocrResult,
 		renderPage = renderDocumentPage,
@@ -28,7 +34,10 @@ export const resolveOcrDocumentCitation = async (
 ): Promise<CitationDocumentLocation | null> => {
 	signal?.throwIfAborted();
 	try {
-		const match = ocrResult ? matcher(ocrResult, quote) : null;
+		const match =
+			ocrResult && hasOcrBoxes(ocrResult)
+				? matcher(ocrResult, quote)
+				: await locateQuote?.(file, quote, signal);
 		if (!match) {
 			return null;
 		}

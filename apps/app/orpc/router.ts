@@ -90,6 +90,10 @@ export const router = {
 			const handlerModule = await import("./scribe/handlers/fill-inputs");
 			return { default: handlerModule.fillInputsStreamHandler };
 		}),
+		resolveDocumentCitations: lazy(async () => {
+			const handlerModule = await import("./scribe/handlers/resolve-document-citation");
+			return { default: handlerModule.resolveDocumentCitationsHandler };
+		}),
 	},
 	// AI documentation agent (text-only MVP)
 	scribeAgent: {

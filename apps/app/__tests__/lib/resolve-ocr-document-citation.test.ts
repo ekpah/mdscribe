@@ -56,6 +56,54 @@ describe("OCR document citation adapter", () => {
 		expect(rendered).toBe(false);
 	});
 
+	test("locates text-only quotes on demand but never replaces an existing box match", async () => {
+		const file = new File(["image"], "scan.png", { type: "image/png" });
+		const located = {
+			bounds: { height: 15, width: 40, x: 10, y: 30 },
+			pageHeight: 100,
+			pageNumber: 1,
+			pageWidth: 200,
+			quote: "PAWP 8",
+			strategy: "decision-model-quote",
+		};
+		const options = {
+			locateQuote: () => Promise.resolve(located),
+			ocrResult: { backend: "llm" as const, text: "PAWP 8" },
+			renderPage: () => Promise.resolve("page-image"),
+		};
+		expect(await resolveOcrDocumentCitation(file, "PAWP 8", options)).toEqual({
+			bounds: located.bounds,
+			imageBase64: "page-image",
+			pageHeight: 100,
+			pageNumber: 1,
+			pageWidth: 200,
+			quote: "PAWP 8",
+		});
+		const document = {
+			...options.ocrResult,
+			pages: [
+				{
+					blocks: [{ bbox: { height: 10, width: 35, x: 20, y: 40 }, text: "PAWP 8" }],
+					height: 100,
+					pageNumber: 1,
+					width: 200,
+				},
+			],
+		};
+		expect(
+			await resolveOcrDocumentCitation(file, "PAWP 8", { ...options, ocrResult: document }),
+		).toMatchObject({ bounds: { height: 10, width: 35, x: 20, y: 40 } });
+		expect(
+			await resolveOcrDocumentCitation(file, "PAWP 18", { ...options, ocrResult: document }),
+		).toBeNull();
+		expect(
+			await resolveOcrDocumentCitation(file, "PAWP 8", {
+				...options,
+				locateQuote: () => Promise.reject(new Error("Unavailable")),
+			}),
+		).toBeNull();
+	});
+
 	test("opens the original source when rendering fails and preserves cancellation", async () => {
 		const file = new File(["document"], "scan.pdf", { type: "application/pdf" });
 		const options = {

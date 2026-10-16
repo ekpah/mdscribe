@@ -18,9 +18,14 @@ import {
 	InputContextControls,
 	useInputContextState,
 } from "@/app/_components/input-context/input-context-controls";
+import { blobToBase64 } from "@/app/_components/inputs/audio-submission";
 import { trackEvent } from "@/lib/analytics";
 import { useSession } from "@/lib/auth-client";
-import { resolveOcrDocumentCitation } from "@/lib/citations/resolve-ocr-document-citation";
+import type { OcrQuoteMatch } from "@/lib/citations/ocr-quote-matcher";
+import {
+	hasOcrBoxes,
+	resolveOcrDocumentCitation,
+} from "@/lib/citations/resolve-ocr-document-citation";
 import type { OcrResult } from "@/lib/ocr-types";
 import { orpc } from "@/lib/orpc";
 
@@ -32,6 +37,9 @@ import type {
 	FillInputsTextContext,
 } from "./inputs/inputs";
 import Inputs from "./inputs/inputs";
+
+// Matches the batch limit of `resolveDocumentCitations`.
+const MAX_LOCATED_QUOTES = 100;
 
 type MobilePanel = "inputs" | "preview";
 
@@ -207,6 +215,11 @@ export const InputPreviewSection = ({
 	const citationAbortControllerRef = useRef<AbortController | null>(null);
 	const citationFilesRef = useRef<ReadonlyMap<string, File>>(new Map());
 	const citationOcrResultsRef = useRef<ReadonlyMap<File, OcrResult>>(new Map());
+	// Pending or settled quote locations per document; failed requests are dropped for a retry.
+	const citationLocationsRef = useRef(
+		new WeakMap<File, Map<string, Promise<OcrQuoteMatch | null>>>(),
+	);
+	const citationPrefetchRef = useRef<AbortController | null>(null);
 	const citationPreviewsRef = useRef<CitationPreview[] | null>(null);
 	const citationTextSourcesRef = useRef<ReadonlyMap<string, CitationTextSource>>(new Map());
 	const lastInputFocusKeyRef = useRef(activeInputFocusKey);
@@ -308,6 +321,49 @@ export const InputPreviewSection = ({
 		};
 	}, []);
 
+	// One request per document locates all of its quotes; each quote shares that request.
+	const locateQuotes = useCallback((file: File, quotes: string[], signal?: AbortSignal) => {
+		const cache = citationLocationsRef.current.get(file) ?? new Map();
+		citationLocationsRef.current.set(file, cache);
+		const missing = [...new Set(quotes)].filter((quote) => !cache.has(quote));
+		for (let start = 0; start < missing.length; start += MAX_LOCATED_QUOTES) {
+			const batch = missing.slice(start, start + MAX_LOCATED_QUOTES);
+			const request = (async () =>
+				orpc.scribe.resolveDocumentCitations.call(
+					{
+						file: {
+							data: await blobToBase64(file),
+							mimeType: file.type,
+							name: file.name,
+							size: file.size,
+						},
+						quotes: batch,
+					},
+					{ signal },
+				))();
+			const settle = async (index: number) => {
+				const locations = await request;
+				return locations[index] ?? null;
+			};
+			// A failed request is forgotten, so opening the citation retries it.
+			const forgetOnFailure = async (quote: string, location: Promise<OcrQuoteMatch | null>) => {
+				try {
+					await location;
+				} catch {
+					if (cache.get(quote) === location) {
+						cache.delete(quote);
+					}
+				}
+			};
+			for (const [index, quote] of batch.entries()) {
+				const location = settle(index);
+				cache.set(quote, location);
+				void forgetOnFailure(quote, location);
+			}
+		}
+		return quotes.map((quote) => cache.get(quote) as Promise<OcrQuoteMatch | null>);
+	}, []);
+
 	const handleFillInputs = useCallback(
 		async (
 			inputFields: FillInputsInputField[],
@@ -323,6 +379,8 @@ export const InputPreviewSection = ({
 					.filter(({ id }) => submittedFileIds.has(id))
 					.map(({ file, id }) => [id, file]),
 			);
+			citationPrefetchRef.current?.abort();
+			citationLocationsRef.current = new WeakMap();
 			// Citations of early decision-model answers must already be resolvable.
 			const rememberSources = ({ ocrResults }: FillInputsResult) => {
 				inputContextController.setContextFileOcrResults(ocrResults);
@@ -358,9 +416,24 @@ export const InputPreviewSection = ({
 				throw new Error("Die Antwort ist unvollständig.");
 			}
 			trackEvent(`${contentType}-filled-with-ai`);
+			// Locate document citations right away, so opening one does not wait.
+			const prefetch = new AbortController();
+			citationPrefetchRef.current = prefetch;
+			for (const [id, file] of fileSourceSnapshot) {
+				const source = createMdscribeSource("file", id);
+				const quotes = Object.values(complete.suggestions).flatMap(({ citations }) =>
+					(citations ?? []).flatMap((citation) => {
+						const quote = citation.source === source ? citation.quote?.trim() : undefined;
+						return quote && quote.length <= 4000 ? [quote] : [];
+					}),
+				);
+				if (quotes.length && !hasOcrBoxes(citationOcrResultsRef.current.get(file))) {
+					locateQuotes(file, quotes, prefetch.signal);
+				}
+			}
 			return complete;
 		},
-		[contentType, inputContextController, templateExamples, templateInformation],
+		[contentType, inputContextController, locateQuotes, templateExamples, templateInformation],
 	);
 
 	const handleCitationsSelect = useCallback(
@@ -382,6 +455,12 @@ export const InputPreviewSection = ({
 						resolveCitation(citation, {
 							documentResolver: (file, quote, signal) =>
 								resolveOcrDocumentCitation(file, quote, {
+									locateQuote: async (document, exactQuote, requestSignal) => {
+										const [location] = locateQuotes(document, [exactQuote], requestSignal);
+										const match = await location;
+										requestSignal?.throwIfAborted();
+										return match;
+									},
 									ocrResult: citationOcrResultsRef.current.get(file),
 									signal,
 								}),
@@ -400,7 +479,7 @@ export const InputPreviewSection = ({
 				});
 			})();
 		},
-		[],
+		[locateQuotes],
 	);
 	const handleCitationSelect = useCallback(
 		(citation: CitationRequest) => handleCitationsSelect([citation]),

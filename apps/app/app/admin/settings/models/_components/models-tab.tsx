@@ -128,7 +128,7 @@ const DEFAULT_MODEL_ROWS: DefaultModelRowConfig[] = [
 	},
 	{
 		description:
-			"Optional: Beantwortet Auswahlfragen (Schalter, Ja/Nein, Datum, Zahlen aus der Quelle) vor dem Standard-Modell. Nur sichere Entscheidungen werden übernommen; der Rest geht an das Standard-Modell.",
+			"Optional: Beantwortet Auswahlfragen (Schalter, Ja/Nein, Datum, Zahlen aus der Quelle) vor dem Standard-Modell und markiert Zitate in Dokumenten ohne OCR-Boxen. Nur sichere Entscheidungen werden übernommen; der Rest geht an das Standard-Modell.",
 		label: "Entscheidungsmodell",
 		placeholder: "Entscheidungsmodell auswählen",
 		type: "decision",
