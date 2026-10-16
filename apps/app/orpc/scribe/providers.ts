@@ -529,11 +529,10 @@ const createAudioTranscriber = (
 	return undefined;
 };
 
-const buildResolvedModel = async (
-	model: AiModelRow,
+const resolveProviderCredentials = async (
 	provider: AiProviderRow,
 	options?: { db: Database; userId: string },
-): Promise<ResolvedModel> => {
+) => {
 	const userCredential =
 		options && provider.byokEnabled
 			? await options.db.query.userAiProvider.findFirst({
@@ -547,6 +546,59 @@ const buildResolvedModel = async (
 	const isUserCredential = Boolean(userCredential);
 	const encryptedApiKey = userCredential?.apiKey ?? provider.apiKey;
 	const apiKey = encryptedApiKey ? await decrypt(encryptedApiKey) : undefined;
+	return {
+		apiKey,
+		credentialSource: isUserCredential ? ("user_byok" as const) : ("operator" as const),
+	};
+};
+
+export interface DecisionModelSelection {
+	apiKey: string;
+	credentialSource: "operator" | "user_byok";
+	/** Provider model id sent to the Decisions API, e.g. `typesafe/jev-1.14`. */
+	modelId: string;
+	providerId: string;
+}
+
+/**
+ * The optional decision model answers finite questions (choice, box, yes/no)
+ * through OpenRouter's Decisions API. It is not a chat model and never generates
+ * text. Without a configured model, callers keep their LLM-only behavior.
+ */
+export const resolveDecisionModel = async (
+	db: Database,
+	userId: string,
+): Promise<DecisionModelSelection | null> => {
+	const defaults = await db.query.aiDefaults.findFirst({ where: eq(aiDefaults.id, "global") });
+	if (!defaults?.defaultDecisionModelId) {
+		return null;
+	}
+	const model = await db.query.aiModel.findFirst({
+		where: eq(aiModel.id, defaults.defaultDecisionModelId),
+		with: { provider: true },
+	});
+	if (!model?.supportsDecisions || model.provider.protocol !== "openrouter") {
+		throw new Error("Das Entscheidungsmodell ist nicht verfügbar.");
+	}
+	const credentials = await resolveProviderCredentials(model.provider, { db, userId });
+	if (!credentials.apiKey) {
+		throw new Error("Für das Entscheidungsmodell fehlt der API-Schlüssel.");
+	}
+	return {
+		apiKey: credentials.apiKey,
+		credentialSource: credentials.credentialSource,
+		modelId: model.modelId,
+		providerId: model.provider.id,
+	};
+};
+
+const buildResolvedModel = async (
+	model: AiModelRow,
+	provider: AiProviderRow,
+	options?: { db: Database; userId: string },
+): Promise<ResolvedModel> => {
+	const { apiKey, credentialSource } = await resolveProviderCredentials(provider, options);
+	const isUserCredential = credentialSource === "user_byok";
 	const languageModel = isUserCredential
 		? await createProviderModelUncached(
 				provider.protocol,
@@ -572,7 +624,7 @@ const buildResolvedModel = async (
 	const supportedParameters = normalizeSupportedParameters(model.supportedParameters);
 
 	return {
-		credentialSource: isUserCredential ? "user_byok" : "operator",
+		credentialSource,
 		isOpenRouter: provider.protocol === "openrouter",
 		model: languageModel,
 		modelName: model.modelId,

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, setSystemTime, spyOn, test } from "bun:test";
 
 import { ORPCError, call } from "@orpc/server";
 import { aiDefaults, aiModel, aiProvider, eq, usageEvent } from "@repo/database";
@@ -9,6 +9,7 @@ import type { TestServer } from "@/__tests__/setup";
 import {
 	createMockSession,
 	createTestAiDefaults,
+	createTestDecisionModel,
 	createTestContext,
 	createTestSubscription,
 	createTestUser,
@@ -977,6 +978,263 @@ describe("Fill Inputs Handler", () => {
 		);
 		expect(messages[0].content).toContain("bevorzuge die einzelnen Komponenten");
 		expect(messages[0].content).toContain("Wert hat Vorrang vor der Berechnung");
+	});
+
+	test("combines finite-choice values and literal citations with uncertain/text LLM fallback", async () => {
+		const server = await startTestServer("fill-inputs-decisions");
+		setSystemTime(new Date("2026-01-04T12:00:00Z"));
+		const originalFetch = globalThis.fetch;
+		let failure = false;
+		let decisionCalls = 0;
+		const fetchSpy = spyOn(globalThis, "fetch").mockImplementation(
+			Object.assign(
+				(url: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+					if (String(url) !== "https://openrouter.ai/api/alpha/decisions") {
+						return originalFetch(url, init);
+					}
+					if (failure) {
+						return Promise.resolve(
+							Response.json({ error: "private provider error" }, { status: 503 }),
+						);
+					}
+					decisionCalls += 1;
+					const request = JSON.parse(String(init?.body)) as {
+						model: string;
+						provider: unknown;
+						questions: Record<string, { instructions: string; criteria: Record<string, string> }>;
+						state: string;
+					};
+					// The admin-selected decision model is used, not a hard-coded one.
+					expect(request.model).toBe("typesafe/jev-1.14");
+					expect(request.provider).toEqual({ data_collection: "deny", zdr: true });
+					// The decision model sees the same patient context as the LLM.
+					expect(request.state).toContain("<patient_context>");
+					expect(request.state).toContain("Geburtsdatum: 29.02.1980");
+					const expected: Record<string, string> = {
+						AnderesDatum: "",
+						Aufnahme: "2025-12-21",
+						Entlassung: "2026-01-01",
+						Geburtsdatum: "1980-02-29",
+						Kontrolle: "2026-01-18",
+						PAWP: "-3.7",
+						RA: "6",
+						RV_Diastole: "2",
+						Thrombose: "false",
+						ZVD: "6",
+						Zugang: "links",
+					};
+					// One question per field, three per date; options are values plus "other".
+					const answers = Object.fromEntries(
+						Object.entries(request.questions).map(([key, question]) => {
+							const label = question.instructions.match(/"label":"([^"]+)"/)?.[1] ?? "";
+							const part = key.slice(key.indexOf("_") + 1);
+							const [year, month, day] = expected[label]?.split("-") ?? [];
+							const wanted =
+								{ day: String(Number(day)), month: String(Number(month)), year }[part] ??
+								expected[label];
+							const isNumber = question.instructions.includes('"type":"number"');
+							const choice =
+								Object.entries(question.criteria).find(([, description]) =>
+									isNumber
+										? Number(description.replace(",", ".")) === Number(wanted)
+										: description.split(/\.? (?:\(|day)/u)[0] === wanted,
+								)?.[0] ?? "other";
+							// RV's selected probability is below the gate. An uncertain day is
+							// accepted only if the date is written literally.
+							const uncertainDay = part === "day" && ["Geburtsdatum", "Entlassung"].includes(label);
+							let chance = uncertainDay ? 0.7 : 0.95;
+							if (label === "RV_Diastole") {
+								chance = 0.949;
+							}
+							return [
+								key,
+								{
+									choice,
+									confidence: 0.99,
+									probabilities: { other: Number((1 - chance).toFixed(3)), [choice]: chance },
+								},
+							];
+						}),
+					);
+					return Promise.resolve(
+						Response.json({
+							answers,
+							model: "typesafe/jev-1.14",
+							usage: { cost: 0.0002, input_tokens: 100, output_tokens: 20 },
+						}),
+					);
+				},
+				{ preconnect: originalFetch.preconnect },
+			),
+		);
+		try {
+			const { providerId } = await createTestAiDefaults(server.db);
+			await server.db
+				.update(aiProvider)
+				.set({ apiKey: await encrypt("synthetic-key") })
+				.where(eq(aiProvider.id, providerId));
+			const { session, user } = await createTestUser(server.db);
+			await createTestSubscription(server.db, user.id);
+			const context = createTestContext({ db: server.db, session });
+			// Without a configured decision model, autofill stays LLM-only.
+			aiMockState.nextGenerateTextOutput = {
+				suggestions: [
+					{ citations: [{ quote: "* PAWP mmHg\n* -3,7", source: 1 }], field: "PAWP", value: -3.7 },
+				],
+			};
+			await call(
+				fillInputsHandler,
+				{
+					inputFields: [{ label: "PAWP", type: "number" as const }],
+					textContext: { notes: "{% table %}\n---\n* PAWP mmHg\n* -3,7\n{% /table %}" },
+				},
+				{ context },
+			);
+			expect(decisionCalls).toBe(0);
+			await createTestDecisionModel(server.db, providerId);
+			const input = {
+				inputFields: [
+					{ label: "PAWP", type: "number" as const },
+					{ label: "RV_Diastole", type: "number" as const },
+					{ label: "Zugang", options: ["rechts", "links"], type: "switch" as const },
+					{ label: "Beurteilung", type: "string" as const },
+					{ label: "Thrombose", type: "boolean" as const },
+					{ label: "Embolie", type: "boolean" as const },
+					{ label: "Infusionsrate", type: "string" as const, unit: "ml/h" },
+					{ label: "Aufnahme", type: "date" as const },
+					{ label: "Kontrolle", type: "date" as const },
+					{ label: "Entlassung", type: "date" as const },
+					{ label: "Geburtsdatum", type: "date" as const },
+					{ label: "AnderesDatum", type: "date" as const },
+					{ label: "ZVD", type: "number" as const },
+					{ label: "RA", type: "number" as const },
+				],
+				textContext: {
+					notes:
+						"{% table %}\n---\n* PAWP mmHg\n* -3,7\n---\n* RV mmHg\n* 49 / 2 (19)\n---\n* ZVD mmHg\n* 6\n---\n* RA mmHg\n* 6\n{% /table %}\n\nZugang: links\n\nBeurteilung: PH\n\nThrombose: ausgeschlossen\n\nInfusionsrate: 2,5 ml/h\n\nAufnahme: vor 14 Tagen\n\nKontrolle: in 14 Tagen\n\nEntlassung: vor 3 Tagen\n\nGeburtsdatum: 29.02.1980\n\nAnderes Datum: Ende Februar",
+				},
+			};
+			const remaining = [
+				{
+					citations: [{ quote: "RV mmHg\n49 / 2 (19)", source: 1 }],
+					field: "RV_Diastole",
+					value: 2,
+				},
+				{ citations: [{ quote: "Beurteilung: PH", source: 1 }], field: "Beurteilung", value: "PH" },
+				// Quantities written as text are LLM work.
+				{
+					citations: [{ quote: "Infusionsrate: 2,5 ml/h", source: 1 }],
+					field: "Infusionsrate",
+					value: "2,5",
+				},
+			];
+			aiMockState.nextGenerateTextOutput = { suggestions: remaining };
+			const result = await call(fillInputsHandler, input, { context });
+			expect(result.suggestions).toEqual({
+				Aufnahme: {
+					citations: [{ quote: "Aufnahme: vor 14 Tagen", source: "mdscribe://input/notes" }],
+					value: "2025-12-21",
+				},
+				Beurteilung: {
+					citations: [{ quote: "Beurteilung: PH", source: "mdscribe://input/notes" }],
+					value: "PH",
+				},
+				Geburtsdatum: {
+					citations: [{ quote: "Geburtsdatum: 29.02.1980", source: "mdscribe://input/notes" }],
+					value: "1980-02-29",
+				},
+				Infusionsrate: {
+					citations: [{ quote: "Infusionsrate: 2,5 ml/h", source: "mdscribe://input/notes" }],
+					value: "2,5",
+				},
+				Kontrolle: {
+					citations: [{ quote: "Kontrolle: in 14 Tagen", source: "mdscribe://input/notes" }],
+					value: "2026-01-18",
+				},
+				PAWP: {
+					citations: [{ quote: "* PAWP mmHg\n* -3,7", source: "mdscribe://input/notes" }],
+					value: -3.7,
+				},
+				// Both rows read 6; each value cites the row naming its field.
+				RA: {
+					citations: [{ quote: "* RA mmHg\n* 6", source: "mdscribe://input/notes" }],
+					value: 6,
+				},
+				RV_Diastole: {
+					citations: [{ quote: "RV mmHg\n49 / 2 (19)", source: "mdscribe://input/notes" }],
+					value: 2,
+				},
+				Thrombose: {
+					citations: [{ quote: "Thrombose: ausgeschlossen", source: "mdscribe://input/notes" }],
+					value: false,
+				},
+				ZVD: {
+					citations: [{ quote: "* ZVD mmHg\n* 6", source: "mdscribe://input/notes" }],
+					value: 6,
+				},
+				Zugang: {
+					citations: [{ quote: "Zugang: links", source: "mdscribe://input/notes" }],
+					value: "links",
+				},
+			});
+			// If all fields are decided, an invalid fallback output must never be needed.
+			aiMockState.nextGenerateTextOutput = { invalid: true };
+			const finiteOnly = await call(
+				fillInputsHandler,
+				{ ...input, inputFields: [input.inputFields[0], input.inputFields[2]] },
+				{ context },
+			);
+			expect(finiteOnly.suggestions.PAWP.value).toBe(-3.7);
+			expect(finiteOnly.suggestions.Zugang.value).toBe("links");
+			const datesOnly = await call(
+				fillInputsHandler,
+				{ ...input, inputFields: [input.inputFields[7], input.inputFields[8]] },
+				{ context },
+			);
+			expect(datesOnly.suggestions).toMatchObject({
+				Aufnahme: { value: "2025-12-21" },
+				Kontrolle: { value: "2026-01-18" },
+			});
+			// Every request above was a single decision call.
+			expect(decisionCalls).toBe(3);
+			aiMockState.nextGenerateTextOutput = { suggestions: [remaining[2]] };
+			const quantityOnly = await call(
+				fillInputsHandler,
+				{ ...input, inputFields: [input.inputFields[6]] },
+				{ context },
+			);
+			expect(decisionCalls).toBe(3);
+			expect(quantityOnly.suggestions.Infusionsrate.value).toBe("2,5");
+			failure = true;
+			aiMockState.nextGenerateTextOutput = {
+				suggestions: [
+					...remaining,
+					{ citations: [{ quote: "* PAWP mmHg\n* -3,7", source: 1 }], field: "PAWP", value: -3.7 },
+					{
+						citations: [{ quote: "Thrombose: ausgeschlossen", source: 1 }],
+						field: "Thrombose",
+						value: false,
+					},
+					{ citations: [{ quote: "Zugang: links", source: 1 }], field: "Zugang", value: "links" },
+					...Object.entries(result.suggestions)
+						.filter(([field]) =>
+							["RA", "ZVD", "Aufnahme", "Kontrolle", "Geburtsdatum"].includes(field),
+						)
+						.map(([field, suggestion]) => ({
+							citations: suggestion.citations?.map(({ quote }) => ({ quote, source: 1 })),
+							field,
+							value: suggestion.value,
+						})),
+				],
+			};
+			const fallback = await call(fillInputsHandler, input, { context });
+			expect(fallback.suggestions).toEqual(result.suggestions);
+		} finally {
+			setSystemTime();
+			delete aiMockState.nextGenerateTextOutput;
+			fetchSpy.mockRestore();
+			await server.close();
+		}
 	});
 
 	test("passes OCR text and field definitions to the separate text model", async () => {

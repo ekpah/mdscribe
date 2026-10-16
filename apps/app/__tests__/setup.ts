@@ -2,6 +2,7 @@ import {
 	aiDefaults,
 	aiModel,
 	aiProvider,
+	eq,
 	subscription,
 	template,
 	usageEvent,
@@ -487,4 +488,21 @@ export const createTestAiDefaults = async (
 		.onConflictDoUpdate({ set: defaults, target: aiDefaults.id });
 
 	return { modelId, modelRecordId, providerId };
+};
+
+/** Select an OpenRouter Decisions model on the given provider as decision model. */
+export const createTestDecisionModel = async (
+	db: TestDatabase,
+	providerId: string,
+	modelId = "typesafe/jev-1.14",
+): Promise<string> => {
+	const id = crypto.randomUUID();
+	await db
+		.insert(aiModel)
+		.values({ displayName: "Decision Model", id, modelId, providerId, supportsDecisions: true });
+	await db
+		.update(aiDefaults)
+		.set({ defaultDecisionModelId: id })
+		.where(eq(aiDefaults.id, "global"));
+	return id;
 };

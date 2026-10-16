@@ -18,7 +18,10 @@ import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
 import { scribeEntitlementsMiddleware } from "@/orpc/middlewares/entitlements";
 import { composeScribeContext } from "@/orpc/scribe/context";
+import { fillInputsWithDecisions } from "@/orpc/scribe/fill-inputs/decide";
+import { supportsDecision } from "@/orpc/scribe/fill-inputs/questions";
 import {
+	buildFillInputsSourceContext,
 	composeFillInputsPrompt,
 	FILL_INPUTS_PROMPT_NAME,
 } from "@/orpc/scribe/prompts/core/fill-inputs";
@@ -26,9 +29,10 @@ import type { FillInputsCitationSource } from "@/orpc/scribe/prompts/core/fill-i
 import {
 	buildProviderOptions,
 	isGenerationStrategyFullyByok,
+	resolveDecisionModel,
 	resolveGenerationStrategy,
 } from "@/orpc/scribe/providers";
-import type { MediaPlan } from "@/orpc/scribe/providers";
+import type { DecisionModelSelection, MediaPlan } from "@/orpc/scribe/providers";
 import type { FillInputsInputPayload, FillInputsResult, InputField } from "@/orpc/scribe/types";
 
 import {
@@ -37,6 +41,7 @@ import {
 	transcribeAudioFilesWithPrompt,
 } from "./audio-input";
 import { createContextFileParts, extractContextFiles } from "./context-file-input";
+import { logMediaPreprocessingUsage } from "./preprocessing-usage";
 import { enforceScribeUsageLimit } from "./usage-limit";
 
 interface FillInputAudioPayloadSummary {
@@ -589,6 +594,31 @@ const buildFillInputUsageMetadata = ({
 	zdrEnabled: zdr,
 });
 
+const resolveFillInputDecisionProvider = async (
+	db: Database,
+	input: FillInputsInputPayload,
+	strategy: FillInputsGenerationStrategy,
+	userId: string,
+) => {
+	const files = input.contextFiles ?? [];
+	// An unseen native source must not contradict text-only decisions. Missing
+	// source IDs cannot produce citations; don't spend money or quota on that path.
+	if (
+		input.audioFiles?.length ||
+		(files.length && strategy.files?.mode !== "preprocess") ||
+		!files.every((file) => file.id?.trim()) ||
+		!getCitationSources(input).length ||
+		!input.inputFields.some(supportsDecision)
+	) {
+		return null;
+	}
+	const provider = await resolveDecisionModel(db, userId).catch(() => null);
+	// Fully BYOK requests must not spend operator credit or send data to an unconfigured provider.
+	return isGenerationStrategyFullyByok(strategy) && provider?.credentialSource !== "user_byok"
+		? null
+		: provider;
+};
+
 const buildFillInputContext = (input: FillInputsInputPayload) => {
 	const examples = (input.templateExamples ?? []).map((example) => example.trim()).filter(Boolean);
 	const information = input.templateInformation?.trim();
@@ -601,6 +631,90 @@ const buildFillInputContext = (input: FillInputsInputPayload) => {
 	}).contextXml;
 };
 
+/** Optional text-only fast path; this boundary owns accounting and LLM fallback. */
+const prepareFillInputDecisions = async ({
+	citationSources,
+	db,
+	extractedFiles,
+	input,
+	provider,
+	signal,
+	userId,
+	zdr,
+}: {
+	citationSources: FillInputsCitationSource[];
+	db: Database;
+	extractedFiles: Awaited<ReturnType<typeof extractFillInputFileText>>;
+	input: FillInputsInputPayload;
+	provider: DecisionModelSelection | null;
+	signal?: AbortSignal;
+	userId: string;
+	zdr: boolean;
+}): Promise<FillInputsResult["suggestions"]> => {
+	if (!provider) {
+		return {};
+	}
+	const contextFiles = input.contextFiles ?? [];
+	const sources = [
+		...Object.entries(input.textContext ?? {}).flatMap(([id, text]) =>
+			text?.trim() ? [{ source: createMdscribeSource("input", id), text }] : [],
+		),
+		...extractedFiles.ocrResults.flatMap((result, index) => {
+			const id = contextFiles[index]?.id?.trim();
+			return id ? [{ source: createMdscribeSource("file", id), text: result.text }] : [];
+		}),
+	];
+	// Without one stable ID per source, prefill cannot return honest citations.
+	if (sources.length !== citationSources.length) {
+		return {};
+	}
+	const budget = AbortSignal.timeout(3000);
+	const started = Date.now();
+	return await fillInputsWithDecisions({
+		apiKey: provider.apiKey,
+		context: buildFillInputsSourceContext({
+			contextXml: buildFillInputContext(input),
+			fileTextContext: extractedFiles.textContext,
+		}),
+		inputFields: input.inputFields,
+		model: provider.modelId,
+		onUsage: ({ model, usage }) => {
+			const timeToCompletionMs = Date.now() - started;
+			logMediaPreprocessingUsage({
+				db,
+				isOpenRouter: true,
+				metadata: {
+					credentialSource: provider.credentialSource,
+					promptName: "input_fill:decision",
+					providerId: provider.providerId,
+					providerProtocol: "openrouter",
+				},
+				modelName: model,
+				name: AI_INPUT_FILL_EVENT_NAME,
+				providerMetadata: {
+					openrouter: {
+						usage: {
+							completionTokens: usage.output_tokens,
+							cost: usage.cost,
+							promptTokens: usage.input_tokens,
+							totalTokens: usage.input_tokens + usage.output_tokens,
+						},
+					},
+				},
+				timing: { timeToCompletionMs },
+				userId,
+				zdr,
+			});
+		},
+		signal: signal ? AbortSignal.any([signal, budget]) : budget,
+		sources,
+		zdr,
+	}).catch(() => {
+		signal?.throwIfAborted();
+		return {};
+	});
+};
+
 const fillInputsProcedure = authed
 	.use(scribeEntitlementsMiddleware)
 	.input(type<FillInputsInputPayload>());
@@ -608,7 +722,11 @@ const fillInputsProcedure = authed
 type FillInputsOptions = Parameters<Parameters<typeof fillInputsProcedure.handler>[0]>[0];
 
 /** Fills `inputFields` from audio, text context and context files. */
-const fillInputs = async ({ input, context }: FillInputsOptions): Promise<FillInputsResult> => {
+const fillInputs = async ({
+	input,
+	context,
+	signal,
+}: FillInputsOptions): Promise<FillInputsResult> => {
 	const audioFiles = input.audioFiles ?? [];
 	const contextFiles = input.contextFiles ?? [];
 	const hasAudio = audioFiles.length > 0;
@@ -631,9 +749,16 @@ const fillInputs = async ({ input, context }: FillInputsOptions): Promise<FillIn
 		const message = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
 		throw new ORPCError("BAD_REQUEST", { message });
 	});
+	const decisionModel = await resolveFillInputDecisionProvider(
+		context.db,
+		input,
+		generationStrategy,
+		context.session.user.id,
+	);
 	const { entitlements } = await enforceScribeUsageLimit({
 		db: context.db,
 		entitlements: context.entitlements.scribe,
+		// The decision model is only used for such requests with the user's own key.
 		isQuotaExempt: isGenerationStrategyFullyByok(generationStrategy),
 		session: context.session,
 	});
@@ -665,16 +790,32 @@ const fillInputs = async ({ input, context }: FillInputsOptions): Promise<FillIn
 	});
 	const filesAreNative = generationStrategy.files?.mode === "native";
 	const nativeContextFiles = filesAreNative ? contextFiles : [];
+	const prefilled = await prepareFillInputDecisions({
+		citationSources,
+		db: context.db,
+		extractedFiles,
+		input,
+		provider: decisionModel,
+		signal,
+		userId: context.session.user.id,
+		zdr: entitlements.hasActiveSubscription,
+	});
+	const remainingFields = input.inputFields.filter(
+		(field) => !Object.hasOwn(prefilled, field.label),
+	);
+	if (!remainingFields.length) {
+		return { ocrResults: extractedFiles.ocrResults, suggestions: prefilled };
+	}
 	const messages = composeFillInputsPrompt({
 		audioTranscripts: formatAudioTranscriptsForPrompt(preparedAudio.transcripts),
 		citationSources,
 		contextFiles: nativeContextFiles,
 		contextXml: buildFillInputContext(input),
 		fileTextContext: extractedFiles.textContext,
-		inputFields: input.inputFields,
+		inputFields: remainingFields,
 	});
 
-	const outputSchema = createFillInputsSchema(input.inputFields, sourceUris, hasAudio);
+	const outputSchema = createFillInputsSchema(remainingFields, sourceUris, hasAudio);
 
 	const userContent = buildFillInputUserContent({
 		nativeContextFiles,
@@ -684,6 +825,7 @@ const fillInputs = async ({ input, context }: FillInputsOptions): Promise<FillIn
 	const generationModel = generationSelection.model.model;
 
 	const result = await generateText({
+		abortSignal: signal,
 		messages: [
 			{ content: messages[0]?.content ?? "", role: "system" },
 			{ content: userContent, role: "user" },
@@ -727,6 +869,7 @@ const fillInputs = async ({ input, context }: FillInputsOptions): Promise<FillIn
 	}
 
 	const fillResult = toFillInputsResult(resultOutput, outputSchema, sourceUris);
+	fillResult.suggestions = { ...prefilled, ...fillResult.suggestions };
 	const openRouterUsage = generationSelection.model.isOpenRouter
 		? extractOpenRouterUsage(
 				(result as { providerMetadata?: Record<string, unknown> }).providerMetadata,

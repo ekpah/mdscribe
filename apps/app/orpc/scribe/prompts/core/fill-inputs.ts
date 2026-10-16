@@ -113,13 +113,16 @@ const renderCitationSourcesSection = (sources: FillInputsCitationSource[]): stri
 const joinSections = (sections: (string | undefined)[]) =>
 	sections.filter((section): section is string => Boolean(section?.trim())).join("\n\n");
 
+/** The fill prompt's source material without field definitions, shared with the decision model. */
+export const buildFillInputsSourceContext = (
+	input: Pick<FillInputsPromptInput, "audioTranscripts" | "contextXml" | "fileTextContext">,
+): string => joinSections([input.contextXml, input.audioTranscripts, input.fileTextContext]);
+
 const buildFillInputsUserPrompt = (input: FillInputsPromptInput): string =>
 	joinSections([
 		`<input_fields>\n${JSON.stringify(input.inputFields)}\n</input_fields>`,
 		renderCitationSourcesSection(input.citationSources ?? []),
-		input.contextXml,
-		input.audioTranscripts,
-		input.fileTextContext,
+		buildFillInputsSourceContext(input),
 		renderContextFilesSection(input.contextFiles ?? [], input.citationSources ?? []),
 	]);
 
