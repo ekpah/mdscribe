@@ -28,6 +28,7 @@ import type {
 	FillInputsAudioFile,
 	FillInputsContextFile,
 	FillInputsInputField,
+	FillInputsResult,
 	FillInputsTextContext,
 } from "./inputs/inputs";
 import Inputs from "./inputs/inputs";
@@ -313,6 +314,7 @@ export const InputPreviewSection = ({
 			audioFiles: FillInputsAudioFile[],
 			textContext: FillInputsTextContext,
 			contextFiles: FillInputsContextFile[],
+			onDecisions?: (result: FillInputsResult) => void,
 		) => {
 			const textSourceSnapshot = createTextSourceSnapshot(textContext);
 			const submittedFileIds = new Set(contextFiles.map(({ id }) => id));
@@ -321,7 +323,22 @@ export const InputPreviewSection = ({
 					.filter(({ id }) => submittedFileIds.has(id))
 					.map(({ file, id }) => [id, file]),
 			);
-			const result = await orpc.scribe.fillInputs.call({
+			// Citations of early decision-model answers must already be resolvable.
+			const rememberSources = ({ ocrResults }: FillInputsResult) => {
+				inputContextController.setContextFileOcrResults(ocrResults);
+				citationFilesRef.current = fileSourceSnapshot;
+				citationOcrResultsRef.current = new Map(
+					contextFiles.flatMap((contextFile, index) => {
+						const file = contextFile.id ? fileSourceSnapshot.get(contextFile.id) : undefined;
+						const ocrResult =
+							contextFile.kind === "ocr" ? contextFile.ocrResult : ocrResults[index];
+						return file && ocrResult ? [[file, ocrResult] as const] : [];
+					}),
+				);
+				citationTextSourcesRef.current = textSourceSnapshot;
+			};
+			let complete: FillInputsResult | undefined;
+			const events = await orpc.scribe.fillInputsStream.call({
 				audioFiles,
 				contextFiles,
 				inputFields,
@@ -329,19 +346,19 @@ export const InputPreviewSection = ({
 				templateInformation,
 				textContext,
 			});
-			inputContextController.setContextFileOcrResults(result.ocrResults);
-			citationFilesRef.current = fileSourceSnapshot;
-			citationOcrResultsRef.current = new Map(
-				contextFiles.flatMap((contextFile, index) => {
-					const file = contextFile.id ? fileSourceSnapshot.get(contextFile.id) : undefined;
-					const ocrResult =
-						contextFile.kind === "ocr" ? contextFile.ocrResult : result.ocrResults[index];
-					return file && ocrResult ? [[file, ocrResult] as const] : [];
-				}),
-			);
-			citationTextSourcesRef.current = textSourceSnapshot;
+			for await (const { ocrResults, stage, suggestions } of events) {
+				rememberSources({ ocrResults, suggestions });
+				if (stage === "decisions") {
+					onDecisions?.({ ocrResults, suggestions });
+				} else {
+					complete = { ocrResults, suggestions };
+				}
+			}
+			if (!complete) {
+				throw new Error("Die Antwort ist unvollständig.");
+			}
 			trackEvent(`${contentType}-filled-with-ai`);
-			return result;
+			return complete;
 		},
 		[contentType, inputContextController, templateExamples, templateInformation],
 	);

@@ -67,6 +67,8 @@ interface InputsProps {
 		audioFiles: FillInputsAudioFile[],
 		textContext: FillInputsTextContext,
 		contextFiles: FillInputsContextFile[],
+		/** Decision-model answers, shown while the LLM fills the remaining fields. */
+		onDecisions?: (result: FillInputsResult) => void,
 	) => Promise<FillInputsResult>;
 	renderFillControls?: (props: {
 		onSubmit: (
@@ -1190,14 +1192,8 @@ export default function Inputs({
 				id: "fill-inputs",
 			});
 
-			try {
-				const result = await onFillInputs(
-					fillInputFields,
-					audioFiles,
-					textContext,
-					contextFiles,
-				);
-
+			// Each result replaces all earlier AI suggestions; manual values stay.
+			const applySuggestions = (result: FillInputsResult) => {
 				const nextSuggestions: Record<string, SuggestedValue> = {};
 				for (const [field, suggestion] of Object.entries(result.suggestions)) {
 					const normalizedValue = normalizeFillInputsValue(
@@ -1224,15 +1220,36 @@ export default function Inputs({
 						),
 					),
 				);
-
+			};
+			let hasDecisions = false;
+			try {
+				const result = await onFillInputs(
+					fillInputFields,
+					audioFiles,
+					textContext,
+					contextFiles,
+					(decisions) => {
+						hasDecisions = true;
+						applySuggestions(decisions);
+						toast.loading(
+							`${Object.keys(decisions.suggestions).length} Felder übernommen, weitere werden ausgefüllt...`,
+							{ id: "fill-inputs" },
+						);
+					},
+				);
+				applySuggestions(result);
 				toast.success("Felder ausgefüllt", {
 					id: "fill-inputs",
 				});
 			} catch (error) {
 				const errorMessage = error instanceof Error ? error.message : "Unbekannter Fehler";
-				toast.error(`Ausfüllen fehlgeschlagen: ${errorMessage}`, {
-					id: "fill-inputs",
-				});
+				// Already shown decision-model answers stay.
+				toast.error(
+					hasDecisions
+						? `Weitere Felder konnten nicht ausgefüllt werden: ${errorMessage}`
+						: `Ausfüllen fehlgeschlagen: ${errorMessage}`,
+					{ id: "fill-inputs" },
+				);
 			}
 		},
 		[fillInputFields, fillInputMeta, onFillInputs, onSuggestedValuesChange],

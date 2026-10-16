@@ -86,6 +86,10 @@ export const router = {
 			const handlerModule = await import("./scribe/handlers/fill-inputs");
 			return { default: handlerModule.fillInputsHandler };
 		}),
+		fillInputsStream: lazy(async () => {
+			const handlerModule = await import("./scribe/handlers/fill-inputs");
+			return { default: handlerModule.fillInputsStreamHandler };
+		}),
 	},
 	// AI documentation agent (text-only MVP)
 	scribeAgent: {

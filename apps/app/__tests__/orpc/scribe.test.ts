@@ -28,7 +28,8 @@ import { documentTypeConfigs } from "@/orpc/scribe/config";
 import { composeScribeContext } from "@/orpc/scribe/context";
 import { scribeStreamHandler } from "@/orpc/scribe/handlers";
 import { prepareAudioInputForModel } from "@/orpc/scribe/handlers/audio-input";
-import { fillInputsHandler } from "@/orpc/scribe/handlers/fill-inputs";
+import { fillInputsHandler, fillInputsStreamHandler } from "@/orpc/scribe/handlers/fill-inputs";
+import type { FillInputsEvent } from "@/orpc/scribe/handlers/fill-inputs";
 import { DEFAULT_SCRIBE_MODEL_CONFIG } from "@/orpc/scribe/handlers/scribe-stream";
 import {
 	getDocumentTypeByPromptName,
@@ -1177,6 +1178,16 @@ describe("Fill Inputs Handler", () => {
 					value: "links",
 				},
 			});
+			// The stream shows decision-model answers before the LLM has filled the rest.
+			aiMockState.nextGenerateTextOutput = { suggestions: remaining };
+			const events: FillInputsEvent[] = [];
+			for await (const event of await call(fillInputsStreamHandler, input, { context })) {
+				events.push(event);
+			}
+			expect(events.map(({ stage }) => stage)).toEqual(["decisions", "complete"]);
+			expect(events[0].suggestions.PAWP.value).toBe(-3.7);
+			expect(events[0].suggestions).not.toHaveProperty("Beurteilung");
+			expect(events[1].suggestions).toEqual(result.suggestions);
 			// If all fields are decided, an invalid fallback output must never be needed.
 			aiMockState.nextGenerateTextOutput = { invalid: true };
 			const finiteOnly = await call(
@@ -1196,14 +1207,14 @@ describe("Fill Inputs Handler", () => {
 				Kontrolle: { value: "2026-01-18" },
 			});
 			// Every request above was a single decision call.
-			expect(decisionCalls).toBe(3);
+			expect(decisionCalls).toBe(4);
 			aiMockState.nextGenerateTextOutput = { suggestions: [remaining[2]] };
 			const quantityOnly = await call(
 				fillInputsHandler,
 				{ ...input, inputFields: [input.inputFields[6]] },
 				{ context },
 			);
-			expect(decisionCalls).toBe(3);
+			expect(decisionCalls).toBe(4);
 			expect(quantityOnly.suggestions.Infusionsrate.value).toBe("2,5");
 			failure = true;
 			aiMockState.nextGenerateTextOutput = {

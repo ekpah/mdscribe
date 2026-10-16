@@ -721,12 +721,24 @@ const fillInputsProcedure = authed
 
 type FillInputsOptions = Parameters<Parameters<typeof fillInputsProcedure.handler>[0]>[0];
 
-/** Fills `inputFields` from audio, text context and context files. */
-const fillInputs = async ({
+/**
+ * Autofill progress. With a decision model, its accepted answers arrive as
+ * `decisions` before the LLM fills the remaining fields; `complete` always ends.
+ */
+export interface FillInputsEvent extends FillInputsResult {
+	stage: "decisions" | "complete";
+}
+
+/**
+ * Fills `inputFields` from audio, text context and context files.
+ *
+ * @yields {FillInputsEvent} Accepted decision-model answers, then all suggestions by field label.
+ */
+const runFillInputs = async function* runFillInputs({
 	input,
 	context,
 	signal,
-}: FillInputsOptions): Promise<FillInputsResult> => {
+}: FillInputsOptions): AsyncGenerator<FillInputsEvent, void, undefined> {
 	const audioFiles = input.audioFiles ?? [];
 	const contextFiles = input.contextFiles ?? [];
 	const hasAudio = audioFiles.length > 0;
@@ -804,7 +816,11 @@ const fillInputs = async ({
 		(field) => !Object.hasOwn(prefilled, field.label),
 	);
 	if (!remainingFields.length) {
-		return { ocrResults: extractedFiles.ocrResults, suggestions: prefilled };
+		yield { ocrResults: extractedFiles.ocrResults, stage: "complete", suggestions: prefilled };
+		return;
+	}
+	if (Object.keys(prefilled).length) {
+		yield { ocrResults: extractedFiles.ocrResults, stage: "decisions", suggestions: prefilled };
 	}
 	const messages = composeFillInputsPrompt({
 		audioTranscripts: formatAudioTranscriptsForPrompt(preparedAudio.transcripts),
@@ -901,7 +917,31 @@ const fillInputs = async ({
 		}),
 	);
 
-	return { ocrResults: extractedFiles.ocrResults, suggestions: fillResult.suggestions };
+	yield {
+		ocrResults: extractedFiles.ocrResults,
+		stage: "complete",
+		suggestions: fillResult.suggestions,
+	};
 };
 
-export const fillInputsHandler = fillInputsProcedure.handler(fillInputs);
+/** Autofill with one response, for callers that need only the final result. */
+export const fillInputsHandler = fillInputsProcedure.handler(
+	async (options): Promise<FillInputsResult> => {
+		let result: FillInputsResult = { ocrResults: [], suggestions: {} };
+		for await (const { ocrResults, suggestions } of runFillInputs(options)) {
+			result = { ocrResults, suggestions };
+		}
+		return result;
+	},
+);
+
+/**
+ * Autofill that streams decision-model answers before the LLM completes.
+ *
+ * @yields {FillInputsEvent} Decision-model answers, then the complete result.
+ */
+export const fillInputsStreamHandler = fillInputsProcedure.handler(
+	async function* streamFillInputs(options) {
+		yield* runFillInputs(options);
+	},
+);
