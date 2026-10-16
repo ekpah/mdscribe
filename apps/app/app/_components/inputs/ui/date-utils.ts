@@ -1,7 +1,7 @@
-import { DateFormatter, getLocalTimeZone, parseDate } from "@internationalized/date";
+import { parseDate } from "@internationalized/date";
 import type { DateValue } from "@internationalized/date";
 
-const germanFormatter = new DateFormatter("de-DE", { dateStyle: "short" });
+const pad = (value: number, length: number) => String(value).padStart(length, "0");
 
 const parseDateSafely = (value: string): DateValue | null => {
 	try {
@@ -46,9 +46,13 @@ export const parseDateInput = (input: unknown): DateValue | null => {
 	return parseIsoDateInput(trimmed) ?? parseGermanDateInput(trimmed);
 };
 
-/** Format a DateValue to German locale (e.g., "15.01.2024") */
-export const formatDateGerman = (date: DateValue) =>
-	germanFormatter.format(date.toDate(getLocalTimeZone()));
+/**
+ * Format a DateValue as German "DD.MM.YYYY" (e.g., "15.01.2024"). The year is always
+ * four digits, so parseDateInput reads every value back, including the partial years
+ * ("0002") a date field commits while the user types.
+ */
+export const formatDateGerman = ({ day, month, year }: DateValue) =>
+	`${pad(day, 2)}.${pad(month, 2)}.${pad(year, 4)}`;
 
 /**
  * Normalize a date string to German format.
