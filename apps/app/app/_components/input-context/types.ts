@@ -39,6 +39,8 @@ export interface InputContextSubmission {
 export interface UploadedContextFile {
 	file: File;
 	id: string;
+	/** Preview alignment to apply to the image bytes when OCR is started. */
+	viewRotation?: 0 | 90 | 180 | 270;
 	ocrError?: string;
 	ocrResult?: OcrResult;
 	/** Images await manual alignment; "skipped" means no OCR model is configured. */

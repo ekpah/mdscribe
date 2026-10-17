@@ -56,6 +56,7 @@
 
 ### Fixed
 
+- Image alignment now survives closing and reopening the document preview. Starting OCR from the closed file row applies the saved rotation to the uploaded image without rotating it again on retries.
 - Image OCR no longer fails in Safari with "The I/O read operation failed." when it starts some time after the upload: added files are copied into memory right away, so OCR, rotation, and submission no longer depend on the browser's original file reference.
 - Date inputs now show AI-filled dates: values are stored as `DD.MM.YYYY` with a four-digit year instead of `07.10.26`, which the field could not read back and displayed as empty. Typing a year no longer clears the day and month.
 - OpenRouter OCR configured with no reasoning now explicitly disables optional thinking or selects the model's lowest advertised mandatory effort instead of silently using provider defaults. Public capabilities are cached; unavailable or unknown capabilities retain the existing provider fallback.

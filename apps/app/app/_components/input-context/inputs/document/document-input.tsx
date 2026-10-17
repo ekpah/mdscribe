@@ -79,40 +79,25 @@ const useImageSize = (url: string | null) => {
 
 const ImageOriginalPreview = ({
 	file,
-	onRotate,
+	isRotating,
+	onRotationChange,
 	onStartOcr,
 	previewUrl,
 }: {
 	file: UploadedContextFile;
-	onRotate?: (turn: QuarterTurn) => Promise<void>;
+	isRotating: boolean;
+	onRotationChange: (turn: QuarterTurn) => void;
 	onStartOcr?: () => void;
 	previewUrl: string;
 }) => {
-	const [viewRotation, setViewRotation] = useState<QuarterTurn>(0);
+	const viewRotation = file.viewRotation ?? 0;
 	const [showRegions, setShowRegions] = useState(true);
-	const [isRotating, setIsRotating] = useState(false);
 	const busy = isRotating || file.ocrStatus === "pending";
 	const imageSize = useImageSize(previewUrl);
 	const ocrPage = file.ocrResult?.pages?.[0];
 	const frame = ocrPage ?? (imageSize ? { ...imageSize, blocks: [] } : null);
 	const turn = (delta: 90 | 270) => {
-		setViewRotation((current) => ((current + delta) % 360) as QuarterTurn);
-	};
-	const resubmitRotated = async () => {
-		if (viewRotation === 0) {
-			onStartOcr?.();
-			return;
-		}
-		if (!onRotate) {
-			return;
-		}
-		setIsRotating(true);
-		try {
-			await onRotate(viewRotation);
-			setViewRotation(0);
-		} finally {
-			setIsRotating(false);
-		}
+		onRotationChange(((viewRotation + delta) % 360) as QuarterTurn);
 	};
 	return (
 		<div className="flex h-full min-h-96 flex-col">
@@ -145,12 +130,12 @@ const ImageOriginalPreview = ({
 						Texterkennung läuft …
 					</span>
 				) : null}
-				{onStartOcr || (viewRotation !== 0 && onRotate) ? (
+				{onStartOcr ? (
 					<div className="ml-auto flex min-w-0 max-w-full flex-wrap justify-end gap-2">
 						{viewRotation === 0 ? null : (
 							<Button
 								disabled={busy}
-								onClick={() => setViewRotation(0)}
+								onClick={() => onRotationChange(0)}
 								size="sm"
 								type="button"
 								variant="ghost"
@@ -161,7 +146,7 @@ const ImageOriginalPreview = ({
 						<Button
 							className="h-auto min-h-8 max-w-full whitespace-normal"
 							disabled={busy}
-							onClick={resubmitRotated}
+							onClick={onStartOcr}
 							size="sm"
 							type="button"
 						>
@@ -196,17 +181,19 @@ const ImageOriginalPreview = ({
 
 const FilePreviewDialog = ({
 	file,
+	isRotating,
 	ocrEnabled,
 	onOpenChange,
-	onRotate,
+	onRotationChange,
 	onStartOcr,
 	pdfFile,
 	previewUrl,
 }: {
 	file: UploadedContextFile;
+	isRotating: boolean;
 	ocrEnabled: boolean;
 	onOpenChange: (open: boolean) => void;
-	onRotate?: (turn: QuarterTurn) => Promise<void>;
+	onRotationChange: (turn: QuarterTurn) => void;
 	onStartOcr?: () => void;
 	pdfFile: Uint8Array | null;
 	previewUrl: string | null;
@@ -233,7 +220,8 @@ const FilePreviewDialog = ({
 			return (
 				<ImageOriginalPreview
 					file={file}
-					onRotate={onRotate}
+					isRotating={isRotating}
+					onRotationChange={onRotationChange}
 					onStartOcr={onStartOcr}
 					previewUrl={previewUrl}
 				/>
@@ -314,38 +302,59 @@ export const DocumentInput = ({
 	value,
 }: DocumentInputProps) => {
 	const [confirmingDeleteFileId, setConfirmingDeleteFileId] = useState<string | null>(null);
+	const [rotatingFileId, setRotatingFileId] = useState<string | null>(null);
+	const ocrDisabled = disabled || rotatingFileId !== null;
 	const [previewFile, setPreviewFile] = useState<{
 		file: UploadedContextFile;
 		pdfFile: Uint8Array | null;
 		url: string | null;
 	} | null>(null);
 	const previewUrlRef = useRef<string | null>(null);
+	const previewFileIdRef = useRef<string | null>(null);
 
 	const closePreview = useCallback(() => {
 		if (previewUrlRef.current) {
 			URL.revokeObjectURL(previewUrlRef.current);
 			previewUrlRef.current = null;
 		}
+		previewFileIdRef.current = null;
 		setPreviewFile(null);
 	}, []);
 
-	const rotatePreviewFile = useCallback(
-		async (turn: QuarterTurn) => {
-			if (!(previewFile && onRotate)) {
+	const startOcr = useCallback(
+		async (id: string) => {
+			const file = value.find((item) => item.id === id);
+			if (!file || rotatingFileId) {
 				return;
 			}
-			const rotated = await onRotate(previewFile.file.id, turn);
-			if (!rotated) {
+			const turn = file.viewRotation ?? 0;
+			if (turn === 0) {
+				onRetryOcr?.(id);
 				return;
 			}
-			if (previewUrlRef.current) {
-				URL.revokeObjectURL(previewUrlRef.current);
+			if (!onRotate) {
+				return;
 			}
-			const url = URL.createObjectURL(rotated.file);
-			previewUrlRef.current = url;
-			setPreviewFile({ file: rotated, pdfFile: null, url });
+			setRotatingFileId(id);
+			try {
+				const rotated = await onRotate(id, turn);
+				// OCR can start from the closed list, or the dialog can close
+				// during conversion. Only refresh a preview that is still open.
+				if (!rotated || previewFileIdRef.current !== id) {
+					return;
+				}
+				if (previewUrlRef.current) {
+					URL.revokeObjectURL(previewUrlRef.current);
+				}
+				const url = URL.createObjectURL(rotated.file);
+				previewUrlRef.current = url;
+				previewFileIdRef.current = rotated.id;
+				setPreviewFile({ file: rotated, pdfFile: null, url });
+			} finally {
+				setRotatingFileId(null);
+			}
 		},
-		[onRotate, previewFile],
+		[onRetryOcr, onRotate, rotatingFileId, value],
 	);
 
 	useEffect(
@@ -447,14 +456,21 @@ export const DocumentInput = ({
 			{previewFile ? (
 				<FilePreviewDialog
 					file={value.find((file) => file.id === previewFile.file.id) ?? previewFile.file}
+					isRotating={rotatingFileId === previewFile.file.id}
 					ocrEnabled={ocrEnabled}
 					onOpenChange={(open) => {
 						if (!open) {
 							closePreview();
 						}
 					}}
-					onRotate={ocrEnabled && onRotate ? rotatePreviewFile : undefined}
-					onStartOcr={ocrEnabled && onRetryOcr ? () => onRetryOcr(previewFile.file.id) : undefined}
+					onRotationChange={(viewRotation) => {
+						onValueChange(
+							value.map((file) =>
+								file.id === previewFile.file.id ? { ...file, viewRotation } : file,
+							),
+						);
+					}}
+					onStartOcr={ocrEnabled && onRetryOcr ? () => startOcr(previewFile.file.id) : undefined}
 					pdfFile={previewFile.pdfFile}
 					previewUrl={previewFile.url}
 				/>
@@ -496,6 +512,7 @@ export const DocumentInput = ({
 												? URL.createObjectURL(selectedFile.file)
 												: null;
 											previewUrlRef.current = url;
+											previewFileIdRef.current = id;
 											setPreviewFile({
 												file: selectedFile,
 												pdfFile: isPdf
@@ -524,8 +541,8 @@ export const DocumentInput = ({
 									<Button
 										aria-label={`OCR für ${file.name} starten`}
 										className="h-7 shrink-0 gap-1 px-2 text-xs"
-										disabled={disabled}
-										onClick={() => onRetryOcr(id)}
+										disabled={ocrDisabled}
+										onClick={() => startOcr(id)}
 										size="sm"
 										title="OCR starten – zum Drehen vorher die Datei öffnen"
 										type="button"
@@ -550,7 +567,8 @@ export const DocumentInput = ({
 								{ocrEnabled && ocrStatus === "error" && onRetryOcr ? (
 									<Button
 										aria-label={`OCR für ${file.name} erneut versuchen`}
-										onClick={() => onRetryOcr(id)}
+										disabled={ocrDisabled}
+										onClick={() => startOcr(id)}
 										size="icon"
 										title={ocrError ?? "OCR erneut versuchen"}
 										type="button"
