@@ -708,7 +708,6 @@ const prepareFillInputDecisions = async ({
 		},
 		signal: signal ? AbortSignal.any([signal, budget]) : budget,
 		sources,
-		zdr,
 	}).catch(() => {
 		signal?.throwIfAborted();
 		return {};

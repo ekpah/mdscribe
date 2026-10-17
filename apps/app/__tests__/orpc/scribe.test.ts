@@ -777,7 +777,7 @@ describe("audio input preparation", () => {
 });
 
 describe("buildProviderOptions", () => {
-	test("openrouter receives reasoning effort, user, usage and zdr", () => {
+	test("openrouter does not enforce ZDR for subscribed users", () => {
 		const options = buildProviderOptions({
 			includeUsage: true,
 			model: createResolvedModel({ isOpenRouter: true, providerProtocol: "openrouter" }),
@@ -791,7 +791,6 @@ describe("buildProviderOptions", () => {
 				reasoning: { effort: "high" },
 				usage: { include: true },
 				user: "user-1",
-				zdr: true,
 			},
 		});
 	});
@@ -1007,7 +1006,7 @@ describe("Fill Inputs Handler", () => {
 					};
 					// The admin-selected decision model is used, not a hard-coded one.
 					expect(request.model).toBe("typesafe/jev-1.14");
-					expect(request.provider).toEqual({ data_collection: "deny", zdr: true });
+					expect(request.provider).toEqual({ data_collection: "deny" });
 					// The decision model sees the same patient context as the LLM.
 					expect(request.state).toContain("<patient_context>");
 					expect(request.state).toContain("Geburtsdatum: 29.02.1980");

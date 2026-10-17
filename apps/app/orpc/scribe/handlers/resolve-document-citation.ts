@@ -97,7 +97,6 @@ export const resolveDocumentCitationsHandler = authed
 				},
 				quotes: input.quotes,
 				signal: signal ? AbortSignal.any([signal, budget]) : budget,
-				zdr: entitlements.hasActiveSubscription,
 			});
 		} catch {
 			// File decoders and network errors may embed patient data or credentials.

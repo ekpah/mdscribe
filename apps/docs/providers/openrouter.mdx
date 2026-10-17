@@ -21,9 +21,8 @@ Die Synchronisierung fragt den vollständigen Katalog inklusive Transkriptionsmo
 ## Besonderheiten
 
 - **Reasoning-Steuerung**: Für Modelle, die Reasoning unterstützen, sendet MDScribe den konfigurierten Reasoning-Aufwand des jeweiligen Standard-Slots mit.
-- **Zero Data Retention**: Für Plus-Nutzung kann MDScribe Anfragen mit ZDR-Flag routen, sodass nur Endpunkte ohne Datenspeicherung verwendet werden — siehe [Datenschutz](/privacy).
 - **Audio-Transkription**: OpenRouter-Transkriptionsmodelle werden über die JSON-Schnittstelle (`/v1/audio/transcriptions` mit `input_audio`) angesprochen und können den Speech-to-Text-Slot belegen.
 
 ## Einordnung für den Datenschutz
 
-OpenRouter leitet Anfragen an die jeweiligen Modellanbieter weiter. Die Datenschutz-Eigenschaften hängen damit vom Zielmodell und dessen Anbieter ab; das ZDR-Routing reduziert Retention-Risiken, ersetzt aber keine eigene Compliance-Prüfung. Für maximale Vertraulichkeit siehe [Private Provider](/providers/private) oder [lokale Modelle](/providers/local).
+OpenRouter leitet Anfragen an die jeweiligen Modellanbieter weiter. Die Datenschutz-Eigenschaften hängen damit vom Zielmodell und dessen Anbieter ab und müssen für den gesamten Datenweg geprüft werden. Für maximale Vertraulichkeit siehe [Private Provider](/providers/private) oder [lokale Modelle](/providers/local).

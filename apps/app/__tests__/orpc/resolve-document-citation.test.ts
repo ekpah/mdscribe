@@ -34,7 +34,7 @@ test("authenticated quote localization returns page-frame bounds, rejects change
 				};
 				decisionCalls += 1;
 				expect(request.model).toBe("typesafe/jev-1.14-20261014");
-				expect(request.provider).toEqual({ data_collection: "deny", zdr: true });
+				expect(request.provider).toEqual({ data_collection: "deny" });
 				// All quotes of a page are located in one request.
 				const answers = Object.fromEntries(
 					Object.entries(request.questions).map(([key, question]) => [

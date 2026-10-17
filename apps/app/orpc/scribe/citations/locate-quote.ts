@@ -47,7 +47,6 @@ export const locateDocumentQuotes = async ({
 	onUsage,
 	quotes,
 	signal,
-	zdr,
 }: {
 	apiKey: string;
 	data: Buffer;
@@ -56,7 +55,6 @@ export const locateDocumentQuotes = async ({
 	onUsage?: (response: z.infer<typeof responseSchema>) => void;
 	quotes: string[];
 	signal: AbortSignal;
-	zdr?: boolean;
 }): Promise<(OcrQuoteMatch | null)[]> => {
 	const matches: (OcrQuoteMatch | null)[] = quotes.map(() => null);
 	for await (const { image, page } of renderPageImages(data, mimeType)) {
@@ -103,7 +101,6 @@ export const locateDocumentQuotes = async ({
 					type: "image_url",
 				},
 			],
-			zdr,
 		});
 		const parsed = responseSchema.safeParse(response);
 		if (!parsed.success) {

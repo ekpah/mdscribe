@@ -27,19 +27,17 @@ export const requestDecision = async ({
 	questions,
 	signal,
 	state,
-	zdr,
 }: {
 	apiKey: string;
 	model: string;
 	questions: DecisionQuestions;
 	signal: AbortSignal;
 	state: string | unknown[];
-	zdr?: boolean;
 }): Promise<DecisionResponse> => {
 	const response = await fetch("https://openrouter.ai/api/alpha/decisions", {
 		body: JSON.stringify({
 			model,
-			provider: { data_collection: "deny", ...(zdr ? { zdr: true } : {}) },
+			provider: { data_collection: "deny" },
 			questions,
 			state,
 		}),

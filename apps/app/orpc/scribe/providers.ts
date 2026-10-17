@@ -1097,7 +1097,6 @@ export const buildProviderOptions = ({
 					...(includeUsage ? { usage: { include: true } } : {}),
 					...(userId ? { user: userId } : {}),
 					...(resolvedReasoningEffort ? { reasoning: { effort: resolvedReasoningEffort } } : {}),
-					...(zdr ? { zdr: true } : {}),
 				},
 			};
 		}
