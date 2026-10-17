@@ -28,6 +28,7 @@
 
 ### Changed
 
+- Images can start OCR directly from their file row, which shows a spinner while OCR runs, a check when it is complete, and the red retry arrow after an error. Opening an image still lets users rotate it before starting OCR.
 - Refresh workspace and PaddleOCR dependencies, including Next.js 16.4, React 19.3, Tiptap 3.31, Nodemailer 10, Marked 18, and Diff 9. Keep AI SDK 6, TanStack Table 8, React-PDF 10, Stripe 22, Nano ID 5, and Lucide 0.x for existing API, peer, runtime, and icon compatibility. Align Node types with Node 24 and deduplicate Ajv and ProseMirror through overrides.
 - Refresh transitive dependencies while explicitly preserving Bun's hoisted workspace resolution. Deduplicate React for Mint's CLI, remove the incompatible blanket js-yaml 4 override, and add nullable Stripe subscription lifecycle and schedule columns required by Better Auth, with an additive migration and existing null-to-undefined normalization.
 - Vision LLM OCR now returns text only through compact adapter-private output keys; `OcrResult` geometry is optional. Cited passages without OCR boxes are located by the configured decision model in one batched request after autofill, or when a source is opened before that finishes; uncertain matches show the original page without a highlight. Table grids, empty transcription cells and selection labels remain explicit.
@@ -55,6 +56,7 @@
 
 ### Fixed
 
+- Image OCR no longer fails in Safari with "The I/O read operation failed." when it starts some time after the upload: added files are copied into memory right away, so OCR, rotation, and submission no longer depend on the browser's original file reference.
 - Date inputs now show AI-filled dates: values are stored as `DD.MM.YYYY` with a four-digit year instead of `07.10.26`, which the field could not read back and displayed as empty. Typing a year no longer clears the day and month.
 - OpenRouter OCR configured with no reasoning now explicitly disables optional thinking or selects the model's lowest advertised mandatory effort instead of silently using provider defaults. Public capabilities are cached; unavailable or unknown capabilities retain the existing provider fallback.
 - Stripe-disabled instances no longer expose upgrade messaging in quota warnings or private-content controls, initialize the client billing integration during ordinary authentication, or report stored subscriptions as active in admin user management. Free quotas and private-content restrictions remain enforced.

@@ -20,6 +20,7 @@ import {
 	Paperclip,
 	Redo2,
 	RotateCcw,
+	ScanText,
 	Trash2,
 	Undo2,
 	X,
@@ -504,7 +505,11 @@ export const DocumentInput = ({
 											});
 										}
 									}}
-									title="Datei anzeigen"
+									title={
+										ocrEnabled && ocrStatus === "awaiting-alignment"
+											? "Datei anzeigen und ausrichten"
+											: "Datei anzeigen"
+									}
 									type="button"
 								>
 									<Paperclip className="h-3.5 w-3.5 shrink-0 text-solarized-blue" />
@@ -513,13 +518,35 @@ export const DocumentInput = ({
 										{Math.ceil(file.size / 1024)} KB
 									</span>
 									<Eye className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-									{ocrEnabled && ocrStatus === "awaiting-alignment" ? (
-										<span className="text-muted-foreground">Ausrichtung prüfen</span>
-									) : null}
-									{ocrEnabled && ocrStatus === "pending" ? (
-										<LoaderCircle aria-label="OCR läuft" className="h-3.5 w-3.5 animate-spin" />
-									) : null}
 								</button>
+								{/* Images wait for an explicit start, so they can be rotated in the preview first. */}
+								{ocrEnabled && ocrStatus === "awaiting-alignment" && onRetryOcr ? (
+									<Button
+										aria-label={`OCR für ${file.name} starten`}
+										className="h-7 shrink-0 gap-1 px-2 text-xs"
+										disabled={disabled}
+										onClick={() => onRetryOcr(id)}
+										size="sm"
+										title="OCR starten – zum Drehen vorher die Datei öffnen"
+										type="button"
+										variant="outline"
+									>
+										<ScanText className="h-3.5 w-3.5" />
+										OCR starten
+									</Button>
+								) : null}
+								{ocrEnabled && ocrStatus === "pending" ? (
+									<LoaderCircle
+										aria-label="OCR läuft"
+										className="h-4 w-4 shrink-0 animate-spin text-muted-foreground"
+									/>
+								) : null}
+								{ocrEnabled && ocrStatus === "complete" ? (
+									<Check
+										aria-label="OCR abgeschlossen"
+										className="h-4 w-4 shrink-0 text-solarized-green"
+									/>
+								) : null}
 								{ocrEnabled && ocrStatus === "error" && onRetryOcr ? (
 									<Button
 										aria-label={`OCR für ${file.name} erneut versuchen`}

@@ -36,6 +36,13 @@ export const createUploadedContextFile = (file: File): UploadedContextFile => ({
 	ocrStatus: file.type.startsWith("image/") ? "awaiting-alignment" : "pending",
 });
 
+/** Copies a file's bytes into memory, independent of the original file reference. */
+export const readFileIntoMemory = async (file: File): Promise<File> =>
+	new File([await file.arrayBuffer()], file.name, {
+		lastModified: file.lastModified,
+		type: file.type,
+	});
+
 // Matches the server's OCR page bound; larger images are downscaled there anyway.
 const MAX_ROTATED_IMAGE_SIDE = 3000;
 

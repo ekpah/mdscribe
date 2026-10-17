@@ -16,6 +16,7 @@ import {
 	addAudioFilesToValue,
 	addContextFilesToValue,
 	createUploadedContextFile,
+	readFileIntoMemory,
 	rotateImageFile,
 } from "./files";
 import {
@@ -130,6 +131,23 @@ export const useInputContextState = ({
 		[audioRecordings, effectiveMaxRecordings],
 	);
 
+	// Safari can invalidate a picked file later, e.g. a temporary Photos copy, so a
+	// delayed read fails with "The I/O read operation failed.". Copy the bytes now;
+	// OCR, rotation and submission then read the in-memory copy.
+	const keepFileReadable = useCallback(
+		async (uploaded: UploadedContextFile) => {
+			try {
+				updateContextFile(uploaded.id, { file: await readFileIntoMemory(uploaded.file) });
+			} catch {
+				updateContextFile(uploaded.id, {
+					ocrError: "Die Datei konnte nicht gelesen werden. Bitte erneut hinzufügen.",
+					ocrStatus: "error",
+				});
+			}
+		},
+		[updateContextFile],
+	);
+
 	const addContextFiles = useCallback(
 		(files: File[]) => {
 			const result = addContextFilesToValue({
@@ -143,10 +161,14 @@ export const useInputContextState = ({
 				return false;
 			}
 
+			const added = result.files.slice(contextFilesRef.current.length);
 			commitContextFiles(result.files);
+			for (const uploaded of added) {
+				void keepFileReadable(uploaded);
+			}
 			return true;
 		},
-		[commitContextFiles],
+		[commitContextFiles, keepFileReadable],
 	);
 
 	const runOcr = useCallback(
@@ -269,7 +291,9 @@ export const useInputContextState = ({
 			policy = await loadPolicy(true);
 			if (policy.ocrConfigured) {
 				if (contextFilesRef.current.some((file) => file.ocrStatus === "awaiting-alignment")) {
-					throw new Error("Bitte Bilder in der Vorschau manuell ausrichten und die OCR starten.");
+					throw new Error(
+						"Bitte für Bilder die OCR starten, bei Bedarf vorher in der Vorschau manuell ausrichten.",
+					);
 				}
 				await Promise.all(ocrPromisesRef.current.values());
 				// A submit can happen before the upload effect has started its requests.

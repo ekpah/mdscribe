@@ -315,9 +315,21 @@ test("images require alignment and submissions stay blocked until OCR completes"
 			};
 			let controller = render();
 			const image = new File(["image"], "scan.png", {type:"image/png"});
+			// Safari can invalidate a picked file later; OCR must read an early copy.
+			let invalidated = false;
+			const readImage = image.arrayBuffer.bind(image);
+			image.arrayBuffer = async () => {
+				if (invalidated) throw new DOMException("The I/O read operation failed.","NotReadableError");
+				return readImage();
+			};
 			assert.equal(controller.addContextFiles([image]),true);
+			for (let attempt = 0; attempt < 50 && render().contextFiles[0].file === image; attempt++) {
+				await new Promise(resolve => setTimeout(resolve,1));
+			}
+			invalidated = true;
 			controller = render();
 			assert.equal(controller.contextFiles[0].ocrStatus,"awaiting-alignment");
+			assert.notEqual(controller.contextFiles[0].file,image);
 			await assert.rejects(controller.prepareSubmission(),/manuell ausrichten/);
 			assert.deepEqual(calls,[]);
 			// A selected document model takes precedence over native vision.
@@ -368,6 +380,8 @@ test("images require alignment and submissions stay blocked until OCR completes"
 			assert.equal(retried.contextFiles[0].ocrResult.text,"document-v2 scan.png");
 			assert.equal(calls.length,2);
 			assert.equal(encodes,2);
+			// The remaining checks reuse the original file object.
+			invalidated = false;
 			// Replacements without status cannot bypass the manual-image gate.
 			controller.setContextFiles([{id:"raw",file:image}]);
 			controller = render();
