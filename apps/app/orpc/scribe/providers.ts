@@ -6,7 +6,7 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { aiDefaults, aiModel, aiProvider, and, eq, userAiProvider } from "@repo/database";
 import type { Database } from "@repo/database";
 import { database } from "@repo/database/client";
-import { experimental_transcribe as transcribe } from "ai";
+import { createGateway, experimental_transcribe as transcribe } from "ai";
 import type { JSONValue, LanguageModel } from "ai";
 import { revalidateTag, unstable_cache } from "next/cache";
 import { SecureClient, TinfoilAI, toFile } from "tinfoil";
@@ -303,6 +303,13 @@ const createProviderModelUncached = async (
 	isUserCredential = false,
 ): Promise<LanguageModel> => {
 	switch (protocol) {
+		case "vercel-ai-gateway": {
+			const provider = createGateway({
+				apiKey: apiKey ?? "",
+				...(baseUrl ? { baseURL: baseUrl } : {}),
+			});
+			return provider(modelId);
+		}
 		case "openrouter": {
 			const provider = createOpenRouter({ apiKey: apiKey ?? "" });
 			return provider(modelId);
@@ -1037,6 +1044,7 @@ const ANTHROPIC_THINKING_BUDGET_TOKENS: Record<Exclude<ReasoningEffort, "none">,
 	xhigh: 32_000,
 };
 
+// oxlint-disable-next-line complexity -- each protocol owns its request options
 export const buildProviderOptions = ({
 	includeUsage,
 	model,
@@ -1059,6 +1067,27 @@ export const buildProviderOptions = ({
 			: undefined;
 
 	switch (model.providerProtocol) {
+		case "vercel-ai-gateway": {
+			return {
+				gateway: {
+					...(userId ? { user: userId } : {}),
+					...(zdr ? { zeroDataRetention: true } : {}),
+				},
+				...(effectiveReasoningEffort && model.modelName.startsWith("openai/")
+					? { openai: { reasoningEffort: effectiveReasoningEffort } }
+					: {}),
+				...(effectiveReasoningEffort && model.modelName.startsWith("anthropic/")
+					? {
+							anthropic: {
+								thinking: {
+									budgetTokens: ANTHROPIC_THINKING_BUDGET_TOKENS[effectiveReasoningEffort],
+									type: "enabled" as const,
+								},
+							},
+						}
+					: {}),
+			};
+		}
 		case "openrouter": {
 			const providerSort = OPENROUTER_PROVIDER_SORT[model.openRouterRoutingMode];
 			const resolvedReasoningEffort = effectiveReasoningEffort ?? openRouterReasoningEffort;

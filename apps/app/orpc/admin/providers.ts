@@ -35,6 +35,7 @@ const admin = authed.use(requiredAdminMiddleware);
 const PROVIDER_PROTOCOLS = [
 	"openai-compatible",
 	"openrouter",
+	"vercel-ai-gateway",
 	"openai",
 	"anthropic",
 	"tinfoil",
@@ -326,6 +327,49 @@ const fetchPrivatemodeOcrModel = async (
 	}
 };
 
+const fetchGatewayModels = async (
+	config: ProviderFetchConfig,
+	signal: AbortSignal,
+): Promise<FetchedProviderModel[]> => {
+	if (!config.apiKey?.trim()) {
+		throw new ORPCError("BAD_REQUEST", {
+			message: "Vercel AI Gateway benötigt einen API-Schlüssel",
+		});
+	}
+	const { origin } = new URL(config.baseUrl ?? "https://ai-gateway.vercel.sh");
+	const headers = { Authorization: `Bearer ${config.apiKey}` };
+	// The model catalog is public, so it cannot validate a candidate key.
+	const credits = await fetch(`${origin}/v1/credits`, { headers, signal });
+	if (!credits.ok) {
+		throw new ORPCError("BAD_REQUEST", {
+			message: `Provider check failed: HTTP ${credits.status}`,
+		});
+	}
+	const response = await fetch(`${origin}/v1/models`, { headers, signal });
+	if (!response.ok) {
+		throw new ORPCError("BAD_REQUEST", {
+			message: `Provider check failed: HTTP ${response.status}`,
+		});
+	}
+	const body = (await response.json()) as {
+		data?: {
+			id: string;
+			name?: string;
+			type: string;
+			tags?: string[];
+			supported_parameters?: string[];
+		}[];
+	};
+	return (body.data ?? [])
+		.filter((model) => model.type === "language")
+		.map((model) => ({
+			displayName: model.name ?? model.id,
+			modelId: model.id,
+			supportedParameters: normalizeSupportedParameters(model.supported_parameters),
+			supportsReasoning: model.tags?.includes("reasoning") ?? false,
+		}));
+};
+
 export const fetchProviderModels = async (
 	config: ProviderFetchConfig,
 ): Promise<FetchedProviderModel[]> => {
@@ -336,6 +380,10 @@ export const fetchProviderModels = async (
 			"ocr-http": fetchOcrModel,
 			"privatemode-ocr": fetchPrivatemodeOcrModel,
 		}[config.protocol](config);
+	}
+
+	if (config.protocol === "vercel-ai-gateway") {
+		return fetchGatewayModels(config, signal);
 	}
 
 	if (config.protocol === "openrouter") {

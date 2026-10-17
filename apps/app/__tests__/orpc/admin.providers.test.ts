@@ -6,6 +6,7 @@ import { aiDefaults, aiModel, aiProvider, eq } from "@repo/database";
 import { ADMIN_EMAIL, createTestContext, createTestUser, startTestServer } from "@/__tests__/setup";
 import type { TestServer } from "@/__tests__/setup";
 import { providersHandler } from "@/orpc/admin/providers";
+import { buildProviderOptions, resolveModelByRecordId } from "@/orpc/scribe/providers";
 
 describe("Admin Providers Handler", () => {
 	let server: TestServer;
@@ -112,6 +113,110 @@ describe("Admin Providers Handler", () => {
 		const whisper = models.find((model) => model.modelId === "openai/whisper-large-v3");
 		expect(whisper).toBeDefined();
 	});
+
+	test("Gateway validates credentials, syncs language models and generates through the native SDK", async () => {
+		globalThis.fetch = ((url: string | URL | Request, init?: RequestInit) => {
+			const headers = new Headers(init?.headers);
+			expect(headers.get("authorization")).toBe("Bearer gateway-key");
+			switch (String(url)) {
+				case "https://ai-gateway.vercel.sh/v1/credits": {
+					return Response.json({ balance: "0", total_used: "12" });
+				}
+				case "https://ai-gateway.vercel.sh/v1/models": {
+					return Response.json({
+						data: [
+							{
+								id: "openai/gpt-5",
+								name: "GPT-5",
+								supported_parameters: ["reasoning", "temperature"],
+								tags: ["reasoning"],
+								type: "language",
+							},
+							{ id: "anthropic/claude-sonnet-4", name: "Claude Sonnet 4", type: "language" },
+							{ id: "openai/text-embedding-3-small", type: "embedding" },
+							{ id: "google/imagen-4", type: "image" },
+						],
+					});
+				}
+				case "https://ai-gateway.vercel.sh/v3/ai/language-model": {
+					expect(headers.get("ai-language-model-id")).toBe("openai/gpt-5");
+					const body = JSON.parse(String(init?.body));
+					expect(body.providerOptions).toEqual({
+						gateway: { user: "gateway-user", zeroDataRetention: true },
+						openai: { reasoningEffort: "high" },
+					});
+					return Response.json({
+						content: [{ text: "Gateway response", type: "text" }],
+						warnings: [],
+					});
+				}
+				default: {
+					throw new Error(`Unexpected Gateway URL: ${url}`);
+				}
+			}
+		}) as unknown as typeof fetch;
+		const created = await call(
+			providersHandler.connections.create,
+			{
+				apiKey: "gateway-key",
+				name: "Vercel AI Gateway",
+				protocol: "vercel-ai-gateway",
+			},
+			{ context },
+		);
+		expect(created.modelCount).toBe(2);
+		const models = await server.db.query.aiModel.findMany({
+			where: eq(aiModel.providerId, created.id),
+		});
+		expect(models.map((model) => model.modelId).toSorted()).toEqual([
+			"anthropic/claude-sonnet-4",
+			"openai/gpt-5",
+		]);
+		expect(
+			models.find((model) => model.modelId === "anthropic/claude-sonnet-4")?.supportsReasoning,
+		).toBe(false);
+		const gpt = models.find((model) => model.modelId === "openai/gpt-5");
+		expect(gpt?.supportsReasoning).toBe(true);
+		const resolved = await resolveModelByRecordId(gpt?.id ?? "", server.db);
+		if (typeof resolved.model === "string") {
+			throw new TypeError("Expected SDK model");
+		}
+		const response = await resolved.model.doGenerate({
+			prompt: [{ content: [{ text: "Hello", type: "text" }], role: "user" }],
+			providerOptions: buildProviderOptions({
+				model: resolved,
+				reasoningEffort: "high",
+				userId: "gateway-user",
+				zdr: true,
+			}),
+		});
+		expect(response.content).toEqual([{ text: "Gateway response", type: "text" }]);
+	});
+
+	test.each([undefined, "invalid-key"])(
+		"Gateway rejects missing or invalid keys (%s) before persistence",
+		async (apiKey) => {
+			// A public catalog response must never be mistaken for successful key validation.
+			globalThis.fetch = ((url: string | URL | Request) =>
+				String(url).endsWith("/credits")
+					? new Response("unauthorized", { status: 401 })
+					: Response.json({
+							data: [{ id: "openai/gpt-5", type: "language" }],
+						})) as unknown as typeof fetch;
+			await expect(
+				call(
+					providersHandler.connections.create,
+					{
+						apiKey,
+						name: "Invalid Gateway",
+						protocol: "vercel-ai-gateway",
+					},
+					{ context },
+				),
+			).rejects.toThrow(ORPCError);
+			expect(await server.db.select().from(aiProvider)).toHaveLength(0);
+		},
+	);
 
 	test("connections.setByokEnabled exposes one configured connection", async () => {
 		const [provider] = await server.db

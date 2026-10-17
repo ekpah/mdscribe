@@ -51,6 +51,7 @@ const PROTOCOL_LABELS: Record<string, string> = {
 	"openai-compatible": "OpenAI-kompatibel",
 	openrouter: "OpenRouter",
 	tinfoil: "Tinfoil",
+	"vercel-ai-gateway": "Vercel AI Gateway",
 };
 
 const MODEL_ROLE_LABELS: Record<AssignedModelRole, string> = {

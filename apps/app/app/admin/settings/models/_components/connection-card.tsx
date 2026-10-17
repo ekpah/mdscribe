@@ -45,6 +45,7 @@ const PROTOCOL_LABELS: Record<string, string> = {
 	openrouter: "OpenRouter",
 	"privatemode-ocr": "Privatemode OCR",
 	tinfoil: "Tinfoil",
+	"vercel-ai-gateway": "Vercel AI Gateway",
 };
 
 interface ConnectionCardProps {

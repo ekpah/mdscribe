@@ -24,74 +24,79 @@ describe("User AI provider credentials", () => {
 		await server?.close();
 	});
 
-	test("stores a write-only key only for an admin-exposed connection", async () => {
-		const { session } = await createTestUser(server.db);
-		const context = createTestContext({ db: server.db, session });
-		const [provider] = await server.db
-			.insert(aiProvider)
-			.values({
-				byokEnabled: true,
-				id: crypto.randomUUID(),
-				name: "OpenRouter",
-				protocol: "openrouter",
-			})
-			.returning();
-		expect(provider).toBeDefined();
+	test.each(["openrouter", "vercel-ai-gateway"] as const)(
+		"stores a write-only key only for an admin-exposed %s connection",
+		async (protocol) => {
+			const { session } = await createTestUser(server.db);
+			const context = createTestContext({ db: server.db, session });
+			const [provider] = await server.db
+				.insert(aiProvider)
+				.values({
+					byokEnabled: true,
+					id: crypto.randomUUID(),
+					name: "OpenRouter",
+					protocol,
+				})
+				.returning();
+			expect(provider).toBeDefined();
 
-		globalThis.fetch = (() =>
-			Response.json({ data: { label: "private" } })) as unknown as typeof fetch;
+			globalThis.fetch = ((url: string | URL | Request) =>
+				String(url).endsWith("/models")
+					? Response.json({ data: [{ id: "openai/gpt-5", type: "language" }] })
+					: Response.json({ data: { label: "private" } })) as unknown as typeof fetch;
 
-		const saved = await call(
-			aiProvidersHandler.save,
-			{
-				apiKey: "user-secret-key",
-				name: "Mein OpenRouter",
-				providerId: provider?.id ?? "",
-			},
-			{ context },
-		);
-		expect(saved?.enabled).toBe(true);
-		expect(saved).not.toHaveProperty("apiKey");
+			const saved = await call(
+				aiProvidersHandler.save,
+				{
+					apiKey: "user-secret-key",
+					name: "Mein OpenRouter",
+					providerId: provider?.id ?? "",
+				},
+				{ context },
+			);
+			expect(saved?.enabled).toBe(true);
+			expect(saved).not.toHaveProperty("apiKey");
 
-		const [stored] = await server.db
-			.select()
-			.from(userAiProvider)
-			.where(eq(userAiProvider.userId, session.user.id));
-		expect(stored?.apiKey).not.toBe("user-secret-key");
-		expect(await decrypt(stored?.apiKey ?? "")).toBe("user-secret-key");
+			const [stored] = await server.db
+				.select()
+				.from(userAiProvider)
+				.where(eq(userAiProvider.userId, session.user.id));
+			expect(stored?.apiKey).not.toBe("user-secret-key");
+			expect(await decrypt(stored?.apiKey ?? "")).toBe("user-secret-key");
 
-		const status = await call(aiProvidersHandler.status, undefined, {
-			context,
-		});
-		expect(status.connections[0]).toMatchObject({
-			available: true,
-			connectionId: provider?.id,
-			credential: {
-				enabled: true,
+			const status = await call(aiProvidersHandler.status, undefined, {
+				context,
+			});
+			expect(status.connections[0]).toMatchObject({
+				available: true,
+				connectionId: provider?.id,
+				credential: {
+					enabled: true,
+					hasApiKey: true,
+					isVerified: true,
+					name: "Mein OpenRouter",
+				},
+			});
+			const verifiedAt = status.connections[0]?.credential?.verifiedAt;
+			expect(verifiedAt).toBeInstanceOf(Date);
+
+			await call(
+				aiProvidersHandler.setEnabled,
+				{ enabled: false, providerId: provider?.id ?? "" },
+				{ context },
+			);
+			const inactiveStatus = await call(aiProvidersHandler.status, undefined, {
+				context,
+			});
+			expect(inactiveStatus.connections[0]?.credential).toMatchObject({
+				enabled: false,
 				hasApiKey: true,
 				isVerified: true,
-				name: "Mein OpenRouter",
-			},
-		});
-		const verifiedAt = status.connections[0]?.credential?.verifiedAt;
-		expect(verifiedAt).toBeInstanceOf(Date);
-
-		await call(
-			aiProvidersHandler.setEnabled,
-			{ enabled: false, providerId: provider?.id ?? "" },
-			{ context },
-		);
-		const inactiveStatus = await call(aiProvidersHandler.status, undefined, {
-			context,
-		});
-		expect(inactiveStatus.connections[0]?.credential).toMatchObject({
-			enabled: false,
-			hasApiKey: true,
-			isVerified: true,
-		});
-		expect(inactiveStatus.connections[0]?.credential?.verifiedAt).toEqual(verifiedAt);
-		expect(JSON.stringify(status)).not.toContain("user-secret-key");
-	});
+			});
+			expect(inactiveStatus.connections[0]?.credential?.verifiedAt).toEqual(verifiedAt);
+			expect(JSON.stringify(status)).not.toContain("user-secret-key");
+		},
+	);
 
 	test("shows only admin-selected models that can use the connection", async () => {
 		const { session } = await createTestUser(server.db);
@@ -284,48 +289,55 @@ describe("User AI provider credentials", () => {
 		expect(stored?.name).toBe("Working");
 	});
 
-	test("runtime uses an active user credential only while the connection is exposed", async () => {
-		const { session } = await createTestUser(server.db);
-		const [provider] = await server.db
-			.insert(aiProvider)
-			.values({
-				apiKey: await encrypt("operator-key"),
-				byokEnabled: true,
+	test.each(["openai", "vercel-ai-gateway"] as const)(
+		"runtime uses an active user credential only while the %s connection is exposed",
+		async (protocol) => {
+			const { session } = await createTestUser(server.db);
+			const [provider] = await server.db
+				.insert(aiProvider)
+				.values({
+					apiKey: await encrypt("operator-key"),
+					byokEnabled: true,
+					id: crypto.randomUUID(),
+					name: "OpenAI",
+					protocol,
+				})
+				.returning();
+			const [model] = await server.db
+				.insert(aiModel)
+				.values({
+					displayName: "GPT test",
+					id: crypto.randomUUID(),
+					modelId: "gpt-test",
+					providerId: provider?.id ?? "",
+				})
+				.returning();
+			expect(model).toBeDefined();
+			await server.db.insert(userAiProvider).values({
+				apiKey: await encrypt("user-key"),
+				enabled: true,
 				id: crypto.randomUUID(),
-				name: "OpenAI",
-				protocol: "openai",
-			})
-			.returning();
-		const [model] = await server.db
-			.insert(aiModel)
-			.values({
-				displayName: "GPT test",
-				id: crypto.randomUUID(),
-				modelId: "gpt-test",
+				name: "Personal",
 				providerId: provider?.id ?? "",
-			})
-			.returning();
-		expect(model).toBeDefined();
-		await server.db.insert(userAiProvider).values({
-			apiKey: await encrypt("user-key"),
-			enabled: true,
-			id: crypto.randomUUID(),
-			name: "Personal",
-			providerId: provider?.id ?? "",
-			userId: session.user.id,
-			validatedAt: new Date(),
-		});
+				userId: session.user.id,
+				validatedAt: new Date(),
+			});
 
-		const ownKeyModel = await resolveModelByRecordId(model?.id ?? "", server.db, session.user.id);
-		expect(ownKeyModel.credentialSource).toBe("user_byok");
+			const ownKeyModel = await resolveModelByRecordId(model?.id ?? "", server.db, session.user.id);
+			expect(ownKeyModel.credentialSource).toBe("user_byok");
 
-		await server.db
-			.update(aiProvider)
-			.set({ byokEnabled: false })
-			.where(eq(aiProvider.id, provider?.id ?? ""));
-		const operatorModel = await resolveModelByRecordId(model?.id ?? "", server.db, session.user.id);
-		expect(operatorModel.credentialSource).toBe("operator");
-	});
+			await server.db
+				.update(aiProvider)
+				.set({ byokEnabled: false })
+				.where(eq(aiProvider.id, provider?.id ?? ""));
+			const operatorModel = await resolveModelByRecordId(
+				model?.id ?? "",
+				server.db,
+				session.user.id,
+			);
+			expect(operatorModel.credentialSource).toBe("operator");
+		},
+	);
 
 	test("user-funded usage does not consume the operator-funded quota", async () => {
 		const { session } = await createTestUser(server.db);

@@ -37,6 +37,7 @@ const PROTOCOLS = [
 	{ label: "Mistral OCR (native Dokumenten-API)", value: "mistral-ocr" },
 	{ label: "Privatemode OCR (verschlüsselt, DeepSeek OCR 2)", value: "privatemode-ocr" },
 	{ label: "OpenRouter", value: "openrouter" },
+	{ label: "Vercel AI Gateway", value: "vercel-ai-gateway" },
 	{ label: "OpenAI", value: "openai" },
 	{ label: "Anthropic", value: "anthropic" },
 	{ label: "Tinfoil (vertrauliche Inferenz)", value: "tinfoil" },
@@ -48,6 +49,7 @@ const BASE_URL_PLACEHOLDERS: Record<string, string> = {
 	"openai-compatible": "http://localhost:11434/v1",
 	"privatemode-ocr": "https://api.privatemode.ai",
 	tinfoil: "https://inference.tinfoil.sh/v1",
+	"vercel-ai-gateway": "https://ai-gateway.vercel.sh/v3/ai",
 };
 
 const normalizeMaybeBaseUrl = (value: string): string | undefined => {
@@ -275,7 +277,10 @@ export const AddProviderDialog = () => {
 					<div className="space-y-2">
 						<Label htmlFor="provider-key">
 							API Key (
-							{["mistral-ocr", "privatemode-ocr"].includes(protocol) ? "erforderlich" : "optional"})
+							{["mistral-ocr", "privatemode-ocr", "vercel-ai-gateway"].includes(protocol)
+								? "erforderlich"
+								: "optional"}
+							)
 						</Label>
 						<Input
 							id="provider-key"

@@ -15,6 +15,7 @@ const PROVIDER_PROTOCOLS = new Set<ProviderProtocol>([
 	"openai-compatible",
 	"openrouter",
 	"tinfoil",
+	"vercel-ai-gateway",
 ]);
 
 const USER_MODEL_ROLES = ["text", "agent", "audio", "documents", "decisions"] as const;

@@ -8,6 +8,8 @@ process.env.POSTGRES_DATABASE_URL_TEST ??=
 
 const resolveAsync = <T>(value: T): Promise<T> => Promise.resolve(value);
 
+const { createGateway } = await import("ai");
+
 const MOCK_PAGE_PNG = Buffer.from(
 	"iVBORw0KGgoAAAANSUhEUgAAAEAAAABAAQAAAACCEkxzAAAAEklEQVQoz2P4DwUMo4xRBukMAOPT/hB1CzVqAAAAAElFTkSuQmCC",
 	"base64",
@@ -267,6 +269,7 @@ mock.module("ai", () => ({
 	Output: {
 		object: (options: unknown) => options,
 	},
+	createGateway,
 	createUIMessageStream,
 	experimental_transcribe: () =>
 		resolveAsync({
