@@ -160,7 +160,7 @@
     },
     "packages/markdoc-md": {
       "name": "markdoc-md",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "dependencies": {
         "@markdoc/markdoc": "^0.5.10",
         "fhirpath": "^5.2.1",

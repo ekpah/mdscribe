@@ -2,6 +2,8 @@
 
 ## [Unpublished]
 
+## [0.2.0] - 2026-10-18
+
 ### Fixed
 
 - Editor serialization no longer inserts a blank line before a directly adjacent `details` tag.
