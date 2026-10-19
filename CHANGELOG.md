@@ -4,6 +4,7 @@
 
 ### Added
 
+- Feature flags with the Flags SDK, defined in code in `apps/app/flags.ts`. The Template Agent is the first flag and stays admin-only in both the editor and its API.
 - Vercel AI Gateway is available as an AI provider, with API-key validation, language-model synchronization, and user-owned keys for admin-exposed connections.
 - Template tables now use Tiptap's table editor with row/column controls and cell merge/split, saving as built-in Markdoc tables without custom schemas or layout metadata. Cells retain inline formatting and line breaks; merges preserve filled content in one paragraph, and edits that create fully covered rows or unsupported cell blocks are prevented. Rendered templates and rich-text copies include readable table borders and padding.
 - OCR previews render Markdown and inert HTML tables with merged cells through one safe renderer and offer image citation-box overlays. Mistral OCR requests HTML tables and integrates separately returned table contents; vision OCR (including OpenRouter Mistral Large 4) preserves model table markup separately from normalized citation geometry. The PP-Structure CPU evaluation and its observed table errors are documented with the Paddle service.

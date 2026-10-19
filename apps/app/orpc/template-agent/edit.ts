@@ -2,10 +2,11 @@ import { ORPCError, streamToEventIterator, type } from "@orpc/server";
 import type { ModelMessage } from "ai";
 import { convertToModelMessages, stepCountIs, streamText } from "ai";
 
+import { templateAgentFlag } from "@/flags";
 import { AI_SCRIBE_AGENT_EVENT_NAME } from "@/lib/usage-event-names";
 import { authed } from "@/orpc";
-import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
 import { scribeEntitlementsMiddleware } from "@/orpc/middlewares/entitlements";
+import { requiredFlagMiddleware } from "@/orpc/middlewares/flags";
 import { prepareAgentMedia } from "@/orpc/scribe-agent/lib/prepare-media";
 import { enforceScribeUsageLimit } from "@/orpc/scribe/handlers/usage-limit";
 import { scheduleScribeUsageLogging } from "@/orpc/scribe/handlers/usage-logging";
@@ -50,7 +51,7 @@ const injectMediaIntoLastUserMessage = (
 };
 
 export const templateAgentEditHandler = authed
-	.use(requiredAdminMiddleware)
+	.use(requiredFlagMiddleware(templateAgentFlag))
 	.use(scribeEntitlementsMiddleware)
 	.input(type<TemplateAgentChatInput>())
 	.handler(async ({ context, input }) => {

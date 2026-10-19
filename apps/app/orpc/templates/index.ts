@@ -15,6 +15,7 @@ import type { Database, Template } from "@repo/database";
 import { validateMarkdocTemplate } from "markdoc-md/parse";
 import { z } from "zod";
 
+import { templateAgentFlag } from "@/flags";
 import type { Session } from "@/lib/auth-types";
 import { resolveProductEntitlements } from "@/lib/product-entitlements";
 import { createTemplateFuse } from "@/lib/template-search";
@@ -372,7 +373,9 @@ const getEditorContextHandler = authed.handler(async ({ context }) => {
 	return {
 		canCreatePrivateTemplates: entitlements.canCreatePrivateTemplates,
 		categorySuggestions,
-		isTemplateAgentEnabled: context.auth.isAdmin,
+		isTemplateAgentEnabled: await templateAgentFlag.run({
+			identify: { isAdmin: context.auth.isAdmin },
+		}),
 	};
 });
 
