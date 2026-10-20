@@ -30,6 +30,7 @@
 
 ### Changed
 
+- In the template editor, marked text inserted as a Switch or Condition now becomes the content of the first case instead of the tag's name, keeping formatting and embedded tags; Info and Calc still use it as the name.
 - Update compatible dependencies to Next.js 16.4.2, React 19.3.1, Tiptap 3.32, AI SDK 6.0.309, Better Auth 1.7.10, Nodemailer 10.1.2, FastAPI 0.143.3, and current supporting libraries and tools. Preserve the three-day npm release-age policy, shared catalogs, hoisted lockfile, existing runtime/peer-compatible major versions, and PaddleX's NumPy constraint. Bound local SMTP test-server shutdown for the updated email dependencies.
 - Images can start OCR directly from their file row, which shows a spinner while OCR runs, a check when it is complete, and the red retry arrow after an error. Opening an image still lets users rotate it before starting OCR.
 - Refresh workspace and PaddleOCR dependencies, including Next.js 16.4, React 19.3, Tiptap 3.31, Nodemailer 10, Marked 18, and Diff 9. Keep AI SDK 6, TanStack Table 8, React-PDF 10, Stripe 22, Nano ID 5, and Lucide 0.x for existing API, peer, runtime, and icon compatibility. Align Node types with Node 24 and deduplicate Ajv and ProseMirror through overrides.
@@ -59,6 +60,7 @@
 
 ### Fixed
 
+- The Template Agent no longer ends larger edits silently: reasoning used up the 12k output budget before any reply or tool call. The budget and step limit are higher, a cut-off reply shows an error and keeps the instruction, the template is passed to the model verbatim instead of JSON-escaped (escaped quotes were copied into new tags), validation errors name their line, and the prompt explains same-paragraph closing, block conditions, and showing values only when filled in.
 - Restore clean lint, formatting, and Knip checks: simplify playground prompt-compilation callbacks, correct test types and schema key order, apply current formatter output, remove unused landing assets and internal exports, and add the CI-facing `format:check` command. Preserve legacy `score` rendering through the shared Calc component.
 - Plus subscriptions no longer enforce Zero Data Retention routing for OpenRouter requests, including Decisions API calls.
 - Image alignment now survives closing and reopening the document preview. Starting OCR from the closed file row applies the saved rotation to the uploaded image without rotating it again on retries.

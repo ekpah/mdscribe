@@ -93,7 +93,9 @@ export const templateAgentEditHandler = authed
 		const temperature = generation.defaultTemperature ?? undefined;
 
 		const result = streamText({
-			maxOutputTokens: 12_000,
+			// Reasoning shares this budget with the reply. A full template rewrite after long
+			// reasoning exceeded 12k, which ended the turn with neither text nor tool call.
+			maxOutputTokens: 48_000,
 			messages,
 			model: generation.model.model,
 			onFinish: (event) => {
@@ -124,7 +126,8 @@ export const templateAgentEditHandler = authed
 				});
 			},
 			providerOptions,
-			stopWhen: stepCountIs(4),
+			// Room for a few validation retries and the closing summary.
+			stopWhen: stepCountIs(6),
 			system: buildTemplateAgentSystemPrompt({
 				content: input.content,
 				examples: input.examples ?? [],

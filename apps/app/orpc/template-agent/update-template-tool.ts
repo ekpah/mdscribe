@@ -27,8 +27,17 @@ export const createUpdateTemplateTool = () =>
 				parsed.data.content === undefined ? [] : validateMarkdocTemplate(parsed.data.content)
 			).filter((diagnostic) => diagnostic.severity === "error");
 			if (errors.length > 0) {
-				// Every problem with its tag name, so the agent can fix all of them at once.
-				return { error: errors.map(formatMarkdocTagDiagnostic).join("\n"), ok: false as const };
+				// Every problem with its tag name and line, so the agent can fix all of them at once.
+				const messages = errors.map((diagnostic) => {
+					const location =
+						("location" in diagnostic && diagnostic.location) ||
+						("conflictingLocation" in diagnostic && diagnostic.conflictingLocation) ||
+						undefined;
+					const message = formatMarkdocTagDiagnostic(diagnostic);
+					// Markdoc counts lines from 0.
+					return location ? `Zeile ${location.start.line + 1}: ${message}` : message;
+				});
+				return { error: [...new Set(messages)].join("\n"), ok: false as const };
 			}
 
 			return { ...parsed.data, ok: true as const };

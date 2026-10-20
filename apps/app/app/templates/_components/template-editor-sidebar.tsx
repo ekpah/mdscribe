@@ -270,6 +270,14 @@ export const TemplateEditorSidebar = ({
 			if (!isSuccessfulChatFinish({ finishReason, isAbort, isError })) {
 				return;
 			}
+			// A turn cut off by the output limit may contain no text or tool call at all;
+			// keep the instruction so it can be sent again.
+			if (finishReason === "length") {
+				toast.error(
+					"Der Agent hat sein Antwortlimit erreicht, bevor er fertig war. Bitte erneut senden oder die Anweisung aufteilen.",
+				);
+				return;
+			}
 			submittedContextCleanupRef.current?.();
 			submittedContextCleanupRef.current = null;
 			setInstruction("");

@@ -22,7 +22,10 @@ describe("template agent sections", () => {
 			information: "Instructions\n\nMore",
 		};
 		const prompt = buildTemplateAgentSystemPrompt(sections);
-		expect(prompt).toContain(JSON.stringify(sections, null, 2));
+		// Verbatim, not JSON-escaped: escaped quotes were copied into new tags.
+		expect(prompt).toContain(`<content>\n${sections.content}\n</content>`);
+		expect(prompt).toContain(`<example>\n${sections.examples[0]}\n</example>`);
+		expect(prompt).toContain(`<information>\n${sections.information}\n</information>`);
 		expect(prompt).toContain("A number info, a condition, and a calc may share a name");
 		expect(prompt).toContain("Preserve line breaks");
 	});
@@ -50,6 +53,19 @@ describe("template agent sections", () => {
 		expect(
 			await execute({ content: '{% info "x" type="invalid" /%}', information: "Good" }),
 		).toMatchObject({ ok: false });
+	});
+
+	test("reports the line of each error so the agent can locate it", async () => {
+		const result = await execute({
+			content: 'Intro\n\nA {% condition "x" %}{% case gte=0 %}X\n\nY{% /case %}{% /condition %}',
+		});
+		expect(result).toMatchObject({ ok: false });
+		const lines = String((result as { error: string }).error)
+			.split("\n")
+			.map((line) => /^Zeile (\d+):/u.exec(line)?.[1]);
+		expect(lines).toContain("3");
+		expect(lines).toContain("5");
+		expect(lines).not.toContain(undefined);
 	});
 
 	test("accepts a named calc reused through a compatible info declaration", async () => {

@@ -13,9 +13,10 @@ import {
 	TooltipTrigger,
 } from "@repo/design-system/components/ui/tooltip";
 import { cn } from "@repo/design-system/lib/utils";
-import { getChangedRanges } from "@tiptap/core";
+import { getChangedRanges, getHTMLFromFragment } from "@tiptap/core";
 import type { JSONContent } from "@tiptap/core";
-import type { Fragment } from "@tiptap/pm/model";
+import { Fragment } from "@tiptap/pm/model";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import type { Editor } from "@tiptap/react";
 import { useEditorState } from "@tiptap/react";
 import {
@@ -63,6 +64,42 @@ const toBlockContent = (fragment: Fragment): JSONContent[] => {
 	return blocks;
 };
 
+/**
+ * The marked content of a branching tag (switch, condition) seeds its first
+ * case rather than its primary: a marked phrase is the text of one option, not
+ * the variable that selects between them. Case content is inline, so marked
+ * blocks are joined with line breaks.
+ */
+const getFirstCaseFromSelection = (editor: Editor): { content: string; text: string } => {
+	const { doc, schema, selection } = editor.state;
+	if (selection.empty) {
+		return { content: "...", text: "..." };
+	}
+	const fragment = doc.slice(selection.from, selection.to).content;
+	const lineBreak = schema.nodes.hardBreak?.create();
+	const nodes: ProseMirrorNode[] = [];
+	for (let index = 0; index < fragment.childCount; index += 1) {
+		const child = fragment.child(index);
+		if (child.isInline) {
+			nodes.push(child);
+			continue;
+		}
+		if (index > 0 && lineBreak) {
+			nodes.push(lineBreak);
+		}
+		child.descendants((node) => {
+			if (node.isInline) {
+				nodes.push(node);
+			}
+			return !node.isInline;
+		});
+	}
+	return {
+		content: getHTMLFromFragment(Fragment.fromArray(nodes), schema),
+		text: doc.textBetween(selection.from, selection.to, " ").trim(),
+	};
+};
+
 const MenuBar = ({ editor }: { editor: Editor | null }) => {
 	const tableState = useEditorState({
 		editor,
@@ -107,17 +144,17 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
 				.run();
 		},
 		handleInsertConditionTag() {
-			const selectedPrimary = getPrimaryFromSelection(editor.state);
+			const firstCase = getFirstCaseFromSelection(editor);
 			editor
 				.chain()
 				.focus()
 				.insertContent({
 					attrs: {
 						cases: [
-							{ gt: 0, primary: "", text: "..." },
+							{ ...firstCase, gt: 0, primary: "" },
 							{ isDefault: true, primary: "", text: "..." },
 						],
-						primary: selectedPrimary ?? "...",
+						primary: "...",
 					},
 					type: "conditionTag",
 				})
@@ -187,14 +224,14 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
 				.run();
 		},
 		handleInsertSwitchTag() {
-			const selectedPrimary = getPrimaryFromSelection(editor.state);
+			const firstCase = getFirstCaseFromSelection(editor);
 			editor
 				.chain()
 				.focus()
 				.insertContent({
 					attrs: {
-						cases: [{ primary: "Option 1", text: "..." }],
-						primary: selectedPrimary ?? "...",
+						cases: [{ ...firstCase, primary: "Option 1" }],
+						primary: "...",
 					},
 					type: "switchTag",
 				})

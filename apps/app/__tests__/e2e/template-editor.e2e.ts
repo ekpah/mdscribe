@@ -30,6 +30,60 @@ test("inserting details remains responsive on mobile", async ({ browser }, testI
 	}
 });
 
+test("marked text becomes the primary of an info tag but the first case of a switch or condition", async ({
+	page,
+}) => {
+	await page.goto("/sign-in");
+	await page.getByLabel("E-Mail oder Benutzername").fill("test@test.com");
+	await page.getByLabel("Passwort", { exact: true }).fill("password123");
+	await page.getByTestId("sign-in-card").getByRole("button", { name: "Anmelden" }).click();
+	await page.waitForURL(/\/dashboard/);
+	await page.goto("/templates/create");
+	const main = page.getByRole("tabpanel", { exact: true, name: "Template" });
+	const editor = main.locator(".tiptap").first();
+	await editor.click();
+	await page.keyboard.type("Alter Lagerung des Pat. Befund normal");
+	const markAndInsert = async (phrase: string, tag: string) => {
+		await editor.evaluate((element, marked) => {
+			const { editor: instance } = element as HTMLElement & {
+				editor: {
+					commands: { setTextSelection: (range: { from: number; to: number }) => void };
+					state: {
+						doc: {
+							descendants: (
+								visit: (node: { isText: boolean; text?: string }, pos: number) => void,
+							) => void;
+						};
+					};
+				};
+			};
+			let from = -1;
+			instance.state.doc.descendants((node, pos) => {
+				const index = node.isText ? (node.text ?? "").indexOf(marked) : -1;
+				if (from < 0 && index >= 0) {
+					from = pos + index;
+				}
+			});
+			instance.commands.setTextSelection({ from, to: from + marked.length });
+		}, phrase);
+		await main.getByRole("button", { exact: true, name: tag }).click();
+	};
+	await markAndInsert("Alter", "Info");
+	await markAndInsert("des Pat.", "Switch");
+	await markAndInsert("normal", "Condition");
+
+	const markdoc = await editor.evaluate((element) =>
+		(element as HTMLElement & { editor: { getText: () => string } }).editor.getText(),
+	);
+	expect(markdoc).toContain('{% info "Alter" /%}');
+	expect(markdoc).toContain(
+		'Lagerung {% switch "..." %}{% case "Option 1" %}des Pat.{% /case %}{% /switch %}',
+	);
+	expect(markdoc).toContain(
+		'{% condition "..." %}{% case gt=0 %}normal{% /case %}{% case default=true %}...{% /case %}{% /condition %}',
+	);
+});
+
 test("nested cases retain rich tags, chip selection stays local, and calculated references link to their definition", async ({
 	page,
 }) => {
