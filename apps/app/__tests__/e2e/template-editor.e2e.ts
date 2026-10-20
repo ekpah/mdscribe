@@ -171,7 +171,7 @@ test("wrapping existing details focuses the newly inserted summary", async ({ pa
 								callback: (
 									node: { attrs: { summary?: string }; type: { name: string } },
 									pos: number,
-								) => boolean | void,
+								) => boolean | undefined,
 							) => void;
 						};
 					};
@@ -239,7 +239,7 @@ test("inserting details within a paragraph focuses the new summary", async ({ pa
 									callback: (
 										node: { isText: boolean; text?: string },
 										pos: number,
-									) => boolean | void,
+									) => boolean | undefined,
 								) => void;
 							};
 						};
@@ -280,7 +280,10 @@ test("inserting details within a paragraph focuses the new summary", async ({ pa
 				state: {
 					doc: {
 						descendants: (
-							callback: (node: { isText: boolean; text?: string }, pos: number) => boolean | void,
+							callback: (
+								node: { isText: boolean; text?: string },
+								pos: number,
+							) => boolean | undefined,
 						) => void;
 					};
 				};

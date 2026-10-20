@@ -19,7 +19,7 @@
 		"next": "catalog:",
 		"next-themes": "^0.4.6",
 		"react": "catalog:",
-		"react-aria-components": "^1.22.0",
+		"react-aria-components": "^1.22.1",
 		"react-dom": "catalog:",
 		"react-hook-form": "catalog:",
 		"react-hotkeys-hook": "catalog:",

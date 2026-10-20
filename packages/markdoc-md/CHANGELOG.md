@@ -2,6 +2,10 @@
 
 ## [Unpublished]
 
+### Changed
+
+- Remove unused internal calculation-prop exports and the duplicate Score component export. The default component map still renders legacy `score` tags through Calc; public package entrypoints remain unchanged.
+
 ## [0.2.0] - 2026-10-18
 
 ### Fixed

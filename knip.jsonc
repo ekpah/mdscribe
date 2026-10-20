@@ -35,7 +35,6 @@
 		},
 		"packages/markdoc-md-editor": {
 			"entry": [
-				"tip-tap.tsx",
 				"tag-inspector/{tag-inspector,tag-inspector-sheet}.tsx",
 				// Chromium harnesses bundled with `bun build` and run in a browser.
 				"__tests__/**/*.browser.{ts,tsx}",

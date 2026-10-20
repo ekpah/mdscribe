@@ -6,7 +6,7 @@ import { InteractiveTag } from "./helpers/interactive-tag";
 import { roundNumber } from "./helpers/round";
 import type { RoundValue } from "./helpers/round";
 
-export interface CalcProps {
+interface CalcProps {
 	formula: string;
 	primary?: string;
 	unit?: string;
@@ -48,8 +48,3 @@ export const Calc = ({ formula, primary, unit, renderUnit, round }: CalcProps) =
 		</InteractiveTag>
 	);
 };
-
-/** @deprecated Use Calc. Kept for custom component maps that still reference Score. */
-export const Score = Calc;
-/** @deprecated Use CalcProps. */
-export type ScoreProps = CalcProps;

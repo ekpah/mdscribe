@@ -9,6 +9,8 @@ const broadcastMessages: string[] = [];
 const createTestServer = (messages: string[]): SMTPServer =>
 	new SMTPServer({
 		authOptional: true,
+		// Bound fixture shutdown while Nodemailer's sockets finish closing under Bun.
+		closeTimeout: 500,
 		disabledCommands: ["AUTH", "STARTTLS"],
 		onData(stream, _session, callback) {
 			const chunks: Buffer[] = [];

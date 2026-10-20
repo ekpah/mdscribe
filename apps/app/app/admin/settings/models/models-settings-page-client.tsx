@@ -1,12 +1,7 @@
 "use client";
 
 import { Card, CardContent } from "@repo/design-system/components/ui/card";
-import {
-	Tabs,
-	TabsContent,
-	TabsList,
-	TabsTrigger,
-} from "@repo/design-system/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
 import { useQuery } from "@tanstack/react-query";
 import { Blocks, Database, FileText, Loader2, Settings, Sparkles } from "lucide-react";
 import dynamic from "next/dynamic";

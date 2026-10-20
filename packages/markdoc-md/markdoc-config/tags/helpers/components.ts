@@ -1,6 +1,6 @@
 import Markdoc from "@markdoc/markdoc";
 
-import { Calc, Score } from "../calc";
+import { Calc } from "../calc";
 import { Case } from "../case";
 import { Cite } from "../cite";
 import { Details } from "../details";
@@ -20,6 +20,6 @@ export const components = {
 	Condition,
 	Details,
 	Info,
-	Score,
+	Score: Calc,
 	Switch,
 } satisfies MarkdocComponentMap;

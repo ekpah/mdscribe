@@ -93,7 +93,7 @@ export interface FillInputsInputField {
 	type?: InputMeta["type"];
 }
 
-export interface FillInputSuggestion {
+interface FillInputSuggestion {
 	citations?: CitationRequest[];
 	value: boolean | number | string;
 }

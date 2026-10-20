@@ -118,12 +118,12 @@ describe("inserted Markdoc tag selection", () => {
 describe("template line breaks", () => {
 	const schema = new Schema({
 		nodes: {
+			bulletList: { content: "listItem+", group: "block" },
 			doc: { content: "block+" },
 			hardBreak: { group: "inline", inline: true },
 			heading: { content: "inline*", group: "block" },
 			infoTag: { atom: true, group: "inline", inline: true },
 			listItem: { content: "paragraph+" },
-			bulletList: { content: "listItem+", group: "block" },
 			paragraph: { content: "inline*", group: "block" },
 			text: { group: "inline" },
 		},

@@ -10,11 +10,7 @@ import { Button } from "@repo/design-system/components/ui/button";
 import { Input } from "@repo/design-system/components/ui/input";
 import { Label } from "@repo/design-system/components/ui/label";
 import { Slider } from "@repo/design-system/components/ui/slider";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-} from "@repo/design-system/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/design-system/components/ui/tooltip";
 import { HelpCircle, Settings2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type { ChangeEvent, KeyboardEvent } from "react";

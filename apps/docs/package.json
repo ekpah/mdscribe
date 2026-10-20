@@ -9,7 +9,7 @@
     "validate": "mint validate"
   },
   "devDependencies": {
-    "mint": "^4.2.994"
+    "mint": "^4.2.1050"
   },
   "engines": {
     "node": ">=24 <25"

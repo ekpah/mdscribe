@@ -17,17 +17,8 @@ import {
 	SelectValue,
 } from "@repo/design-system/components/ui/select";
 import { Separator } from "@repo/design-system/components/ui/separator";
-import {
-	Tabs,
-	TabsContent,
-	TabsList,
-	TabsTrigger,
-} from "@repo/design-system/components/ui/tabs";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-} from "@repo/design-system/components/ui/tooltip";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/design-system/components/ui/tooltip";
 import { cn } from "@repo/design-system/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Copy, Info, Play, Plus, Trash2 } from "lucide-react";
@@ -1092,15 +1083,12 @@ export const PlaygroundPanel = ({
 			return;
 		}
 
-		const timeoutId = window.setTimeout(() => {
-			const runCompilePrompt = async () => {
-				try {
-					await compilePrompt();
-				} catch (error) {
-					console.error("Error compiling prompt:", error);
-				}
-			};
-			runCompilePrompt();
+		const timeoutId = window.setTimeout(async () => {
+			try {
+				await compilePrompt();
+			} catch (error) {
+				console.error("Error compiling prompt:", error);
+			}
 		}, 250);
 
 		return () => {
@@ -1182,15 +1170,12 @@ export const PlaygroundPanel = ({
 			return;
 		}
 
-		const timeoutId = window.setTimeout(() => {
-			const runCompilePromptB = async () => {
-				try {
-					await compilePromptB();
-				} catch (error) {
-					console.error("Error compiling prompt B:", error);
-				}
-			};
-			runCompilePromptB();
+		const timeoutId = window.setTimeout(async () => {
+			try {
+				await compilePromptB();
+			} catch (error) {
+				console.error("Error compiling prompt B:", error);
+			}
 		}, 250);
 
 		return () => {

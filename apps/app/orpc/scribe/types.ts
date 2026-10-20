@@ -74,7 +74,7 @@ export interface FillInputsInputPayload {
 	textContext?: FillInputsTextContext;
 }
 
-export interface FillInputSuggestion {
+interface FillInputSuggestion {
 	citations?: CitationRequest[];
 	value: boolean | number | string;
 }

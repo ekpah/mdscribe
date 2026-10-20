@@ -1,9 +1,4 @@
-import {
-	Tabs,
-	TabsContent,
-	TabsList,
-	TabsTrigger,
-} from "@repo/design-system/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
 import { AlertTriangle, Info, Shield } from "lucide-react";
 
 const supportEmail = "support@mdscribe.de";
