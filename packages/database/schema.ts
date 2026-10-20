@@ -377,6 +377,45 @@ export const templateCollectionTemplate = pgTable(
 );
 
 // ============ AI PROVIDER TABLES ============
+//
+// Rows use the same field names as a future file-based `models.json`, so a
+// provider or model row is the config object itself. Optional metadata stays
+// null when a provider does not report it.
+
+/** What a model answers. Each default slot accepts specific kinds. */
+export type ModelKind = "chat" | "decision" | "extraction" | "ocr";
+export type ModelInput = "text" | "image" | "audio" | "document";
+
+/** Token rates in USD per million tokens. */
+interface ModelTokenRates {
+	input?: number;
+	output?: number;
+	cacheRead?: number;
+	cacheWrite?: number;
+}
+
+/**
+ * pi-ai's cost shape (token rates plus request-wide tiers) with optional
+ * non-token prices, so any pi `cost` entry is valid here.
+ */
+export interface ModelCost extends ModelTokenRates {
+	/** Highest matching threshold prices the whole request. */
+	tiers?: (ModelTokenRates & { inputTokensAbove: number })[];
+	/** USD per request. */
+	request?: number;
+	/** USD per input image. */
+	image?: number;
+	/** USD per audio minute. */
+	audioMinute?: number;
+	/** USD per document page. */
+	page?: number;
+}
+
+/** Protocol-specific provider settings, e.g. `{ accountId }` for Workers AI. */
+export type ProviderOptions = Record<string, string>;
+
+/** Protocol-specific model settings, e.g. `{ openRouterRoutingMode: "nitro" }`. */
+export type ModelOptions = Record<string, string>;
 
 export const aiProvider = pgTable("AiProvider", {
 	apiKey: text("apiKey"),
@@ -386,7 +425,9 @@ export const aiProvider = pgTable("AiProvider", {
 		.primaryKey()
 		.$defaultFn(() => crypto.randomUUID()),
 	name: text("name").notNull(),
-	// "openai-compatible" | "openrouter" | "openai" | "anthropic"
+	/** `{key}` placeholders in `baseUrl` are filled from these values. */
+	options: jsonb("options").$type<ProviderOptions>().notNull().default({}),
+	// "openai-compatible" | "openrouter" | "openai" | "anthropic" | "workers-ai" | ...
 	protocol: text("protocol").notNull(),
 });
 
@@ -428,21 +469,31 @@ export const userAiProvider = pgTable(
 export const aiModel = pgTable(
 	"AiModel",
 	{
+		contextWindow: integer("contextWindow"),
+		cost: jsonb("cost").$type<ModelCost>(),
 		displayName: text("displayName").notNull(),
 		id: text("id")
 			.primaryKey()
 			.$defaultFn(() => crypto.randomUUID()),
+		input: text("input").array().$type<ModelInput[]>().notNull().default(["text"]),
+		kind: text("kind").$type<ModelKind>().notNull().default("chat"),
+		maxOutputTokens: integer("maxOutputTokens"),
 		modelId: text("modelId").notNull(),
-		openRouterRoutingMode: text("openRouterRoutingMode").notNull().default("default"),
+		options: jsonb("options").$type<ModelOptions>().notNull().default({}),
 		providerId: text("providerId")
 			.notNull()
 			.references(() => aiProvider.id, { onDelete: "cascade" }),
 		supportedParameters: text("supportedParameters").array().notNull().default([]),
-		/** Answers OpenRouter Decisions requests (choice/box/noul) instead of chat. */
-		supportsDecisions: boolean("supportsDecisions").notNull().default(false),
 		supportsReasoning: boolean("supportsReasoning").notNull().default(false),
 	},
-	(table) => [uniqueIndex("AiModel_providerId_modelId_key").on(table.providerId, table.modelId)],
+	// One row per way of using a model: e.g. gpt-6-luna as chat and as decision model.
+	(table) => [
+		uniqueIndex("AiModel_providerId_modelId_kind_key").on(
+			table.providerId,
+			table.modelId,
+			table.kind,
+		),
+	],
 );
 
 export const aiDefaults = pgTable("AiDefaults", {

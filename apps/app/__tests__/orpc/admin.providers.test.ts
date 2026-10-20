@@ -218,6 +218,105 @@ describe("Admin Providers Handler", () => {
 		},
 	);
 
+	test("Workers AI syncs paged chat models from the account catalog and generates via /ai/v1", async () => {
+		const accountId = "0123456789abcdef0123456789abcdef";
+		const accountUrl = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai`;
+		// A full first page forces a second request; the catalog's last page is short.
+		const firstPage = Array.from({ length: 50 }, (_, index) => ({
+			name: `@cf/vendor/chat-${index}`,
+			task: { name: "Text Generation" },
+		}));
+		const secondPage = [
+			{ name: "@cf/meta/llama-3.1-8b-instruct", task: { name: "Text Generation" } },
+			{ name: "@cf/cloudflare/clairic", task: { name: "Text Generation" } },
+			{ name: "@cf/cloudflare/clef", task: { name: "Text Generation" } },
+			{ name: "@cf/baai/bge-m3", task: { name: "Text Embeddings" } },
+		];
+		globalThis.fetch = ((url: string | URL | Request, init?: RequestInit) => {
+			expect(new Headers(init?.headers).get("authorization")).toBe("Bearer cf-token");
+			const parsed = new URL(String(url));
+			if (parsed.pathname.endsWith("/ai/models/search")) {
+				expect(`${parsed.origin}${parsed.pathname}`).toBe(`${accountUrl}/models/search`);
+				expect(parsed.searchParams.get("task")).toBe("Text Generation");
+				return Response.json({
+					result: parsed.searchParams.get("page") === "1" ? firstPage : secondPage,
+					success: true,
+				});
+			}
+			expect(String(url)).toBe(`${accountUrl}/v1/chat/completions`);
+			expect(JSON.parse(String(init?.body)).model).toBe("@cf/meta/llama-3.1-8b-instruct");
+			return Response.json({
+				choices: [
+					{
+						finish_reason: "stop",
+						index: 0,
+						message: { content: "Workers AI", role: "assistant" },
+					},
+				],
+				created: 0,
+				id: "chatcmpl-1",
+				model: "@cf/meta/llama-3.1-8b-instruct",
+				object: "chat.completion",
+			});
+		}) as unknown as typeof fetch;
+
+		const created = await call(
+			providersHandler.connections.create,
+			{
+				apiKey: "cf-token",
+				name: "Workers AI",
+				options: { accountId: accountId.toUpperCase() },
+				protocol: "workers-ai",
+			},
+			{ context },
+		);
+		// The account ID lives in options; the stored URL stays a template.
+		expect(created.baseUrl).toBe("https://api.cloudflare.com/client/v4/accounts/{accountId}/ai/v1");
+		expect(created.options).toEqual({ accountId });
+		expect(created.modelCount).toBe(53);
+		const llama = await server.db.query.aiModel.findFirst({
+			where: eq(aiModel.modelId, "@cf/meta/llama-3.1-8b-instruct"),
+		});
+		const clairic = await server.db.query.aiModel.findFirst({
+			where: eq(aiModel.modelId, "@cf/cloudflare/clairic"),
+		});
+		expect(clairic?.kind).toBe("extraction");
+		const clef = await server.db.query.aiModel.findFirst({
+			where: eq(aiModel.modelId, "@cf/cloudflare/clef"),
+		});
+		expect(clef?.cost).toEqual({ input: 0.24, output: 0 });
+		await call(
+			providersHandler.defaults.set,
+			{ defaultType: "decision", modelId: clef?.id ?? "" },
+			{ context },
+		);
+		// System One models never fill a chat slot.
+		await expect(
+			call(
+				providersHandler.defaults.set,
+				{ defaultType: "text", modelId: clairic?.id ?? "" },
+				{ context },
+			),
+		).rejects.toThrow(ORPCError);
+
+		const resolved = await resolveModelByRecordId(llama?.id ?? "", server.db);
+		if (typeof resolved.model === "string") {
+			throw new TypeError("Expected SDK model");
+		}
+		const response = await resolved.model.doGenerate({
+			prompt: [{ content: [{ text: "Hello", type: "text" }], role: "user" }],
+		});
+		expect(response.content).toEqual([{ text: "Workers AI", type: "text" }]);
+
+		await expect(
+			call(
+				providersHandler.connections.setByokEnabled,
+				{ enabled: true, id: created.id },
+				{ context },
+			),
+		).rejects.toThrow(ORPCError);
+	});
+
 	test("connections.setByokEnabled exposes one configured connection", async () => {
 		const [provider] = await server.db
 			.insert(aiProvider)
@@ -414,7 +513,17 @@ describe("Admin Providers Handler", () => {
 		globalThis.fetch = (() =>
 			Response.json({
 				data: [
-					{ architecture: { output_modalities: ["text"] }, id: "google/gemini", name: "Gemini" },
+					{
+						architecture: {
+							input_modalities: ["text", "image", "file"],
+							output_modalities: ["text"],
+						},
+						context_length: 1_048_576,
+						id: "google/gemini",
+						name: "Gemini",
+						// Per-token USD strings; "-1" marks a variable price and is dropped.
+						pricing: { completion: "0.00001", image: "-1", prompt: "0.0000025", request: "0" },
+					},
 					{
 						architecture: { output_modalities: ["decisions"] },
 						id: "typesafe/jev-1.14",
@@ -432,7 +541,10 @@ describe("Admin Providers Handler", () => {
 		});
 		const chat = models.find((model) => model.modelId === "google/gemini");
 		const decision = models.find((model) => model.modelId === "typesafe/jev-1.14");
-		expect([chat?.supportsDecisions, decision?.supportsDecisions]).toEqual([false, true]);
+		expect([chat?.kind, decision?.kind]).toEqual(["chat", "decision"]);
+		expect(chat?.input).toEqual(["text", "image", "document"]);
+		expect(chat?.contextWindow).toBe(1_048_576);
+		expect(chat?.cost).toEqual({ input: 2.5, output: 10, request: 0 });
 
 		const selected = await call(
 			providersHandler.defaults.set,

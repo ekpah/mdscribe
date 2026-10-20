@@ -44,8 +44,9 @@ export const resolveDocumentCitationsHandler = authed
 		]);
 		// Without a usable decision model the original page is shown without a highlight.
 		// As in autofill, fully BYOK users never send documents to an operator-paid model.
+		// Locating quotes needs box questions, which only OpenRouter's Decisions API answers.
 		if (
-			!provider ||
+			provider?.protocol !== "openrouter" ||
 			!strategy ||
 			(isGenerationStrategyFullyByok(strategy) && provider.credentialSource !== "user_byok")
 		) {
@@ -61,10 +62,8 @@ export const resolveDocumentCitationsHandler = authed
 		let started = Date.now();
 		try {
 			return await locateDocumentQuotes({
-				apiKey: provider.apiKey,
 				data: Buffer.from(getBase64Payload(input.file.data), "base64"),
 				mimeType: input.file.mimeType,
-				model: provider.modelId,
 				onUsage: ({ model, usage }) => {
 					// Each page request is timed separately.
 					const timeToCompletionMs = Date.now() - started;
@@ -97,6 +96,7 @@ export const resolveDocumentCitationsHandler = authed
 				},
 				quotes: input.quotes,
 				signal: signal ? AbortSignal.any([signal, budget]) : budget,
+				target: provider,
 			});
 		} catch {
 			// File decoders and network errors may embed patient data or credentials.

@@ -41,6 +41,7 @@ const PROTOCOLS = [
 	{ label: "OpenAI", value: "openai" },
 	{ label: "Anthropic", value: "anthropic" },
 	{ label: "Tinfoil (vertrauliche Inferenz)", value: "tinfoil" },
+	{ label: "Cloudflare Workers AI", value: "workers-ai" },
 ] as const;
 
 const BASE_URL_PLACEHOLDERS: Record<string, string> = {
@@ -50,6 +51,7 @@ const BASE_URL_PLACEHOLDERS: Record<string, string> = {
 	"privatemode-ocr": "https://api.privatemode.ai",
 	tinfoil: "https://inference.tinfoil.sh/v1",
 	"vercel-ai-gateway": "https://ai-gateway.vercel.sh/v3/ai",
+	"workers-ai": "Cloudflare Account-ID (32 Zeichen)",
 };
 
 const normalizeMaybeBaseUrl = (value: string): string | undefined => {
@@ -79,6 +81,16 @@ export const AddProviderDialog = () => {
 	const listKey = orpc.admin.providers.connections.list.queryOptions().queryKey;
 
 	const providerPayload = useMemo(() => {
+		// Workers AI asks for the account ID in the URL field; the server keeps a URL template.
+		if (protocol === "workers-ai") {
+			return {
+				apiKey: apiKey.trim() || undefined,
+				baseUrl: undefined,
+				name: name.trim(),
+				options: { accountId: baseUrl.trim() },
+				protocol: protocol as (typeof PROTOCOLS)[number]["value"],
+			};
+		}
 		let normalizedBaseUrl: string | undefined;
 		if (baseUrl.trim()) {
 			normalizedBaseUrl = protocol === "ocr-http" ? baseUrl.trim() : normalizeMaybeBaseUrl(baseUrl);
@@ -88,6 +100,7 @@ export const AddProviderDialog = () => {
 			apiKey: apiKey.trim() || undefined,
 			baseUrl: normalizedBaseUrl,
 			name: name.trim(),
+			options: undefined,
 			protocol: protocol as (typeof PROTOCOLS)[number]["value"],
 		};
 	}, [name, protocol, baseUrl, apiKey]);
@@ -106,6 +119,7 @@ export const AddProviderDialog = () => {
 			orpc.admin.providers.connections.previewModels.call({
 				apiKey: providerPayload.apiKey,
 				baseUrl: providerPayload.baseUrl,
+				options: providerPayload.options,
 				protocol: providerPayload.protocol,
 			}),
 		onError: (error) => {
@@ -126,6 +140,7 @@ export const AddProviderDialog = () => {
 				apiKey: providerPayload.apiKey,
 				baseUrl: providerPayload.baseUrl,
 				name: providerPayload.name,
+				options: providerPayload.options,
 				protocol: providerPayload.protocol,
 			}),
 		onError: (error) => {
@@ -187,7 +202,19 @@ export const AddProviderDialog = () => {
 			return;
 		}
 
-		if (baseUrl.trim() && !normalizeMaybeBaseUrl(baseUrl)) {
+		if (
+			providerPayload.protocol === "workers-ai" &&
+			!(providerPayload.options?.accountId && providerPayload.apiKey)
+		) {
+			toast.error("Workers AI benötigt Account-ID und API-Token");
+			return;
+		}
+
+		if (
+			providerPayload.protocol !== "workers-ai" &&
+			baseUrl.trim() &&
+			!normalizeMaybeBaseUrl(baseUrl)
+		) {
 			toast.error(PROVIDER_BASE_URL_ERROR_MESSAGE);
 			return;
 		}
@@ -261,8 +288,10 @@ export const AddProviderDialog = () => {
 
 					<div className="space-y-2">
 						<Label htmlFor="provider-url">
-							{protocol === "ocr-http" ? "OCR-Endpunkt" : "Base URL"}
-							{protocol === "openai-compatible" || protocol === "ocr-http"
+							{{ "ocr-http": "OCR-Endpunkt", "workers-ai": "Account-ID" }[protocol] ?? "Base URL"}
+							{protocol === "openai-compatible" ||
+							protocol === "ocr-http" ||
+							protocol === "workers-ai"
 								? " (erforderlich)"
 								: " (optional)"}
 						</Label>
@@ -277,7 +306,9 @@ export const AddProviderDialog = () => {
 					<div className="space-y-2">
 						<Label htmlFor="provider-key">
 							API Key (
-							{["mistral-ocr", "privatemode-ocr", "vercel-ai-gateway"].includes(protocol)
+							{["mistral-ocr", "privatemode-ocr", "vercel-ai-gateway", "workers-ai"].includes(
+								protocol,
+							)
 								? "erforderlich"
 								: "optional"}
 							)

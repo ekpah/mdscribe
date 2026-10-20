@@ -266,7 +266,7 @@ const seedAiModels = async (db: SeedTransaction, providerId: string): Promise<vo
 		})
 		.onConflictDoUpdate({
 			set: { modelId },
-			target: [schema.aiModel.providerId, schema.aiModel.modelId],
+			target: [schema.aiModel.providerId, schema.aiModel.modelId, schema.aiModel.kind],
 		})
 		.returning({ id: schema.aiModel.id });
 	// Decision model for autofill and citation location via OpenRouter's Decisions API.
@@ -274,13 +274,13 @@ const seedAiModels = async (db: SeedTransaction, providerId: string): Promise<vo
 		.insert(schema.aiModel)
 		.values({
 			displayName: "TypeSafe: Jev 1.14",
+			kind: "decision",
 			modelId: "typesafe/jev-1.14",
 			providerId,
-			supportsDecisions: true,
 		})
 		.onConflictDoUpdate({
-			set: { supportsDecisions: true },
-			target: [schema.aiModel.providerId, schema.aiModel.modelId],
+			set: { displayName: "TypeSafe: Jev 1.14" },
+			target: [schema.aiModel.providerId, schema.aiModel.modelId, schema.aiModel.kind],
 		})
 		.returning({ id: schema.aiModel.id });
 	await seedAiDefaults(db, model.id, decisionModel.id);
@@ -300,7 +300,13 @@ const seedPaddleOcr = async (db: SeedTransaction): Promise<void> => {
 		.insert(schema.aiProvider)
 		.values({ ...provider, id: "dev-paddleocr-provider" })
 		.onConflictDoUpdate({ set: provider, target: schema.aiProvider.id });
-	const model = { displayName: "PaddleOCR", modelId: "ocr", providerId: "dev-paddleocr-provider" };
+	const model = {
+		displayName: "PaddleOCR",
+		input: ["image", "document"] as ("image" | "document")[],
+		kind: "ocr" as const,
+		modelId: "ocr",
+		providerId: "dev-paddleocr-provider",
+	};
 	await db
 		.insert(schema.aiModel)
 		.values({ ...model, id: "dev-paddleocr-model" })
@@ -355,8 +361,16 @@ const seedAiProviders = async (db: SeedTransaction): Promise<void> => {
 			// OCR providers expose exactly one model, selectable as document model.
 			await db
 				.insert(schema.aiModel)
-				.values({ displayName: name, modelId: OCR_MODEL_IDS[protocol], providerId: provider.id })
-				.onConflictDoNothing({ target: [schema.aiModel.providerId, schema.aiModel.modelId] });
+				.values({
+					displayName: name,
+					input: ["image", "document"],
+					kind: "ocr",
+					modelId: OCR_MODEL_IDS[protocol],
+					providerId: provider.id,
+				})
+				.onConflictDoNothing({
+					target: [schema.aiModel.providerId, schema.aiModel.modelId, schema.aiModel.kind],
+				});
 		}
 		console.log(`Seeded AI provider: ${name}`);
 	}

@@ -671,15 +671,14 @@ const prepareFillInputDecisions = async ({
 	const budget = AbortSignal.timeout(3000);
 	const started = Date.now();
 	return await fillInputsWithDecisions({
-		apiKey: provider.apiKey,
 		context: buildFillInputsSourceContext({
 			contextXml: buildFillInputContext(input),
 			fileTextContext: extractedFiles.textContext,
 		}),
 		inputFields: input.inputFields,
-		model: provider.modelId,
 		onUsage: ({ model, usage }) => {
 			const timeToCompletionMs = Date.now() - started;
+			// Every decision transport reports a cost, recorded through the OpenRouter usage shape.
 			logMediaPreprocessingUsage({
 				db,
 				isOpenRouter: true,
@@ -687,7 +686,7 @@ const prepareFillInputDecisions = async ({
 					credentialSource: provider.credentialSource,
 					promptName: "input_fill:decision",
 					providerId: provider.providerId,
-					providerProtocol: "openrouter",
+					providerProtocol: provider.protocol,
 				},
 				modelName: model,
 				name: AI_INPUT_FILL_EVENT_NAME,
@@ -708,6 +707,7 @@ const prepareFillInputDecisions = async ({
 		},
 		signal: signal ? AbortSignal.any([signal, budget]) : budget,
 		sources,
+		target: provider,
 	}).catch(() => {
 		signal?.throwIfAborted();
 		return {};

@@ -122,8 +122,8 @@ test("seeds all available providers, Gemini defaults, and preserves admin choice
 		expect(await decrypt(provider.apiKey ?? "")).toBe(`test-${providerVariables[index]}`);
 	}
 	const seededModels = await selectModels(db);
-	const model = seededModels.find(({ supportsDecisions }) => !supportsDecisions);
-	const decisionModel = seededModels.find(({ supportsDecisions }) => supportsDecisions);
+	const model = seededModels.find(({ kind }) => kind === "chat");
+	const decisionModel = seededModels.find(({ kind }) => kind === "decision");
 	expect([model?.modelId, decisionModel?.modelId]).toEqual([
 		"google/gemini-3.8-flash",
 		"typesafe/jev-1.14",

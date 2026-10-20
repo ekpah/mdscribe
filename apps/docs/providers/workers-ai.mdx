@@ -1,0 +1,25 @@
+---
+title: Cloudflare Workers AI
+description: Textgenerierungsmodelle aus dem Workers-AI-Katalog eines Cloudflare-Kontos.
+---
+
+## Cloudflare Workers AI
+
+[Workers AI](https://developers.cloudflare.com/workers-ai/) stellt Open-Weight-Modelle (z. B. Llama, Qwen, GPT-OSS, GLM) im Cloudflare-Netzwerk bereit. MDScribe spricht sie über den OpenAI-kompatiblen Chat-Completions-Endpunkt `https://api.cloudflare.com/client/v4/accounts/<account-id>/ai/v1` an. Alle Textgenerierungsmodelle können damit jeden LLM-Slot belegen.
+
+## Einrichtung
+
+1. Im Cloudflare-Dashboard die **Account-ID** kopieren und ein API-Token mit der Berechtigung `Workers AI Read` (bzw. `Workers AI Write`) erstellen.
+2. In MDScribe unter `Admin → Einstellungen → Modelle → Verbindungen` einen neuen Provider anlegen:
+   - **Protokoll**: `Cloudflare Workers AI`
+   - **Account-ID**: die 32-stellige Account-ID. MDScribe speichert sie als Provider-Option; die Base URL bleibt die Vorlage `https://api.cloudflare.com/client/v4/accounts/{accountId}/ai/v1`.
+   - **API-Key**: das erstellte API-Token
+3. Verbindung prüfen und speichern.
+
+Bei der Synchronisierung liest MDScribe alle Modelle der Aufgabe „Text Generation“ aus dem Katalog des Kontos. Die System-One-Modelle Clef und Clef Flash (Art „Entscheidung“) sowie Clairic (Art „Extraktion“) werden mit ihrer Modellart gespeichert und können keine Chat-Slots belegen. Clef kann als Entscheidungsmodell für das Autofill gewählt werden; die Markierung von Zitaten auf Dokumentbildern benötigt Box-Fragen und bleibt OpenRouter-Modellen wie TypeSafe Jev vorbehalten.
+
+Nutzereigene API-Schlüssel (BYOK) sind für Workers AI nicht verfügbar, weil ein Token immer an das eigene Cloudflare-Konto gebunden ist, die Verbindung aber die Account-ID des Betreibers enthält.
+
+## Einordnung für den Datenschutz
+
+Anfragen laufen über die Cloudflare-Cloud (US-Anbieter). Prüfen Sie die Datenverarbeitungsbedingungen Ihres Cloudflare-Kontos und die Leitplanken unter [Datenschutz](/privacy), bevor Sie sensible Inhalte verarbeiten.

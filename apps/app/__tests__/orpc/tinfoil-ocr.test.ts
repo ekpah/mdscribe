@@ -31,7 +31,7 @@ test("Tinfoil OCR uses verified SDK transport for image and structured response,
 		}));
 		const { resolveModelByRecordId } = await import("./orpc/scribe/providers");
 		const { createLlmOcrAdapter } = await import("./orpc/scribe/ocr/adapters/llm");
-		let row = {model:{id:"vision",modelId:"gemma4-31b",supportedParameters:[],supportsReasoning:false},provider:{id:"tinfoil",protocol:"tinfoil",apiKey:"key",baseUrl:null}};
+		let row = {model:{id:"vision",modelId:"gemma4-31b",options:{},supportedParameters:[],supportsReasoning:false},provider:{id:"tinfoil",protocol:"tinfoil",apiKey:"key",baseUrl:null,options:{}}};
 		const query = {from:()=>query,innerJoin:()=>query,where:()=>query,limit:async()=>[row]};
 		const db = {select:()=>query};
 		const model = await resolveModelByRecordId("vision",db);

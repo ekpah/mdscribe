@@ -1,6 +1,6 @@
 import { ORPCError, type } from "@orpc/server";
 import { aiDefaults, aiModel, aiProvider, eq, inArray, userAiProvider } from "@repo/database";
-import type { Database } from "@repo/database";
+import type { Database, ModelCost, ModelInput, ModelKind, ProviderOptions } from "@repo/database";
 import { z } from "zod";
 
 import { decrypt, encrypt } from "@/lib/encryption";
@@ -17,6 +17,7 @@ import {
 } from "@/lib/openai-compatible";
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
+import { isDecisionProtocol } from "@/orpc/scribe/decisions/client";
 import { createPrivatemodeOcrClient } from "@/orpc/scribe/ocr/adapters/privatemode";
 import {
 	invalidateAiProviderResolutionCaches,
@@ -39,6 +40,7 @@ const PROVIDER_PROTOCOLS = [
 	"openai",
 	"anthropic",
 	"tinfoil",
+	"workers-ai",
 	"ocr-http",
 	"mistral-ocr",
 	"privatemode-ocr",
@@ -53,6 +55,47 @@ const TINFOIL_DEFAULT_BASE_URL = "https://inference.tinfoil.sh/v1";
  */
 const TINFOIL_SYNCED_MODEL_TYPES = new Set(["chat", "audio"]);
 
+const WORKERS_AI_BASE_URL = "https://api.cloudflare.com/client/v4/accounts/{accountId}/ai/v1";
+const WORKERS_AI_CATALOG_PAGE_SIZE = 50;
+/**
+ * Workers AI lists its System One models under "Text Generation" without a
+ * kind marker; they reject chat requests, so only their own slots may use them.
+ */
+const WORKERS_AI_SYSTEM_ONE_MODELS: Record<string, { cost: ModelCost; kind: ModelKind }> = {
+	"@cf/cloudflare/clairic": { cost: { input: 0.1, output: 0 }, kind: "extraction" },
+	"@cf/cloudflare/clef": { cost: { input: 0.24, output: 0 }, kind: "decision" },
+	"@cf/cloudflare/clef-flash": { cost: { input: 0.038, output: 0 }, kind: "decision" },
+};
+
+/**
+ * OpenAI's catalog does not mark Decisions API models. These are also chat
+ * models, so each gets a second row with kind "decision".
+ */
+const OPENAI_DECISION_MODELS: Record<string, ModelCost> = {
+	"gpt-6-luna": { input: 0.1, output: 0 },
+};
+
+/** Model key within a provider: the same model id may be used as chat and decision model. */
+const modelKey = (model: { kind?: ModelKind; modelId: string }) =>
+	`${model.kind ?? "chat"}:${model.modelId}`;
+
+/** Workers AI keeps the account ID in options so the base URL stays a template. */
+const normalizeProviderOptions = (
+	protocol: ProviderProtocol,
+	options: ProviderOptions | undefined,
+): ProviderOptions => {
+	if (protocol !== "workers-ai") {
+		return options ?? {};
+	}
+	const accountId = options?.accountId?.trim().toLowerCase() ?? "";
+	if (!/^[0-9a-f]{32}$/.test(accountId)) {
+		throw new ORPCError("BAD_REQUEST", {
+			message: "Workers AI benötigt eine Cloudflare Account-ID",
+		});
+	}
+	return { accountId };
+};
+
 export type ProviderProtocol = (typeof PROVIDER_PROTOCOLS)[number];
 
 const normalizeSupportedParameters = (parameters: unknown[] | undefined): string[] =>
@@ -65,19 +108,24 @@ const normalizeSupportedParameters = (parameters: unknown[] | undefined): string
 		),
 	].toSorted();
 
+/** Catalog metadata a provider reports; omitted fields keep the column defaults. */
 interface FetchedProviderModel {
 	modelId: string;
 	displayName: string;
 	supportedParameters: string[];
-	/** Only OpenRouter reports Decisions API models (`output_modalities: ["decisions"]`). */
-	supportsDecisions?: boolean;
 	supportsReasoning: boolean;
+	kind?: ModelKind;
+	input?: ModelInput[];
+	contextWindow?: number;
+	maxOutputTokens?: number;
+	cost?: ModelCost;
 }
 
 interface ProviderFetchConfig {
 	protocol: ProviderProtocol;
 	baseUrl: string | null;
 	apiKey?: string;
+	options?: ProviderOptions;
 }
 
 const normalizeOptionalBaseUrl = (
@@ -130,6 +178,40 @@ const ensureV1BaseUrl = (url: string): string => {
 const parseOpenRouterSupportedParameters = (parameters: unknown[] | undefined): string[] =>
 	normalizeSupportedParameters(parameters);
 
+const OPENROUTER_INPUTS: Record<string, ModelInput> = {
+	audio: "audio",
+	file: "document",
+	image: "image",
+	text: "text",
+};
+
+const parseOpenRouterInput = (modalities: string[] | undefined): ModelInput[] | undefined => {
+	const input = [...new Set(modalities?.flatMap((modality) => OPENROUTER_INPUTS[modality] ?? []))];
+	return input.length > 0 ? input : undefined;
+};
+
+/** OpenRouter prices are USD strings per token or per unit; negative means variable (routers). */
+const parseOpenRouterCost = (
+	pricing: Record<string, string | undefined> | undefined,
+): ModelCost | undefined => {
+	const price = (key: string, scale = 1) => {
+		const value = Number(pricing?.[key]);
+		return pricing?.[key] !== undefined && Number.isFinite(value) && value >= 0
+			? value * scale
+			: undefined;
+	};
+	const perMillion = 1_000_000;
+	const entries = Object.entries({
+		cacheRead: price("input_cache_read", perMillion),
+		cacheWrite: price("input_cache_write", perMillion),
+		image: price("image"),
+		input: price("prompt", perMillion),
+		output: price("completion", perMillion),
+		request: price("request"),
+	}).filter(([, value]) => value !== undefined);
+	return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+};
+
 const parseOpenRouterReasoningSupport = (supportedParameters: string[]): boolean => {
 	const parameters = new Set(supportedParameters);
 	return parameters.has("reasoning") || parameters.has("include_reasoning");
@@ -144,6 +226,9 @@ const normalizeConfiguredBaseUrl = (
 	}
 	if (protocol === "mistral-ocr") {
 		return ensureV1BaseUrl(baseUrl || "https://api.mistral.ai/v1");
+	}
+	if (protocol === "workers-ai") {
+		return baseUrl ? normalizeProviderBaseUrl(baseUrl) : WORKERS_AI_BASE_URL;
 	}
 	if (!baseUrl) {
 		return null;
@@ -370,20 +455,74 @@ const fetchGatewayModels = async (
 		}));
 };
 
+const fetchWorkersAiModels = async (
+	config: ProviderFetchConfig,
+	signal: AbortSignal,
+): Promise<FetchedProviderModel[]> => {
+	const { accountId } = normalizeProviderOptions("workers-ai", config.options);
+	const catalogUrl = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/models/search`;
+	const models: FetchedProviderModel[] = [];
+	for (let page = 1; ; page += 1) {
+		const params = new URLSearchParams({
+			page: String(page),
+			per_page: String(WORKERS_AI_CATALOG_PAGE_SIZE),
+			task: "Text Generation",
+		});
+		// The account catalog requires a token, so it also validates the candidate key.
+		const response = await fetch(`${catalogUrl}?${params}`, {
+			headers: { Authorization: `Bearer ${config.apiKey ?? ""}` },
+			signal,
+		});
+		if (!response.ok) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: `Provider check failed: HTTP ${response.status}`,
+			});
+		}
+		const body = (await response.json()) as {
+			result?: { name: string; task?: { name: string } }[];
+		};
+		const result = body.result ?? [];
+		for (const model of result) {
+			if (model.task?.name === "Text Generation") {
+				models.push({
+					displayName: model.name,
+					...WORKERS_AI_SYSTEM_ONE_MODELS[model.name],
+					modelId: model.name,
+					supportedParameters: [],
+					supportsReasoning: false,
+				});
+			}
+		}
+		if (result.length < WORKERS_AI_CATALOG_PAGE_SIZE) {
+			return models;
+		}
+	}
+};
+
 export const fetchProviderModels = async (
 	config: ProviderFetchConfig,
 ): Promise<FetchedProviderModel[]> => {
 	const signal = AbortSignal.timeout(15_000);
 	if (isOcrProvider(config.protocol)) {
-		return {
+		const models = await {
 			"mistral-ocr": fetchMistralOcrModel,
 			"ocr-http": fetchOcrModel,
 			"privatemode-ocr": fetchPrivatemodeOcrModel,
 		}[config.protocol](config);
+		return models.map((model) => ({
+			...model,
+			input: ["image", "document"],
+			kind: "ocr",
+		}));
 	}
 
-	if (config.protocol === "vercel-ai-gateway") {
-		return fetchGatewayModels(config, signal);
+	const fetchCatalog = {
+		tinfoil: fetchTinfoilModels,
+		"vercel-ai-gateway": fetchGatewayModels,
+		"workers-ai": fetchWorkersAiModels,
+	}[config.protocol as string];
+	if (fetchCatalog) {
+		return fetchCatalog(config, signal);
 	}
 
 	if (config.protocol === "openrouter") {
@@ -408,17 +547,24 @@ export const fetchProviderModels = async (
 				name?: string;
 				display_name?: string;
 				supported_parameters?: string[];
-				architecture?: { output_modalities?: string[] };
+				architecture?: { input_modalities?: string[]; output_modalities?: string[] };
+				context_length?: number | null;
+				top_provider?: { max_completion_tokens?: number | null };
+				pricing?: Record<string, string | undefined>;
 			}[];
 		};
 
 		return (body.data ?? []).map((model) => {
 			const supportedParameters = parseOpenRouterSupportedParameters(model.supported_parameters);
 			return {
+				contextWindow: model.context_length ?? undefined,
+				cost: parseOpenRouterCost(model.pricing),
 				displayName: model.display_name ?? model.name ?? model.id,
+				input: parseOpenRouterInput(model.architecture?.input_modalities),
+				kind: model.architecture?.output_modalities?.includes("decisions") ? "decision" : undefined,
+				maxOutputTokens: model.top_provider?.max_completion_tokens ?? undefined,
 				modelId: model.id,
 				supportedParameters,
-				supportsDecisions: model.architecture?.output_modalities?.includes("decisions") ?? false,
 				supportsReasoning: parseOpenRouterReasoningSupport(supportedParameters),
 			};
 		});
@@ -453,10 +599,6 @@ export const fetchProviderModels = async (
 		}));
 	}
 
-	if (config.protocol === "tinfoil") {
-		return fetchTinfoilModels(config, signal);
-	}
-
 	if (config.protocol === "openai") {
 		const baseUrl = config.baseUrl ?? "https://api.openai.com/v1";
 		const response = await fetch(`${baseUrl}/models`, {
@@ -479,12 +621,26 @@ export const fetchProviderModels = async (
 
 		return (body.data ?? [])
 			.filter((model) => !model.id.includes("embed") && !model.id.includes("tts"))
-			.map((model) => ({
-				displayName: model.display_name ?? model.name ?? model.id,
-				modelId: model.id,
-				supportedParameters: [],
-				supportsReasoning: false,
-			}));
+			.flatMap((model): FetchedProviderModel[] => {
+				const chat = {
+					displayName: model.display_name ?? model.name ?? model.id,
+					modelId: model.id,
+					supportedParameters: [],
+					supportsReasoning: false,
+				};
+				const decisionCost = OPENAI_DECISION_MODELS[model.id];
+				return decisionCost
+					? [
+							chat,
+							{
+								...chat,
+								cost: decisionCost,
+								displayName: `${chat.displayName} (Decisions)`,
+								kind: "decision",
+							},
+						]
+					: [chat];
+			});
 	}
 
 	const baseUrl = requireConfiguredBaseUrl(config.protocol, config.baseUrl);
@@ -522,7 +678,7 @@ const syncFetchedModelsForProvider = async (
 	const deduped = new Map<string, FetchedProviderModel>();
 	for (const model of fetchedModels) {
 		const supportedParameters = normalizeSupportedParameters(model.supportedParameters);
-		deduped.set(model.modelId, {
+		deduped.set(modelKey(model), {
 			...model,
 			supportedParameters,
 			supportsReasoning: model.supportsReasoning || supportedParameters.includes("reasoning"),
@@ -533,61 +689,46 @@ const syncFetchedModelsForProvider = async (
 		where: eq(aiModel.providerId, providerId),
 	});
 
-	const existingByModelId = new Map(existingModels.map((model) => [model.modelId, model] as const));
+	const existingByKey = new Map(existingModels.map((model) => [modelKey(model), model] as const));
 
 	let inserted = 0;
 	let updated = 0;
 
 	for (const model of deduped.values()) {
-		const existing = existingByModelId.get(model.modelId);
+		const values = {
+			contextWindow: model.contextWindow ?? null,
+			cost: model.cost ?? null,
+			displayName: model.displayName,
+			input: model.input ?? ["text"],
+			kind: model.kind ?? "chat",
+			maxOutputTokens: model.maxOutputTokens ?? null,
+			supportedParameters: model.supportedParameters,
+			supportsReasoning: model.supportsReasoning,
+		};
+		const existing = existingByKey.get(modelKey(model));
 		if (!existing) {
-			await db.insert(aiModel).values({
-				displayName: model.displayName,
-				id: crypto.randomUUID(),
-				modelId: model.modelId,
-				providerId,
-				supportedParameters: model.supportedParameters,
-				supportsDecisions: model.supportsDecisions ?? false,
-				supportsReasoning: model.supportsReasoning,
-			});
+			await db
+				.insert(aiModel)
+				.values({ ...values, id: crypto.randomUUID(), modelId: model.modelId, providerId });
 			inserted += 1;
 			continue;
 		}
 
-		const existingSupportedParameters = normalizeSupportedParameters(existing.supportedParameters);
-		const existingSupportsReasoning =
-			existing.supportsReasoning || existingSupportedParameters.includes("reasoning");
-		const sameDisplayName = existing.displayName === model.displayName;
-		const sameSupportedParameters =
-			JSON.stringify(existingSupportedParameters) ===
-			JSON.stringify([...model.supportedParameters].toSorted());
-		const sameSupportsReasoning = existingSupportsReasoning === model.supportsReasoning;
-		const sameSupportsDecisions = existing.supportsDecisions === (model.supportsDecisions ?? false);
-
-		if (
-			sameDisplayName &&
-			sameSupportedParameters &&
-			sameSupportsReasoning &&
-			sameSupportsDecisions
-		) {
+		const unchanged = Object.entries(values).every(
+			([key, value]) =>
+				JSON.stringify(existing[key as keyof typeof values]) === JSON.stringify(value),
+		);
+		if (unchanged) {
 			continue;
 		}
 
-		await db
-			.update(aiModel)
-			.set({
-				displayName: model.displayName,
-				supportedParameters: model.supportedParameters,
-				supportsDecisions: model.supportsDecisions ?? false,
-				supportsReasoning: model.supportsReasoning,
-			})
-			.where(eq(aiModel.id, existing.id));
+		await db.update(aiModel).set(values).where(eq(aiModel.id, existing.id));
 		updated += 1;
 	}
 
 	const fetchedIds = new Set(deduped.keys());
 	const staleModelIds = existingModels
-		.filter((model) => !fetchedIds.has(model.modelId))
+		.filter((model) => !fetchedIds.has(modelKey(model)))
 		.map((model) => model.id);
 
 	if (staleModelIds.length > 0) {
@@ -666,9 +807,12 @@ const listProvidersHandler = admin.handler(async ({ context }) => {
 	});
 });
 
+const providerOptionsSchema = z.record(z.string(), z.string()).optional();
+
 const previewProviderInput = z.object({
 	apiKey: z.string().optional(),
 	baseUrl: createBaseUrlSchema,
+	options: providerOptionsSchema,
 	protocol: z.enum(PROVIDER_PROTOCOLS),
 });
 
@@ -683,6 +827,7 @@ const previewProviderHandler = admin
 		const models = await fetchProviderModels({
 			apiKey: parsed.apiKey,
 			baseUrl,
+			options: normalizeProviderOptions(parsed.protocol, parsed.options),
 			protocol: parsed.protocol,
 		});
 
@@ -695,6 +840,7 @@ const createProviderInput = z.object({
 	apiKey: z.string().optional(),
 	baseUrl: createBaseUrlSchema,
 	name: z.string().min(1),
+	options: providerOptionsSchema,
 	protocol: z.enum(PROVIDER_PROTOCOLS),
 });
 
@@ -707,9 +853,11 @@ const createProviderHandler = admin
 			requireConfiguredBaseUrl(parsed.protocol, baseUrl);
 		}
 
+		const options = normalizeProviderOptions(parsed.protocol, parsed.options);
 		const models = await fetchProviderModels({
 			apiKey: parsed.apiKey,
 			baseUrl,
+			options,
 			protocol: parsed.protocol,
 		});
 
@@ -722,6 +870,7 @@ const createProviderHandler = admin
 				baseUrl,
 				id: crypto.randomUUID(),
 				name: parsed.name,
+				options,
 				protocol: parsed.protocol,
 			})
 			.returning();
@@ -749,6 +898,7 @@ const updateProviderInput = z.object({
 	baseUrl: updateBaseUrlSchema,
 	id: z.string(),
 	name: z.string().min(1).optional(),
+	options: providerOptionsSchema,
 	protocol: z.enum(PROVIDER_PROTOCOLS).optional(),
 });
 
@@ -774,6 +924,7 @@ const updateProviderHandler = admin
 		if (nextProtocol === "openai-compatible") {
 			requireConfiguredBaseUrl(nextProtocol, nextBaseUrl);
 		}
+		const nextOptions = normalizeProviderOptions(nextProtocol, parsed.options ?? existing.options);
 
 		let nextApiKeyEncrypted = existing.apiKey;
 		let nextApiKeyPlain: string | undefined;
@@ -788,13 +939,17 @@ const updateProviderHandler = admin
 		}
 
 		const needsValidation =
-			parsed.protocol !== undefined || parsed.baseUrl !== undefined || parsed.apiKey !== undefined;
+			parsed.protocol !== undefined ||
+			parsed.baseUrl !== undefined ||
+			parsed.options !== undefined ||
+			parsed.apiKey !== undefined;
 
 		let syncResult: { inserted: number; updated: number; removed: number } | undefined;
 		if (needsValidation) {
 			const fetchedModels = await fetchProviderModels({
 				apiKey: nextApiKeyPlain,
 				baseUrl: nextBaseUrl,
+				options: nextOptions,
 				protocol: nextProtocol,
 			});
 			syncResult = await syncFetchedModelsForProvider(context.db, existing.id, fetchedModels);
@@ -806,6 +961,7 @@ const updateProviderHandler = admin
 				apiKey: nextApiKeyEncrypted,
 				baseUrl: nextBaseUrl,
 				name: parsed.name ?? existing.name,
+				options: nextOptions,
 				protocol: nextProtocol,
 			})
 			.where(eq(aiProvider.id, parsed.id))
@@ -814,7 +970,11 @@ const updateProviderHandler = admin
 		if (!provider) {
 			throw new ORPCError("NOT_FOUND", { message: "Provider not found" });
 		}
-		if (parsed.protocol !== undefined || parsed.baseUrl !== undefined) {
+		if (
+			parsed.protocol !== undefined ||
+			parsed.baseUrl !== undefined ||
+			parsed.options !== undefined
+		) {
 			await context.db
 				.update(userAiProvider)
 				.set({ enabled: false })
@@ -842,6 +1002,10 @@ const setProviderByokEnabledHandler = admin
 		const existing = await getProviderById(context.db, parsed.id);
 		if (parsed.enabled && isOcrProvider(existing.protocol)) {
 			throw new ORPCError("BAD_REQUEST", { message: "BYOK ist für OCR HTTP nicht verfügbar" });
+		}
+		// A user's Cloudflare token belongs to their own account, but the account ID is the operator's.
+		if (parsed.enabled && existing.protocol === "workers-ai") {
+			throw new ORPCError("BAD_REQUEST", { message: "BYOK ist für Workers AI nicht verfügbar" });
 		}
 		const [provider] = await context.db
 			.update(aiProvider)
@@ -884,6 +1048,7 @@ const refreshProviderModelsHandler = admin
 		const models = await fetchProviderModels({
 			apiKey,
 			baseUrl: provider.baseUrl,
+			options: provider.options,
 			protocol: provider.protocol as ProviderProtocol,
 		});
 		const syncResult = await syncFetchedModelsForProvider(context.db, provider.id, models);
@@ -974,10 +1139,13 @@ const updateModelHandler = admin
 			.set({
 				displayName: parsed.displayName,
 				modelId: parsed.modelId,
-				openRouterRoutingMode:
+				options:
 					parsed.openRouterRoutingMode === undefined
 						? undefined
-						: normalizeOpenRouterRoutingMode(parsed.openRouterRoutingMode),
+						: {
+								...existing.options,
+								openRouterRoutingMode: normalizeOpenRouterRoutingMode(parsed.openRouterRoutingMode),
+							},
 				supportedParameters,
 				supportsReasoning:
 					parsed.supportsReasoning ??
@@ -1216,13 +1384,15 @@ const setDefaultHandler = admin
 					message: "OCR HTTP kann nur als Dokumenten-Modell verwendet werden",
 				});
 			}
-			const isDecisionModel =
-				existing.supportsDecisions && existing.provider.protocol === "openrouter";
-			if (isDecisionModel !== (parsed.defaultType === "decision")) {
+			if (parsed.defaultType === "decision") {
+				if (existing.kind !== "decision" || !isDecisionProtocol(existing.provider.protocol)) {
+					throw new ORPCError("BAD_REQUEST", {
+						message: "Als Entscheidungsmodell ist nur ein Decisions-Modell möglich",
+					});
+				}
+			} else if (existing.kind !== "chat" && existing.kind !== "ocr") {
 				throw new ORPCError("BAD_REQUEST", {
-					message: isDecisionModel
-						? "Entscheidungsmodelle können nur als Entscheidungsmodell verwendet werden"
-						: "Als Entscheidungsmodell ist nur ein OpenRouter-Decisions-Modell möglich",
+					message: "Entscheidungs- und Extraktionsmodelle können keine Chat-Slots belegen",
 				});
 			}
 		}

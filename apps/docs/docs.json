@@ -73,7 +73,8 @@
           "providers/private",
           "providers/local",
           "providers/openai",
-          "providers/anthropic"
+          "providers/anthropic",
+          "providers/workers-ai"
         ]
       },
       {

@@ -25,6 +25,7 @@ export {
 // Export only the database type here to avoid eager database bootstrap.
 export type { Database } from "./client";
 // Re-export schema tables for direct access
+export type { ModelCost, ModelInput, ModelKind, ModelOptions, ProviderOptions } from "./schema";
 export {
 	account,
 	accountRelations,

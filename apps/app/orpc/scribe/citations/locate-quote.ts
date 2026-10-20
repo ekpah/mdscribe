@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import type { OcrQuoteMatch } from "@/lib/citations/ocr-quote-matcher";
 import { requestDecision } from "@/orpc/scribe/decisions/client";
+import type { DecisionTarget } from "@/orpc/scribe/decisions/client";
 import { renderPageImages } from "@/orpc/scribe/ocr/render";
 
 const coordinate = z.number().min(0).max(1);
@@ -40,18 +41,17 @@ const quoteQuestions = (quote: string) => {
  * costs one image per page however many citations it has.
  */
 export const locateDocumentQuotes = async ({
-	apiKey,
 	data,
 	mimeType,
-	model,
 	onUsage,
 	quotes,
 	signal,
+	target,
 }: {
-	apiKey: string;
 	data: Buffer;
 	mimeType: string;
-	model: string;
+	/** Box questions on page images only exist on OpenRouter's Decisions API. */
+	target: DecisionTarget;
 	onUsage?: (response: z.infer<typeof responseSchema>) => void;
 	quotes: string[];
 	signal: AbortSignal;
@@ -81,9 +81,7 @@ export const locateDocumentQuotes = async ({
 			})
 			.jpeg({ quality: 90 })
 			.toBuffer();
-		const response = await requestDecision({
-			apiKey,
-			model,
+		const response = await requestDecision(target, {
 			questions: Object.fromEntries(
 				pending.flatMap(({ index, quote }) => {
 					const { location, present } = quoteQuestions(quote);

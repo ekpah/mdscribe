@@ -16,6 +16,8 @@ import { isOcrProvider } from "@/lib/ocr-protocol";
 import type { OcrProviderProtocol } from "@/lib/ocr-protocol";
 import { normalizeOpenAICompatibleBaseUrl } from "@/lib/openai-compatible";
 import { USER_MESSAGES } from "@/lib/user-messages";
+import { isDecisionProtocol } from "@/orpc/scribe/decisions/client";
+import type { DecisionTarget } from "@/orpc/scribe/decisions/client";
 import type { ReasoningEffort } from "@/orpc/scribe/types";
 
 export type { ReasoningEffort } from "@/orpc/scribe/types";
@@ -339,6 +341,18 @@ const createProviderModelUncached = async (
 			});
 			return provider(modelId);
 		}
+		case "workers-ai": {
+			if (!baseUrl) {
+				throw new Error("Workers AI provider is missing its account base URL");
+			}
+			// Workers AI serves its text generation models via Chat Completions at `/ai/v1`.
+			const provider = createOpenAICompatible({
+				apiKey: apiKey ?? "",
+				baseURL: baseUrl,
+				name: "workers-ai",
+			});
+			return provider(modelId);
+		}
 		default: {
 			throw new Error(`Unknown provider protocol: ${protocol}`);
 		}
@@ -559,17 +573,29 @@ const resolveProviderCredentials = async (
 	};
 };
 
-export interface DecisionModelSelection {
-	apiKey: string;
+/**
+ * Fills `{key}` placeholders in the base URL from provider options, so stored
+ * URLs stay templates (e.g. Workers AI's `{accountId}`), like pi-ai's.
+ */
+export const expandProviderBaseUrl = (
+	provider: Pick<AiProviderRow, "baseUrl" | "options">,
+): string | null =>
+	provider.baseUrl?.replaceAll(/\{(\w+)\}/g, (_match, key: string) => {
+		const value = provider.options[key];
+		if (!value) {
+			throw new Error(`Provider option "${key}" is missing`);
+		}
+		return encodeURIComponent(value);
+	}) ?? null;
+
+export interface DecisionModelSelection extends DecisionTarget {
 	credentialSource: "operator" | "user_byok";
-	/** Provider model id sent to the Decisions API, e.g. `typesafe/jev-1.14`. */
-	modelId: string;
 	providerId: string;
 }
 
 /**
  * The optional decision model answers finite questions (choice, box, yes/no)
- * through OpenRouter's Decisions API. It is not a chat model and never generates
+ * through OpenRouter, Workers AI (Clef) or OpenAI. It is not a chat model and never generates
  * text. Without a configured model, callers keep their LLM-only behavior.
  */
 export const resolveDecisionModel = async (
@@ -584,7 +610,7 @@ export const resolveDecisionModel = async (
 		where: eq(aiModel.id, defaults.defaultDecisionModelId),
 		with: { provider: true },
 	});
-	if (!model?.supportsDecisions || model.provider.protocol !== "openrouter") {
+	if (model?.kind !== "decision" || !isDecisionProtocol(model.provider.protocol)) {
 		throw new Error("Das Entscheidungsmodell ist nicht verfügbar.");
 	}
 	const credentials = await resolveProviderCredentials(model.provider, { db, userId });
@@ -593,8 +619,11 @@ export const resolveDecisionModel = async (
 	}
 	return {
 		apiKey: credentials.apiKey,
+		baseUrl: expandProviderBaseUrl(model.provider),
+		cost: model.cost,
 		credentialSource: credentials.credentialSource,
 		modelId: model.modelId,
+		protocol: model.provider.protocol,
 		providerId: model.provider.id,
 	};
 };
@@ -605,27 +634,22 @@ const buildResolvedModel = async (
 	options?: { db: Database; userId: string },
 ): Promise<ResolvedModel> => {
 	const { apiKey, credentialSource } = await resolveProviderCredentials(provider, options);
+	const baseUrl = expandProviderBaseUrl(provider);
 	const isUserCredential = credentialSource === "user_byok";
 	const languageModel = isUserCredential
-		? await createProviderModelUncached(
-				provider.protocol,
-				model.modelId,
-				apiKey,
-				provider.baseUrl,
-				true,
-			)
+		? await createProviderModelUncached(provider.protocol, model.modelId, apiKey, baseUrl, true)
 		: await createProviderModel(
 				`provider-model:${provider.id}:${model.id}`,
 				provider.protocol,
 				model.modelId,
 				apiKey,
-				provider.baseUrl,
+				baseUrl,
 			);
 	const transcribeAudio = createAudioTranscriber(
 		provider.protocol,
 		model.modelId,
 		apiKey,
-		provider.baseUrl,
+		baseUrl,
 		isUserCredential,
 	);
 	const supportedParameters = normalizeSupportedParameters(model.supportedParameters);
@@ -635,7 +659,7 @@ const buildResolvedModel = async (
 		isOpenRouter: provider.protocol === "openrouter",
 		model: languageModel,
 		modelName: model.modelId,
-		openRouterRoutingMode: normalizeOpenRouterRoutingMode(model.openRouterRoutingMode),
+		openRouterRoutingMode: normalizeOpenRouterRoutingMode(model.options.openRouterRoutingMode),
 		providerId: provider.id,
 		providerProtocol: provider.protocol,
 		supportedParameters,
@@ -1102,6 +1126,7 @@ export const buildProviderOptions = ({
 		}
 		case "tinfoil":
 		case "openai-compatible":
+		case "workers-ai":
 		case "openai": {
 			if (!(effectiveReasoningEffort || userId)) {
 				return;

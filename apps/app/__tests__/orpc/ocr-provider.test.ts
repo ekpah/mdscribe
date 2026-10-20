@@ -94,6 +94,8 @@ describe("OCR HTTP provider", () => {
 		expect(refreshed.models).toEqual([
 			{
 				displayName: "OCR HTTP",
+				input: ["image", "document"],
+				kind: "ocr",
 				modelId: "ocr",
 				supportedParameters: [],
 				supportsReasoning: false,

@@ -29,9 +29,9 @@ interface AiModelData {
 	providerId: string;
 	modelId: string;
 	displayName: string;
-	openRouterRoutingMode: string;
+	kind: string;
+	options: Record<string, string>;
 	supportedParameters?: string[];
-	supportsDecisions?: boolean;
 	supportsReasoning: boolean;
 }
 
@@ -656,18 +656,16 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 		() => new Map(connections.map((provider) => [provider.id, provider])),
 		[connections],
 	);
-	const getProtocol = (modelId: string) =>
-		providerById.get(modelById.get(modelId)?.providerId ?? "")?.protocol ?? "";
-	// Decision models answer finite questions only; they cannot generate text.
+	const getKind = (modelId: string) => modelById.get(modelId)?.kind;
+	// Decision and extraction models answer typed questions only; they cannot generate text.
 	const decisionModelOptions = enabledModelOptions.filter(
-		(option) =>
-			modelById.get(option.value)?.supportsDecisions && getProtocol(option.value) === "openrouter",
+		(option) => getKind(option.value) === "decision",
 	);
-	const generativeModelOptions = enabledModelOptions.filter(
-		(option) => !modelById.get(option.value)?.supportsDecisions,
+	const generativeModelOptions = enabledModelOptions.filter((option) =>
+		["chat", "ocr"].includes(getKind(option.value) ?? ""),
 	);
 	const nonOcrModelOptions = generativeModelOptions.filter(
-		(option) => !isOcrProvider(getProtocol(option.value)),
+		(option) => getKind(option.value) === "chat",
 	);
 
 	const isUpdatingDefaults =
@@ -919,7 +917,9 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 								selectedModel={selectedModel}
 								selectorOptions={makeSelectorOptions(rowModelOptions)}
 								temperature={getDefaultTemperature(row.type)}
-								routingMode={normalizeOpenRouterRoutingMode(selectedModel?.openRouterRoutingMode)}
+								routingMode={normalizeOpenRouterRoutingMode(
+									selectedModel?.options.openRouterRoutingMode,
+								)}
 							/>
 						);
 					})}

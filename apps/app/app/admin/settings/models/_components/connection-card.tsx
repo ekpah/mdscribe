@@ -33,6 +33,7 @@ interface ProviderData {
 	protocol: string;
 	baseUrl: string | null;
 	hasApiKey: boolean;
+	options: Record<string, string>;
 	models: AiModelData[];
 }
 
@@ -46,6 +47,7 @@ const PROTOCOL_LABELS: Record<string, string> = {
 	"privatemode-ocr": "Privatemode OCR",
 	tinfoil: "Tinfoil",
 	"vercel-ai-gateway": "Vercel AI Gateway",
+	"workers-ai": "Cloudflare Workers AI",
 };
 
 interface ConnectionCardProps {
@@ -177,10 +179,15 @@ export const ConnectionCard = ({ connection }: ConnectionCardProps) => {
 				{connection.baseUrl && (
 					<p className="mt-1 break-all text-solarized-base01 text-xs">{connection.baseUrl}</p>
 				)}
+				{connection.options.accountId && (
+					<p className="break-all text-solarized-base01 text-xs">
+						Account-ID: {connection.options.accountId}
+					</p>
+				)}
 			</CardHeader>
 
 			<CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
-				{!isOcrProvider(connection.protocol) && (
+				{!isOcrProvider(connection.protocol) && connection.protocol !== "workers-ai" && (
 					<div className="mb-4 flex flex-wrap items-center gap-2">
 						<Switch
 							aria-label={USER_MESSAGES.adminByok.ariaLabel}

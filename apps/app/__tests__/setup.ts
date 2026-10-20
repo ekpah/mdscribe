@@ -499,7 +499,7 @@ export const createTestDecisionModel = async (
 	const id = crypto.randomUUID();
 	await db
 		.insert(aiModel)
-		.values({ displayName: "Decision Model", id, modelId, providerId, supportsDecisions: true });
+		.values({ displayName: "Decision Model", id, kind: "decision", modelId, providerId });
 	await db
 		.update(aiDefaults)
 		.set({ defaultDecisionModelId: id })
