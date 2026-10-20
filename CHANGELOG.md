@@ -4,6 +4,7 @@
 
 ### Added
 
+- markdoc-md exposes headless tag hooks (`useInfoTag`, `useCalcTag`, `useBranchTag`), typed tag props, and an `onVariableChange` callback on `DynamicMarkdocRenderer`, so applications can supply their own tag components, such as inline inputs, without reimplementing value resolution, rounding, or case selection.
 - Feature flags with the Flags SDK, defined in code in `apps/app/flags.ts`. The Template Agent is the first flag and stays admin-only in both the editor and its API.
 - Vercel AI Gateway is available as an AI provider, with API-key validation, language-model synchronization, and user-owned keys for admin-exposed connections.
 - Cloudflare Workers AI is available as an AI provider. Admins enter their account ID and API token; text generation models are synced from the account catalog and usable in every LLM slot through the OpenAI-compatible endpoint. The account ID is stored as a provider option and the base URL stays a `{accountId}` template. BYOK is unavailable because the connection carries the operator's account ID.

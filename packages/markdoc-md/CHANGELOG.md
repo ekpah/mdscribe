@@ -2,8 +2,15 @@
 
 ## [Unpublished]
 
+### Added
+
+- Headless tag hooks `useInfoTag`, `useCalcTag`, and `useBranchTag` (from `markdoc-md/react`) expose each built-in tag's resolved value, display formatting, and case selection, so custom components can change only the markup. The default components use the same hooks. A custom `Switch` or `Condition` renders its selected case, including nested tags, through `selected`.
+- `DynamicMarkdocRenderer` accepts `onVariableChange(name, value)`, available to tag components via `useMarkdocInteraction()`, so custom components such as inline inputs can edit variables.
+- Tag prop types (`InfoProps`, `CalcProps`, `SwitchProps`, `CaseProps`, `CiteProps`, `DetailsProps`) are exported from `markdoc-md/react`.
+
 ### Changed
 
+- `MarkdocComponentMap` types the built-in render names, so a replacement `Info`, `Switch`, `Calc`, … must accept that tag's props. Custom render names still accept any component.
 - Remove unused internal calculation-prop exports and the duplicate Score component export. The default component map still renders legacy `score` tags through Calc; public package entrypoints remain unchanged.
 
 ## [0.2.0] - 2026-10-18

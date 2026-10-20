@@ -1,6 +1,8 @@
 "use client";
 
+import type { VariableValue } from "../../render/context/variable-context";
 import { useResolvedVariable } from "../../render/hooks/use-resolved-variable";
+import type { ResolvedVariable } from "../../render/hooks/use-resolved-variable";
 import { CALC_PLACEHOLDER } from "./helpers/config";
 import { InteractiveTag } from "./helpers/interactive-tag";
 import { roundNumber } from "./helpers/round";
@@ -16,40 +18,45 @@ export interface InfoProps {
 	round?: RoundValue;
 }
 
-export const Info = ({
-	primary,
-	type: _type,
-	unit,
-	renderUnit,
-	description: _description,
-	source: _source,
-	round,
-}: InfoProps) => {
-	const variableName = typeof primary === "string" ? primary : undefined;
-	// Resolve the value through the shared read path: a stored value wins;
-	// a computed variable (declared by a calc with the same name) derives its
-	// value from the formula.
-	const { contract, value, isComputed } = useResolvedVariable(variableName);
-	let renderedValue = value;
-	if (value === undefined && contract?.roles.computed) {
-		// Shows a calculation's value, which waits for all of its inputs.
-		renderedValue = CALC_PLACEHOLDER;
-	} else if (typeof value === "number" && (_type === "number" || isComputed)) {
-		renderedValue = roundNumber(value, round, isComputed ? 2 : undefined);
+export interface InfoTagState extends ResolvedVariable {
+	/** The variable name, or undefined for a malformed tag. */
+	name?: string;
+	/** The value as the default renderer shows it: rounded, placeholder, or stringified boolean. */
+	display: VariableValue;
+	/** True while a computed variable waits for its inputs. */
+	isPending: boolean;
+}
+
+/** Everything an `info` renderer needs; components only decide how it looks. */
+export const useInfoTag = ({ primary, type, round }: InfoProps): InfoTagState => {
+	const name = typeof primary === "string" ? primary : undefined;
+	// A stored value wins; a computed variable (declared by a calc with the same
+	// name) derives its value from the formula.
+	const resolved = useResolvedVariable(name);
+	const { contract, value, isComputed } = resolved;
+	const isPending = value === undefined && Boolean(contract?.roles.computed);
+	let display = value;
+	if (isPending) {
+		display = CALC_PLACEHOLDER;
+	} else if (typeof value === "number" && (type === "number" || isComputed)) {
+		display = roundNumber(value, round, isComputed ? 2 : undefined);
 	} else if (typeof value === "boolean") {
-		renderedValue = String(value);
+		display = String(value);
 	}
+	return { ...resolved, display, isPending, name };
+};
 
+export const Info = (props: InfoProps) => {
+	const { name, display } = useInfoTag(props);
 	// Missing variables intentionally render as empty to keep template output stable.
-
 	return (
-		<InteractiveTag tagName={variableName}>
+		<InteractiveTag tagName={name}>
 			<span
 				className="rounded-md bg-solarized-blue px-1 text-white opacity-90"
 				style={{ boxDecorationBreak: "clone", overflowWrap: "anywhere" }}
 			>
-				{renderedValue}
-				{renderUnit && unit && ` ${unit}`}
+				{display}
+				{props.renderUnit && props.unit && ` ${props.unit}`}
 			</span>
 		</InteractiveTag>
 	);

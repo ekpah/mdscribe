@@ -12,7 +12,15 @@ import {
 	parseMarkdocToInputs,
 	validateMarkdocTemplate,
 } from "../index";
-import { DynamicMarkdocRenderer, renderMarkdocAsReact } from "../react";
+import {
+	DynamicMarkdocRenderer,
+	renderMarkdocAsReact,
+	useBranchTag,
+	useCalcTag,
+	useInfoTag,
+	useMarkdocInteraction,
+} from "../react";
+import type { MarkdocComponentMap, VariableValue } from "../react";
 
 describe("public integration APIs", () => {
 	test("extends the schema and React component map without replacing defaults", () => {
@@ -123,5 +131,78 @@ describe("public integration APIs", () => {
 		expect(html).toContain("No formula");
 		expect(html).toContain("…");
 		expect(html).not.toContain("data-markdoc-input");
+	});
+
+	test("custom tag renderers reuse tag semantics through hooks and write variables back", () => {
+		let write: ((name: string, value: VariableValue) => void) | undefined;
+		const inline: MarkdocComponentMap = {
+			Calc: (props) => {
+				const { display, isPending } = useCalcTag(props);
+				return <output data-pending={String(isPending)}>{display}</output>;
+			},
+			Condition: (props) => {
+				const { selected, selectedIndex } = useBranchTag(props, "condition");
+				return <em data-selected={String(selectedIndex)}>{selected}</em>;
+			},
+			Info: (props) => {
+				const { name, value, display } = useInfoTag(props);
+				write = useMarkdocInteraction().onVariableChange;
+				return (
+					<var data-display={String(display)} title={name}>
+						{String(value)}
+					</var>
+				);
+			},
+			Switch: (props) => {
+				const { cases, name, selected, selectedIndex } = useBranchTag(props, "switch");
+				return (
+					<label>
+						<select defaultValue={String(cases[selectedIndex ?? -1]?.primary)} name={name}>
+							{cases.map((c) => (
+								<option key={c.index} value={c.primary}>
+									{c.primary}
+								</option>
+							))}
+						</select>
+						{selected}
+					</label>
+				);
+			},
+		};
+		const source = [
+			`{% switch "sex" %}{% case "m" %}Patient{% /case %}{% case "w" %}Patientin, {% info "age" type="number" round=0 /%} J{% /case %}{% /switch %}`,
+			`{% condition primary="age" %}{% case lt=18 %}minor{% /case %}{% case default=true %}adult{% /case %}{% /condition %}`,
+			`{% calc primary="bmi" formula="[weight] / [height]" round=1 /%}`,
+		].join(" ");
+		const changes: [string, VariableValue][] = [];
+		const html = renderToStaticMarkup(
+			<DynamicMarkdocRenderer
+				components={inline}
+				markdocContent={source}
+				onVariableChange={(name, value) => changes.push([name, value])}
+				variables={{ age: 71.6, sex: "w", weight: 10 }}
+			/>,
+		);
+
+		// The switch lists both cases, selects the second, and renders only its content,
+		// including the nested info, which gets the raw value and the rounded display.
+		expect(html).toContain('<option value="m">m</option><option value="w" selected="">w</option>');
+		expect(html).toContain('Patientin, <var data-display="72" title="age">71.6</var> J');
+		expect(html).not.toContain(">Patient<");
+		expect(html).toContain('<em data-selected="1">adult</em>');
+		expect(html).toContain('<output data-pending="true">…</output>');
+
+		write?.("age", 12);
+		expect(changes).toEqual([["age", 12]]);
+
+		write = () => {};
+		renderToStaticMarkup(
+			<DynamicMarkdocRenderer
+				components={inline}
+				markdocContent={source}
+				variables={{ sex: "w" }}
+			/>,
+		);
+		expect(write).toBeUndefined();
 	});
 });

@@ -10,7 +10,7 @@ import { resolveCalculatedValues } from "../../parse/calculated-values";
 import { extractTemplateInputs } from "../../parse/parse-markdoc-to-inputs";
 import { MarkdocInteractionProvider } from "../context/markdoc-interaction-context";
 import { VariableProvider } from "../context/variable-context";
-import type { VariableMap } from "../context/variable-context";
+import type { VariableMap, VariableValue } from "../context/variable-context";
 import { VariableContractProvider } from "../context/variable-contract-context";
 import { useCitationModifier } from "../hooks/use-citation-modifier";
 import renderMarkdocAsReact from "../utils/render-markdoc-as-react";
@@ -41,6 +41,8 @@ export interface DynamicMarkdocRendererProps {
 	/** Called with the cited source URI when a cite mark is clicked or keyboard-activated. */
 	onCitationSelect?: (citation: CitationRequest) => void;
 	onTagSelect?: (tagName: string) => void;
+	/** Lets custom tag components edit variables; omit for a read-only document. */
+	onVariableChange?: (name: string, value: VariableValue) => void;
 }
 
 /**
@@ -59,6 +61,7 @@ export const DynamicMarkdocRenderer = ({
 	activeTagName,
 	onCitationSelect,
 	onTagSelect,
+	onVariableChange,
 	// Default class matching Note.tsx
 	className = "prose prose-slate grow",
 	components,
@@ -81,7 +84,13 @@ export const DynamicMarkdocRenderer = ({
 
 	return (
 		<MarkdocInteractionProvider
-			value={{ activeTagName, areCitationsHighlighted, onCitationSelect, onTagSelect }}
+			value={{
+				activeTagName,
+				areCitationsHighlighted,
+				onCitationSelect,
+				onTagSelect,
+				onVariableChange,
+			}}
 		>
 			<VariableContractProvider value={variableContracts}>
 				<VariableProvider value={resolvedVariables}>

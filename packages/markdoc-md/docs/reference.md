@@ -118,6 +118,62 @@ For `info`, `switch`, and `case`, the first positional string is the `primary` a
 {% info primary="patient_name" /%}
 ```
 
+## Custom tag renderers
+
+Replace how a built-in tag looks without reimplementing what it means. Each tag exposes a headless
+hook that applies the package's rules (value resolution, rounding, placeholders, case selection);
+the component only decides the markup. `MarkdocComponentMap` types the built-in render names, so a
+replacement must accept that tag's props (`InfoProps`, `CalcProps`, `SwitchProps`, …).
+
+| Hook | Returns |
+|---|---|
+| `useInfoTag(props)` | `name`, raw `value`, formatted `display`, `isPending`, `isComputed`, `contract` |
+| `useCalcTag(props)` | the same, plus `formulaLabel` |
+| `useBranchTag(props, "switch" \| "condition")` | `name`, `cases` (attributes in source order), `selectedIndex`, `selected` (the matching case's content, nested tags included) |
+
+`DynamicMarkdocRenderer` accepts `onVariableChange(name, value)`, which components read from
+`useMarkdocInteraction()`. It is undefined when the caller passes none, so one component set can
+fall back to text in read-only documents.
+
+```tsx
+import {
+  DynamicMarkdocRenderer,
+  useBranchTag,
+  useInfoTag,
+  useMarkdocInteraction,
+  type MarkdocComponentMap,
+} from "markdoc-md/react";
+
+const inlineInputs: MarkdocComponentMap = {
+  Info: (props) => {
+    const { name, value, display } = useInfoTag(props);
+    const { onVariableChange } = useMarkdocInteraction();
+    if (!name || !onVariableChange) return <>{display}</>;
+    return <input value={String(value ?? "")} onChange={(e) => onVariableChange(name, e.target.value)} />;
+  },
+  Switch: (props) => {
+    const { name, cases, selectedIndex, selected } = useBranchTag(props, "switch");
+    const { onVariableChange } = useMarkdocInteraction();
+    if (!name || !onVariableChange) return <>{selected}</>;
+    return (
+      <select
+        value={String(cases[selectedIndex ?? -1]?.primary ?? "")}
+        onChange={(e) => onVariableChange(name, e.target.value)}
+      >
+        {cases.map((c) => <option key={c.index} value={c.primary}>{c.primary}</option>)}
+      </select>
+    );
+  },
+};
+
+<DynamicMarkdocRenderer
+  components={inlineInputs} // keep the map stable; it is a memo dependency
+  markdocContent={template}
+  onVariableChange={(name, value) => setValues((v) => ({ ...v, [name]: value }))}
+  variables={values}
+/>;
+```
+
 ## `cite`
 
 Marks inline content as a citation. Clicking the rendered mark invokes `onCitationSelect`; the
