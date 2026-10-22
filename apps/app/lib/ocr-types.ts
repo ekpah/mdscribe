@@ -77,6 +77,8 @@ export interface RawContextDocument {
 	kind?: "file";
 	mimeType: string;
 	name: string;
+	/** Cached, user-provided transcription of these same immutable file bytes. */
+	ocrResult?: OcrResult;
 	size: number;
 }
 

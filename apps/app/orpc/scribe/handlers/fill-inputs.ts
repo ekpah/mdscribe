@@ -18,7 +18,9 @@ import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
 import { scribeEntitlementsMiddleware } from "@/orpc/middlewares/entitlements";
 import { composeScribeContext } from "@/orpc/scribe/context";
+import { citeFillInputs } from "@/orpc/scribe/fill-inputs/cite";
 import { fillInputsWithDecisions } from "@/orpc/scribe/fill-inputs/decide";
+import type { FillInputSource } from "@/orpc/scribe/fill-inputs/decide";
 import { supportsDecision } from "@/orpc/scribe/fill-inputs/questions";
 import {
 	buildFillInputsSourceContext,
@@ -43,6 +45,7 @@ import {
 import { createContextFileParts, extractContextFiles } from "./context-file-input";
 import { logMediaPreprocessingUsage } from "./preprocessing-usage";
 import { enforceScribeUsageLimit } from "./usage-limit";
+import { scheduleDeferredTask } from "./usage-logging";
 
 interface FillInputAudioPayloadSummary {
 	index: number;
@@ -84,37 +87,13 @@ const getFieldValueSchema = (field: InputField) => {
 	return z.string();
 };
 
-const createFillInputsSchema = (
-	inputFields: InputField[],
-	citationSources: string[],
-	hasAudio: boolean,
-) => {
+const createFillInputsSchema = (inputFields: InputField[]) => {
 	const fields = new Map(inputFields.map((field) => [field.label, getFieldValueSchema(field)]));
-	// One fixed item schema instead of repeating a nested citation schema for
-	// every field. Keep field-specific types and source constraints local.
-	const citationSchema = z
-		.object({
-			quote: z.string().refine((quote) => quote.length >= 1 && quote.length <= 4000),
-			source: z
-				.number()
-				.refine(
-					(source) => Number.isInteger(source) && source >= 1 && source <= citationSources.length,
-				),
-		})
-		.strict();
 	const suggestionSchema = z
 		.object({
-			citations: z
-				.array(citationSchema)
-				.refine(
-					(citations) =>
-						citations.length <= 10 &&
-						(hasAudio || citationSources.length === 0 || citations.length >= 1),
-				),
 			field: z.string().refine((label) => fields.has(label)),
 			value: z.union([z.string(), z.number(), z.boolean()]),
 		})
-		.strict()
 		.refine(
 			(suggestion) => fields.get(suggestion.field)?.safeParse(suggestion.value).success ?? false,
 		);
@@ -135,27 +114,13 @@ const createFillInputsSchema = (
 const toFillInputsResult = (
 	object: unknown,
 	schema: ReturnType<typeof createFillInputsSchema>,
-	citationSources: string[],
 ): FillInputsResult => {
 	const parsed = schema.safeParse(object);
 	if (parsed.success) {
 		return {
 			ocrResults: [],
 			suggestions: Object.fromEntries(
-				parsed.data.suggestions.map(({ citations, field, value }) => [
-					field,
-					{
-						...(citations.length
-							? {
-									citations: citations.map(({ quote, source }) => ({
-										quote,
-										source: citationSources[source - 1],
-									})),
-								}
-							: {}),
-						value,
-					},
-				]),
+				parsed.data.suggestions.map(({ field, value }) => [field, { value }]),
 			),
 		};
 	}
@@ -496,6 +461,7 @@ const extractFillInputFileText = async ({
 	db,
 	generationStrategy,
 	hasFiles,
+	signal,
 	userId,
 	zdr,
 }: {
@@ -504,6 +470,7 @@ const extractFillInputFileText = async ({
 	db: Database;
 	generationStrategy: FillInputsGenerationStrategy;
 	hasFiles: boolean;
+	signal?: AbortSignal;
 	userId: string;
 	zdr: boolean;
 }) => {
@@ -514,6 +481,7 @@ const extractFillInputFileText = async ({
 			contextFiles: contextFiles ?? [],
 			db,
 			modelSelection: filesPlan.selection,
+			signal,
 			userId,
 			zdr,
 		});
@@ -639,6 +607,7 @@ const prepareFillInputDecisions = async ({
 	input,
 	provider,
 	signal,
+	sources,
 	userId,
 	zdr,
 }: {
@@ -648,22 +617,13 @@ const prepareFillInputDecisions = async ({
 	input: FillInputsInputPayload;
 	provider: DecisionModelSelection | null;
 	signal?: AbortSignal;
+	sources: FillInputSource[];
 	userId: string;
 	zdr: boolean;
 }): Promise<FillInputsResult["suggestions"]> => {
 	if (!provider) {
 		return {};
 	}
-	const contextFiles = input.contextFiles ?? [];
-	const sources = [
-		...Object.entries(input.textContext ?? {}).flatMap(([id, text]) =>
-			text?.trim() ? [{ source: createMdscribeSource("input", id), text }] : [],
-		),
-		...extractedFiles.ocrResults.flatMap((result, index) => {
-			const id = contextFiles[index]?.id?.trim();
-			return id ? [{ source: createMdscribeSource("file", id), text: result.text }] : [];
-		}),
-	];
 	// Without one stable ID per source, prefill cannot return honest citations.
 	if (sources.length !== citationSources.length) {
 		return {};
@@ -714,6 +674,102 @@ const prepareFillInputDecisions = async ({
 	});
 };
 
+/** The optional evidence phase cannot discard or rewrite successfully filled values. */
+const addFillInputCitations = async ({
+	contextFiles,
+	db,
+	filesAreNative,
+	generationSelection,
+	inputFields,
+	result,
+	signal,
+	sources,
+	userId,
+	zdr,
+}: {
+	contextFiles: NonNullable<FillInputsInputPayload["contextFiles"]>;
+	db: Database;
+	filesAreNative: boolean;
+	generationSelection: FillInputsGenerationSelection;
+	inputFields: InputField[];
+	result: FillInputsResult;
+	signal?: AbortSignal;
+	sources: FillInputSource[];
+	userId: string;
+	zdr: boolean;
+}): Promise<FillInputsResult> => {
+	if (!Object.values(result.suggestions).some((suggestion) => !suggestion.citations?.length)) {
+		return result;
+	}
+	// Bound the whole evidence phase, including native transcription across all pages/files.
+	const budget = AbortSignal.timeout(30_000);
+	const evidenceSignal = signal ? AbortSignal.any([signal, budget]) : budget;
+	let { ocrResults } = result;
+	const citationSources = [...sources];
+	try {
+		// Native vision still fills immediately. Only this later phase needs text;
+		// reuse the same authorized vision model, never an unconfigured provider.
+		if (filesAreNative && contextFiles.length && contextFiles.every((file) => file.id?.trim())) {
+			ocrResults = [];
+			const nativeText = await extractContextFiles({
+				contextFiles,
+				db,
+				modelSelection: { ...generationSelection, slot: "file-image" },
+				onOcrResult: (ocr, index) => {
+					ocrResults[index] = ocr;
+				},
+				signal: evidenceSignal,
+				userId,
+				zdr,
+			});
+			({ ocrResults } = nativeText);
+			citationSources.push(
+				...nativeText.ocrResults.flatMap((ocr, index) => {
+					const id = contextFiles[index].id?.trim();
+					return id ? [{ source: createMdscribeSource("file", id), text: ocr.text }] : [];
+				}),
+			);
+		}
+		const started = Date.now();
+		const suggestions = await citeFillInputs({
+			inputFields,
+			model: generationSelection.model.model,
+			onUsage: (citationResult) => {
+				logMediaPreprocessingUsage({
+					db,
+					isOpenRouter: generationSelection.model.isOpenRouter,
+					metadata: {
+						credentialSource: generationSelection.model.credentialSource,
+						promptName: "input_fill:citations",
+						providerProtocol: generationSelection.model.providerProtocol,
+					},
+					modelName: generationSelection.model.modelName,
+					name: AI_INPUT_FILL_EVENT_NAME,
+					providerMetadata: citationResult.providerMetadata,
+					standardUsage: citationResult.usage as StandardUsage,
+					timing: { timeToCompletionMs: Date.now() - started },
+					userId,
+					zdr,
+				});
+			},
+			providerOptions: buildProviderOptions({
+				includeUsage: true,
+				model: generationSelection.model,
+				reasoningEffort: "none",
+				userId,
+				zdr,
+			}),
+			signal: AbortSignal.any([evidenceSignal, AbortSignal.timeout(8000)]),
+			sources: citationSources,
+			suggestions: result.suggestions,
+		});
+		return { ...result, ocrResults, suggestions };
+	} catch {
+		signal?.throwIfAborted();
+		return { ...result, citationError: true, ocrResults };
+	}
+};
+
 const fillInputsProcedure = authed
 	.use(scribeEntitlementsMiddleware)
 	.input(type<FillInputsInputPayload>());
@@ -725,7 +781,7 @@ type FillInputsOptions = Parameters<Parameters<typeof fillInputsProcedure.handle
  * `decisions` before the LLM fills the remaining fields; `complete` always ends.
  */
 export interface FillInputsEvent extends FillInputsResult {
-	stage: "decisions" | "complete";
+	stage: "decisions" | "values" | "complete";
 }
 
 /**
@@ -796,11 +852,21 @@ const runFillInputs = async function* runFillInputs({
 		db: context.db,
 		generationStrategy,
 		hasFiles,
+		signal,
 		userId: context.session.user.id,
 		zdr: entitlements.hasActiveSubscription,
 	});
 	const filesAreNative = generationStrategy.files?.mode === "native";
 	const nativeContextFiles = filesAreNative ? contextFiles : [];
+	const sources: FillInputSource[] = [
+		...Object.entries(input.textContext ?? {}).flatMap(([id, text]) =>
+			text?.trim() ? [{ source: createMdscribeSource("input", id), text }] : [],
+		),
+		...extractedFiles.ocrResults.flatMap((result, index) => {
+			const id = contextFiles[index]?.id?.trim();
+			return id ? [{ source: createMdscribeSource("file", id), text: result.text }] : [];
+		}),
+	];
 	const prefilled = await prepareFillInputDecisions({
 		citationSources,
 		db: context.db,
@@ -808,127 +874,147 @@ const runFillInputs = async function* runFillInputs({
 		input,
 		provider: decisionModel,
 		signal,
+		sources,
 		userId: context.session.user.id,
 		zdr: entitlements.hasActiveSubscription,
 	});
 	const remainingFields = input.inputFields.filter(
 		(field) => !Object.hasOwn(prefilled, field.label),
 	);
-	if (!remainingFields.length) {
-		yield { ocrResults: extractedFiles.ocrResults, stage: "complete", suggestions: prefilled };
-		return;
-	}
-	if (Object.keys(prefilled).length) {
+	if (remainingFields.length && Object.keys(prefilled).length) {
 		yield { ocrResults: extractedFiles.ocrResults, stage: "decisions", suggestions: prefilled };
 	}
-	const messages = composeFillInputsPrompt({
-		audioTranscripts: formatAudioTranscriptsForPrompt(preparedAudio.transcripts),
-		citationSources,
-		contextFiles: nativeContextFiles,
-		contextXml: buildFillInputContext(input),
-		fileTextContext: extractedFiles.textContext,
-		inputFields: remainingFields,
-	});
-
-	const outputSchema = createFillInputsSchema(remainingFields, sourceUris, hasAudio);
-
-	const userContent = buildFillInputUserContent({
-		nativeContextFiles,
-		preparedAudio,
-		userPrompt: messages[1]?.content ?? "",
-	});
-	const generationModel = generationSelection.model.model;
-
-	const result = await generateText({
-		abortSignal: signal,
-		messages: [
-			{ content: messages[0]?.content ?? "", role: "system" },
-			{ content: userContent, role: "user" },
-		],
-		model:
-			typeof generationModel === "string" || generationModel.specificationVersion !== "v3"
-				? generationModel
-				: wrapLanguageModel({
-						middleware: extractJsonMiddleware({ transform: normalizeGeneratedJson }),
-						model: generationModel,
-					}),
-		output: Output.object({
-			description: "Suggested field values for the requested input fields.",
-			name: "FillInputsResult",
-			schema: outputSchema,
-		}),
-		providerOptions: buildProviderOptions({
-			includeUsage: true,
-			model: generationSelection.model,
-			reasoningEffort: generationSelection.reasoningEffort,
-			userId: context.session.user.id,
-			zdr: entitlements.hasActiveSubscription,
-		}),
-		temperature: generationSelection.defaultTemperature ?? undefined,
-	}).catch((error: unknown) => {
-		const details = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
-		throw new ORPCError("BAD_REQUEST", {
-			message: `Ausfüllen fehlgeschlagen. (${details})`,
+	let fillResult: FillInputsResult = {
+		ocrResults: extractedFiles.ocrResults,
+		suggestions: prefilled,
+	};
+	if (remainingFields.length) {
+		const messages = composeFillInputsPrompt({
+			audioTranscripts: formatAudioTranscriptsForPrompt(preparedAudio.transcripts),
+			citationSources,
+			contextFiles: nativeContextFiles,
+			contextXml: buildFillInputContext(input),
+			fileTextContext: extractedFiles.textContext,
+			inputFields: remainingFields,
 		});
-	});
 
-	// `result.output` is a lazy getter that throws NoOutputGeneratedError when
-	// the model did not finish with reason "stop" (e.g. truncated on length or
-	// stopped by a content filter), so the structured output was never parsed.
-	// Surface that as a clean BAD_REQUEST instead of an uncaught 500.
-	const resultOutput = readStructuredOutput(result);
-	if (resultOutput === null || resultOutput === undefined) {
-		throw new ORPCError("BAD_REQUEST", {
-			message: `Ausfüllen fehlgeschlagen. (Modell lieferte keine verwertbare Ausgabe, finishReason=${result.finishReason}.)`,
+		const outputSchema = createFillInputsSchema(remainingFields);
+
+		const userContent = buildFillInputUserContent({
+			nativeContextFiles,
+			preparedAudio,
+			userPrompt: messages[1]?.content ?? "",
+		});
+		const generationModel = generationSelection.model.model;
+
+		const result = await generateText({
+			abortSignal: signal,
+			messages: [
+				{ content: messages[0]?.content ?? "", role: "system" },
+				{ content: userContent, role: "user" },
+			],
+			model:
+				typeof generationModel === "string" || generationModel.specificationVersion !== "v3"
+					? generationModel
+					: wrapLanguageModel({
+							middleware: extractJsonMiddleware({ transform: normalizeGeneratedJson }),
+							model: generationModel,
+						}),
+			output: Output.object({
+				description: "Suggested field values for the requested input fields.",
+				name: "FillInputsResult",
+				schema: outputSchema,
+			}),
+			providerOptions: buildProviderOptions({
+				includeUsage: true,
+				model: generationSelection.model,
+				reasoningEffort: generationSelection.reasoningEffort,
+				userId: context.session.user.id,
+				zdr: entitlements.hasActiveSubscription,
+			}),
+			temperature: generationSelection.defaultTemperature ?? undefined,
+		}).catch((error: unknown) => {
+			const details = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
+			throw new ORPCError("BAD_REQUEST", {
+				message: `Ausfüllen fehlgeschlagen. (${details})`,
+			});
+		});
+
+		// `result.output` is a lazy getter that throws NoOutputGeneratedError when
+		// the model did not finish with reason "stop" (e.g. truncated on length or
+		// stopped by a content filter), so the structured output was never parsed.
+		// Surface that as a clean BAD_REQUEST instead of an uncaught 500.
+		const resultOutput = readStructuredOutput(result);
+		if (resultOutput === null || resultOutput === undefined) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: `Ausfüllen fehlgeschlagen. (Modell lieferte keine verwertbare Ausgabe, finishReason=${result.finishReason}.)`,
+			});
+		}
+
+		fillResult = toFillInputsResult(resultOutput, outputSchema);
+		fillResult.suggestions = { ...prefilled, ...fillResult.suggestions };
+		const openRouterUsage = generationSelection.model.isOpenRouter
+			? extractOpenRouterUsage(
+					(result as { providerMetadata?: Record<string, unknown> }).providerMetadata,
+				)
+			: undefined;
+		const usageMetadata = buildFillInputUsageMetadata({
+			fileTextContext: extractedFiles.textContext,
+			generationSelection,
+			generationStrategy,
+			payloadSummary,
+			preparedAudio,
+			zdr: entitlements.hasActiveSubscription,
+		});
+
+		const generatedSuggestions = JSON.stringify(fillResult.suggestions);
+		scheduleDeferredTask(async () => {
+			await context.db.insert(usageEvent).values(
+				buildUsageEventData({
+					inputData: entitlements.hasActiveSubscription
+						? undefined
+						: buildFillInputUsageInputData(input, payloadSummary),
+					metadata: usageMetadata,
+					model: generationSelection.model.modelName,
+					name: AI_INPUT_FILL_EVENT_NAME,
+					openRouterUsage,
+					result: entitlements.hasActiveSubscription
+						? "[zdr - content redacted]"
+						: generatedSuggestions,
+					standardUsage: result.usage as StandardUsage,
+					userId: context.session.user.id,
+				}),
+			);
 		});
 	}
-
-	const fillResult = toFillInputsResult(resultOutput, outputSchema, sourceUris);
-	fillResult.suggestions = { ...prefilled, ...fillResult.suggestions };
-	const openRouterUsage = generationSelection.model.isOpenRouter
-		? extractOpenRouterUsage(
-				(result as { providerMetadata?: Record<string, unknown> }).providerMetadata,
-			)
-		: undefined;
-	const usageMetadata = buildFillInputUsageMetadata({
-		fileTextContext: extractedFiles.textContext,
-		generationSelection,
-		generationStrategy,
-		payloadSummary,
-		preparedAudio,
-		zdr: entitlements.hasActiveSubscription,
-	});
-
-	await context.db.insert(usageEvent).values(
-		buildUsageEventData({
-			inputData: entitlements.hasActiveSubscription
-				? undefined
-				: buildFillInputUsageInputData(input, payloadSummary),
-			metadata: usageMetadata,
-			model: generationSelection.model.modelName,
-			name: AI_INPUT_FILL_EVENT_NAME,
-			openRouterUsage,
-			result: entitlements.hasActiveSubscription
-				? "[zdr - content redacted]"
-				: JSON.stringify(fillResult.suggestions),
-			standardUsage: result.usage as StandardUsage,
-			userId: context.session.user.id,
-		}),
-	);
 
 	yield {
 		ocrResults: extractedFiles.ocrResults,
-		stage: "complete",
+		stage: "values",
 		suggestions: fillResult.suggestions,
 	};
+	const complete = await addFillInputCitations({
+		contextFiles,
+		db: context.db,
+		filesAreNative,
+		generationSelection,
+		inputFields: input.inputFields,
+		result: { ocrResults: extractedFiles.ocrResults, suggestions: fillResult.suggestions },
+		signal,
+		sources,
+		userId: context.session.user.id,
+		zdr: entitlements.hasActiveSubscription,
+	});
+
+	yield { ...complete, stage: "complete" };
 };
 
 /** Autofill with one response, for callers that need only the final result. */
 export const fillInputsHandler = fillInputsProcedure.handler(
 	async (options): Promise<FillInputsResult> => {
 		let result: FillInputsResult = { ocrResults: [], suggestions: {} };
-		for await (const { ocrResults, suggestions } of runFillInputs(options)) {
-			result = { ocrResults, suggestions };
+		for await (const { stage: _stage, ...event } of runFillInputs(options)) {
+			result = event;
 		}
 		return result;
 	},

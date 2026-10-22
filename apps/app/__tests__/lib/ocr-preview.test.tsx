@@ -403,6 +403,18 @@ test("images require alignment and submissions stay blocked until OCR completes"
 			const raw = (await controller.prepareSubmission()).contextFiles[0];
 			assert.equal(raw.data,Buffer.from("image").toString("base64"));
 			assert.ok(!("ocrResult" in raw) && !("ocrResultToken" in raw));
+			const cached = {backend:"llm",text:"native transcription"};
+			controller.setContextFileOcrResults([cached],[raw.id]);
+			controller = render();
+			const secondNative = (await controller.prepareSubmission()).contextFiles[0];
+			assert.equal(secondNative.id,raw.id);
+			assert.equal(secondNative.data,raw.data);
+			assert.deepEqual(secondNative.ocrResult,cached);
+			// Late results for a replaced/rotated file must not poison the new file's cache.
+			controller.setContextFiles([{id:"replacement",file:image}]);
+			controller.setContextFileOcrResults([{backend:"llm",text:"stale"}],[raw.id]);
+			controller = render();
+			assert.ok(!("ocrResult" in (await controller.prepareSubmission()).contextFiles[0]));
 			assert.equal(calls.length,3);
 			native = false;
 			await assert.rejects(controller.prepareSubmission(),/Vision-fähiges/);

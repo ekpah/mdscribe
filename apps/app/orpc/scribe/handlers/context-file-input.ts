@@ -75,6 +75,8 @@ export const extractContextFiles = async ({
 	contextFiles,
 	db,
 	modelSelection,
+	onOcrResult,
+	signal,
 	userId,
 	zdr,
 }: {
@@ -83,6 +85,9 @@ export const extractContextFiles = async ({
 	contextFiles: FillInputsContextFile[] | undefined;
 	db?: Database;
 	modelSelection: ResolvedOcrSelection;
+	/** Retain completed documents even if a later document fails. */
+	onOcrResult?: (result: OcrResult, index: number) => void;
+	signal?: AbortSignal;
 	userId: string;
 	zdr?: boolean;
 }): Promise<{ ocrResults: OcrResult[]; textContext: string }> => {
@@ -93,12 +98,14 @@ export const extractContextFiles = async ({
 	const ocrResults: OcrResult[] = [];
 	// Bound document-level memory/concurrency, particularly for rasterized PDFs.
 	for (const [index, file] of contextFiles.entries()) {
-		if (file.kind === "ocr") {
+		signal?.throwIfAborted();
+		if (file.kind === "ocr" || file.ocrResult !== undefined) {
 			const result = ocrResultSchema.safeParse(file.ocrResult);
-			if (!result.success || "data" in file) {
+			if (!result.success || (file.kind === "ocr" && "data" in file)) {
 				throw new ORPCError("BAD_REQUEST", { message: "Das OCR-Ergebnis ist ungültig." });
 			}
 			ocrResults.push(result.data);
+			onOcrResult?.(result.data, index);
 			continue;
 		}
 		const data = Buffer.from(getBase64Payload(file.data), "base64");
@@ -141,9 +148,11 @@ export const extractContextFiles = async ({
 					zdr,
 				});
 			},
+			signal,
 			userId,
 			zdr,
 		}).catch((error: unknown) => {
+			signal?.throwIfAborted();
 			const details = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
 			throw new ORPCError("BAD_REQUEST", {
 				message: `Dateien konnten nicht analysiert werden. (${details})`,
@@ -177,6 +186,7 @@ export const extractContextFiles = async ({
 			zdr,
 		});
 		ocrResults.push(result);
+		onOcrResult?.(result, index);
 	}
 	const documents = ocrResults.map((result, index) => {
 		const file = contextFiles[index];

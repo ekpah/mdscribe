@@ -47,6 +47,9 @@ const fileToContextFile = async (uploaded: UploadedContextFile): Promise<RawCont
 	id: uploaded.id,
 	mimeType: uploaded.file.type || "application/octet-stream",
 	name: uploaded.file.name,
+	...(uploaded.ocrStatus === "complete" && uploaded.ocrResult
+		? { ocrResult: uploaded.ocrResult }
+		: {}),
 	size: uploaded.file.size,
 });
 
@@ -271,13 +274,14 @@ export const useInputContextState = ({
 	}, []);
 
 	const setContextFileOcrResults = useCallback(
-		(results: OcrResult[]) =>
+		(results: OcrResult[], fileIds?: (string | undefined)[]) =>
 			commitContextFiles(
-				contextFilesRef.current.map((contextFile, index) =>
-					results[index]
-						? { ...contextFile, ocrResult: results[index], ocrStatus: "complete" }
-						: contextFile,
-				),
+				contextFilesRef.current.map((contextFile, index) => {
+					const result = results[fileIds ? fileIds.indexOf(contextFile.id) : index];
+					return result
+						? { ...contextFile, ocrResult: result, ocrStatus: "complete" }
+						: contextFile;
+				}),
 			),
 		[commitContextFiles],
 	);

@@ -258,6 +258,9 @@ export const aiMockState: {
 	lastGenerateObjectOptions?: unknown;
 	lastGenerateTextOptions?: unknown;
 	lastOcrGenerateTextOptions?: unknown;
+	lastCitationGenerateTextOptions?: unknown;
+	nextCitationOutput?: unknown;
+	citationError?: Error;
 	nextGenerateTextOutput?: unknown;
 	nextOcrOutput?: unknown;
 	nextOcrOutputs?: unknown[];
@@ -333,14 +336,25 @@ mock.module("ai", () => ({
 		};
 	}) => {
 		aiMockState.generateTextCallCount += 1;
-		aiMockState.lastGenerateTextOptions = options;
 		const promptText =
 			options?.messages
 				?.map((message) => (typeof message.content === "string" ? message.content : ""))
 				.join("\n") ?? "";
+		const isCitationRequest = promptText.includes('"annotations"');
+		if (isCitationRequest) {
+			aiMockState.lastCitationGenerateTextOptions = options;
+			if (aiMockState.citationError) {
+				return Promise.reject(aiMockState.citationError);
+			}
+		} else {
+			aiMockState.lastGenerateTextOptions = options;
+		}
 		const isFillInputsRequest = promptText.includes('"suggestions"');
 		let output: unknown;
-		if (isFillInputsRequest) {
+		if (isCitationRequest) {
+			output = aiMockState.nextCitationOutput ?? { annotations: [] };
+			delete aiMockState.nextCitationOutput;
+		} else if (isFillInputsRequest) {
 			const fieldDefinitions = promptText.match(/<input_fields>\n(.*?)\n<\/input_fields>/s)?.[1];
 			const suggestionLabel = fieldDefinitions ? JSON.parse(fieldDefinitions)[0]?.label : undefined;
 			const citationSource = promptText.match(/source=(mdscribe:\/\/[^\s|<]+)/u)?.[1];

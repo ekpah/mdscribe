@@ -1,4 +1,4 @@
-/* oxlint-disable eslint/complexity, eslint/no-plusplus, eslint/no-promise-executor-return, eslint/no-void, eslint/require-await, import/no-named-as-default-member, promise/avoid-new, promise/prefer-await-to-callbacks, typescript/no-non-null-assertion, unicorn/consistent-function-scoping, unicorn/prefer-query-selector -- Imperative browser harness that polls the real DOM and counts Markdoc calls. */
+/* oxlint-disable eslint/complexity, eslint/no-loop-func, eslint/no-plusplus, eslint/no-promise-executor-return, eslint/no-void, eslint/require-await, import/no-named-as-default-member, promise/avoid-new, promise/prefer-await-to-callbacks, typescript/no-non-null-assertion, unicorn/consistent-function-scoping, unicorn/prefer-query-selector -- Imperative browser harness that polls the real DOM and counts Markdoc calls. */
 import Markdoc from "@markdoc/markdoc";
 import { analyzeMarkdocTemplate } from "markdoc-md/parse";
 import { DynamicMarkdocRenderer } from "markdoc-md/react";
@@ -6,6 +6,7 @@ import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
 
 import Inputs from "../../app/_components/inputs/inputs";
+import type { FillInputsResult } from "../../app/_components/inputs/inputs";
 
 const source = `{% calc "score" formula="[a]+[b]" round=2 %}{% info "a" type="number" /%}{% info "b" type="number" /%}{% /calc %}{% info "aiField" /%}{% condition ["x","y"] %}{% case gt=[11,null] %}FIRST_BRANCH{% /case %}{% case gt=[null,14] %}SECOND_BRANCH{% /case %}{% case default=true %}FALLBACK_BRANCH{% /case %}{% /condition %}`;
 const regressionSource = `{% info "hiddenTotal" type="number" /%}{% switch "gate" %}{% case "show" %}{% calc "hiddenTotal" formula="5" /%}{% /case %}{% /switch %}{% calc "aiScore" formula="2" /%}{% calc "n" formula="1" /%}{% calc "double" formula="[score]*2" /%}{% switch "detailsMode" %}{% case "on" %}{% condition "n" %}{% case gt=0 %}{% info "detail" /%}{% /case %}{% /condition %}{% /case %}{% /switch %}`;
@@ -18,6 +19,9 @@ const initialSuggestions: Suggestions = {
 let publication: Record<string, unknown> = {};
 let fillResponse: FillResponse = {};
 let fillFailure = false;
+let stagedFill = false;
+let emitProgress: ((result: FillInputsResult, stage: "decisions" | "values") => void) | undefined;
+let finishFill: ((result: FillInputsResult) => void) | undefined;
 let submittedFields: { calculation?: unknown; label: string }[] = [];
 type FillResponse = Record<string, boolean | number | string>;
 let parses = 0;
@@ -46,8 +50,14 @@ const Harness = () => {
 				onInputSelect={() => {}}
 				suggestedValues={initialSuggestions}
 				showFillInputs
-				onFillInputs={async (fields) => {
+				onFillInputs={async (fields, _audio, _text, _files, onProgress) => {
 					submittedFields = fields;
+					if (stagedFill) {
+						emitProgress = onProgress;
+						return await new Promise<FillInputsResult>((resolve) => {
+							finishFill = resolve;
+						});
+					}
 					if (fillFailure) {
 						throw new Error("expected failure");
 					}
@@ -235,6 +245,61 @@ void (async () => {
 	// Without a manual value, resetting a calc drops its AI suggestion and calculates again.
 	click("KI-Vorschlag verwerfen");
 	await waitFor(() => publication.aiScore === 2, "AI suggestion of a calc could not be reset");
+
+	// Edits after either stage survive successful and failed evidence completion.
+	stagedFill = true;
+	for (const [editStage, citationError] of [
+		["decisions", false],
+		["decisions", true],
+		["values", false],
+		["values", true],
+	] as const) {
+		emitProgress = undefined;
+		click("Autofill");
+		await waitFor(() => !!emitProgress, "staged fill did not start");
+		const suggestions = { aiField: { value: "decision" }, aiScore: { value: 45 }, n: { value: 4 } };
+		emitProgress!({ ocrResults: [], suggestions }, "decisions");
+		await waitFor(
+			() => publication.aiField === "decision" && publication.aiScore === 45,
+			"decisions missing",
+		);
+		if (editStage === "values") {
+			emitProgress!({ ocrResults: [], suggestions }, "values");
+			await new Promise((resolve) => setTimeout(resolve, 30));
+		}
+		await write("aiField", "");
+		click("KI-Vorschlag verwerfen");
+		await waitFor(() => publication.aiScore === 2, "discard did not resume calculation");
+		if (editStage === "decisions") {
+			emitProgress!({ ocrResults: [], suggestions }, "values");
+		}
+		await new Promise((resolve) => setTimeout(resolve, 60));
+		if (publication.aiField !== "" || Number(publication.aiScore) !== 2) {
+			throw new Error("values stage undid a deletion or rejection after decisions");
+		}
+		finishFill!({
+			citationError,
+			ocrResults: [],
+			suggestions: {
+				aiField: {
+					citations: [{ quote: "decision", source: "mdscribe://input/notes" }],
+					value: "decision",
+				},
+				aiScore: { value: 45 },
+				// Evidence completion must not rewrite an already shown value.
+				n: { value: 999 },
+			},
+		});
+		await new Promise((resolve) => setTimeout(resolve, 60));
+		if (
+			publication.aiField !== "" ||
+			Number(publication.aiScore) !== 2 ||
+			Number(publication.n) !== 4
+		) {
+			throw new Error("citation completion undid a deletion or rejection");
+		}
+	}
+	stagedFill = false;
 
 	// A calc component that is calculated elsewhere links to its calculation instead of an input.
 	const reference = element.querySelector<HTMLButtonElement>(

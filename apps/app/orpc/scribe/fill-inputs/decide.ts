@@ -21,7 +21,7 @@ import {
 import type { DecisionOption, FieldQuestion } from "@/orpc/scribe/fill-inputs/questions";
 import type { FillInputsResult, InputField } from "@/orpc/scribe/types";
 
-interface Source {
+export interface FillInputSource {
 	source: string;
 	text: string;
 }
@@ -54,7 +54,7 @@ const documentText = (node: Node): string =>
 	node.type === "inline" ? visibleText(node) : node.children.map(documentText).join("\n");
 
 // Passages are only used to cite a decided value; the model sees the patient context.
-const collectPassages = (sources: Source[]) => {
+export const collectPassages = (sources: FillInputSource[]) => {
 	const evidence: { source: string; quote: string; text: string }[] = [];
 	for (const { source, text: original } of sources) {
 		const text = formatOcrTextForPrompt(original);
@@ -223,7 +223,7 @@ export const fillInputsWithDecisions = async ({
 	target: DecisionTarget;
 	onUsage?: (response: DecisionResponse) => void;
 	signal: AbortSignal;
-	sources: Source[];
+	sources: FillInputSource[];
 }): Promise<FillInputsResult["suggestions"]> => {
 	const passages = collectPassages(sources);
 	// Options cover all source text, including lines that cannot be cited.

@@ -379,7 +379,7 @@ export const InputPreviewSection = ({
 			audioFiles: FillInputsAudioFile[],
 			textContext: FillInputsTextContext,
 			contextFiles: FillInputsContextFile[],
-			onDecisions?: (result: FillInputsResult) => void,
+			onProgress?: (result: FillInputsResult, stage: "decisions" | "values") => void,
 		) => {
 			const textSourceSnapshot = createTextSourceSnapshot(textContext);
 			const submittedFileIds = new Set(contextFiles.map(({ id }) => id));
@@ -392,13 +392,15 @@ export const InputPreviewSection = ({
 			citationLocationsRef.current = new WeakMap();
 			// Citations of early decision-model answers must already be resolvable.
 			const rememberSources = ({ ocrResults }: FillInputsResult) => {
-				inputContextController.setContextFileOcrResults(ocrResults);
+				inputContextController.setContextFileOcrResults(
+					ocrResults,
+					contextFiles.map(({ id }) => id),
+				);
 				citationFilesRef.current = fileSourceSnapshot;
 				citationOcrResultsRef.current = new Map(
 					contextFiles.flatMap((contextFile, index) => {
 						const file = contextFile.id ? fileSourceSnapshot.get(contextFile.id) : undefined;
-						const ocrResult =
-							contextFile.kind === "ocr" ? contextFile.ocrResult : ocrResults[index];
+						const ocrResult = ocrResults[index] ?? contextFile.ocrResult;
 						return file && ocrResult ? [[file, ocrResult] as const] : [];
 					}),
 				);
@@ -413,12 +415,12 @@ export const InputPreviewSection = ({
 				templateInformation,
 				textContext,
 			});
-			for await (const { ocrResults, stage, suggestions } of events) {
-				rememberSources({ ocrResults, suggestions });
-				if (stage === "decisions") {
-					onDecisions?.({ ocrResults, suggestions });
+			for await (const event of events) {
+				rememberSources(event);
+				if (event.stage === "complete") {
+					complete = event;
 				} else {
-					complete = { ocrResults, suggestions };
+					onProgress?.(event, event.stage);
 				}
 			}
 			if (!complete) {

@@ -67,8 +67,8 @@ interface InputsProps {
 		audioFiles: FillInputsAudioFile[],
 		textContext: FillInputsTextContext,
 		contextFiles: FillInputsContextFile[],
-		/** Decision-model answers, shown while the LLM fills the remaining fields. */
-		onDecisions?: (result: FillInputsResult) => void,
+		/** Values appear before the separate citation pass finishes. */
+		onProgress?: (result: FillInputsResult, stage: "decisions" | "values") => void,
 	) => Promise<FillInputsResult>;
 	renderFillControls?: (props: {
 		onSubmit: (
@@ -99,6 +99,7 @@ interface FillInputSuggestion {
 }
 
 export interface FillInputsResult {
+	citationError?: boolean;
 	ocrResults: OcrResult[];
 	suggestions: Record<string, FillInputSuggestion>;
 }
@@ -1007,6 +1008,7 @@ export default function Inputs({
 	const [suggestedValues, setSuggestedValues] = useState<Record<string, SuggestedValue>>(
 		suggestedValuesProp ?? {},
 	);
+	const activeFillRef = useRef<{ edited: Set<string>; discarded: Set<string> } | null>(null);
 	const fieldRefs = useRef<FieldRefs>(new Map());
 	const scrollRanks = useMemo(() => collectScrollRanks(inputTags), [inputTags]);
 	const calculations = useMemo(() => {
@@ -1106,6 +1108,7 @@ export default function Inputs({
 	// explicit empty value instead of reviving its AI suggestion.
 	const handleInputChange = useCallback(
 		(key: string, value: unknown) => {
+			activeFillRef.current?.edited.add(key);
 			if (isEmptyValue(value) && calculations.has(key)) {
 				clearUserValue(key);
 				return;
@@ -1153,6 +1156,7 @@ export default function Inputs({
 					clearUserValue(fieldKey);
 					return;
 				}
+				activeFillRef.current?.discarded.add(fieldKey);
 				const nextSuggestions = withoutRecordKey(suggestedValues, fieldKey);
 				setSuggestedValues(nextSuggestions);
 				onSuggestedValuesChange?.(nextSuggestions);
@@ -1192,10 +1196,16 @@ export default function Inputs({
 				id: "fill-inputs",
 			});
 
-			// Each result replaces all earlier AI suggestions; manual values stay.
+			const fill = { discarded: new Set<string>(), edited: new Set<string>() };
+			activeFillRef.current = fill;
+			let valueSuggestions: Record<string, SuggestedValue> = {};
+			// New stages may fill new fields, but cannot undo edits made during this request.
 			const applySuggestions = (result: FillInputsResult) => {
 				const nextSuggestions: Record<string, SuggestedValue> = {};
 				for (const [field, suggestion] of Object.entries(result.suggestions)) {
+					if (fill.discarded.has(field)) {
+						continue;
+					}
 					const normalizedValue = normalizeFillInputsValue(
 						suggestion.value,
 						fillInputMeta.get(field),
@@ -1210,46 +1220,80 @@ export default function Inputs({
 					};
 				}
 
+				valueSuggestions = nextSuggestions;
 				setSuggestedValues(nextSuggestions);
 				onSuggestedValuesChange?.(nextSuggestions);
 				// A field the user emptied takes a new suggestion; other manual values stay.
 				setUserValues((previous) =>
 					Object.fromEntries(
 						Object.entries(previous).filter(
-							([field, value]) => !(isEmptyValue(value) && field in nextSuggestions),
+							([field, value]) =>
+								fill.edited.has(field) || !(isEmptyValue(value) && field in nextSuggestions),
 						),
 					),
 				);
 			};
-			let hasDecisions = false;
+			let hasProgress = false;
 			try {
 				const result = await onFillInputs(
 					fillInputFields,
 					audioFiles,
 					textContext,
 					contextFiles,
-					(decisions) => {
-						hasDecisions = true;
-						applySuggestions(decisions);
+					(progress, stage) => {
+						hasProgress = true;
+						applySuggestions(progress);
 						toast.loading(
-							`${Object.keys(decisions.suggestions).length} Felder übernommen, weitere werden ausgefüllt...`,
+							stage === "values"
+								? "Felder ausgefüllt, Quellen werden ergänzt..."
+								: `${Object.keys(progress.suggestions).length} Felder übernommen, weitere werden ausgefüllt...`,
 							{ id: "fill-inputs" },
 						);
 					},
 				);
-				applySuggestions(result);
-				toast.success("Felder ausgefüllt", {
-					id: "fill-inputs",
-				});
+				if (hasProgress) {
+					// Completion enriches only the values already shown, never resurrects or rewrites them.
+					const citedSuggestions = Object.fromEntries(
+						Object.entries(valueSuggestions).flatMap(([field, suggestion]) => {
+							if (fill.discarded.has(field)) {
+								return [];
+							}
+							const annotation = result.suggestions[field];
+							const unchanged = Object.is(
+								suggestion.value,
+								normalizeFillInputsValue(annotation?.value, fillInputMeta.get(field)),
+							);
+							return [
+								[
+									field,
+									unchanged ? { ...suggestion, citations: annotation.citations } : suggestion,
+								],
+							];
+						}),
+					);
+					setSuggestedValues(citedSuggestions);
+					onSuggestedValuesChange?.(citedSuggestions);
+				} else {
+					applySuggestions(result);
+				}
+				if (result.citationError) {
+					toast.error("Felder ausgefüllt; Quellen konnten nicht ergänzt werden.", {
+						id: "fill-inputs",
+					});
+				} else {
+					toast.success("Felder ausgefüllt", { id: "fill-inputs" });
+				}
 			} catch (error) {
 				const errorMessage = error instanceof Error ? error.message : "Unbekannter Fehler";
-				// Already shown decision-model answers stay.
+				// Already shown values stay, including when the citation stream disconnects.
 				toast.error(
-					hasDecisions
+					hasProgress
 						? `Weitere Felder konnten nicht ausgefüllt werden: ${errorMessage}`
 						: `Ausfüllen fehlgeschlagen: ${errorMessage}`,
 					{ id: "fill-inputs" },
 				);
+			} finally {
+				activeFillRef.current = null;
 			}
 		},
 		[fillInputFields, fillInputMeta, onFillInputs, onSuggestedValuesChange],

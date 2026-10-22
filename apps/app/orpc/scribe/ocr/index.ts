@@ -46,26 +46,31 @@ const createOcrAdapter = ({
 export const extractOcrDocument = async ({
 	data,
 	mimeType,
+	signal,
 	...adapterInput
 }: {
 	data: Buffer;
 	mimeType: string;
+	signal?: AbortSignal;
 	modelSelection: ResolvedOcrSelection;
 	/** Called once per vision-model request so callers can log token usage. */
 	onModelUsage?: LlmOcrUsageCallback;
 	userId: string;
 	zdr?: boolean;
 }): Promise<OcrResult> => {
+	signal?.throwIfAborted();
 	const adapter = createOcrAdapter(adapterInput);
 	if (adapter.kind === "document") {
-		return adapter.recognizeDocument(data, mimeType);
+		return adapter.recognizeDocument(data, mimeType, signal);
 	}
 	const pages: OcrPage[] = [];
 	const texts: string[] = [];
 	try {
 		// Sequential: bounds memory and provider concurrency for long PDFs.
-		for await (const pageImage of renderPageImages(data, mimeType)) {
-			const result = await adapter.recognizePage(pageImage);
+		for await (const pageImage of renderPageImages(data, mimeType, signal)) {
+			signal?.throwIfAborted();
+			const result = await adapter.recognizePage(pageImage, signal);
+			signal?.throwIfAborted();
 			texts.push(result.text);
 			if (result.page) {
 				pages.push(result.page);

@@ -10,7 +10,7 @@ import type { ResolvedOcrServiceSelection } from "@/orpc/scribe/providers";
 export const createHttpOcrAdapter = (model: ResolvedOcrServiceSelection["model"]): OcrAdapter => ({
 	backend: "ocr-http",
 	kind: "page",
-	recognizePage: async ({ image, imageHeight, imageWidth, page }) => {
+	recognizePage: async ({ image, imageHeight, imageWidth, page }, signal) => {
 		const body = new FormData();
 		body.append("file", new Blob([new Uint8Array(image)], { type: "image/jpeg" }), "page.jpg");
 		body.append("language", "de");
@@ -20,7 +20,9 @@ export const createHttpOcrAdapter = (model: ResolvedOcrServiceSelection["model"]
 			method: "POST",
 			// Never forward page images and the bearer token to a redirect target.
 			redirect: "error",
-			signal: AbortSignal.timeout(120_000),
+			signal: signal
+				? AbortSignal.any([signal, AbortSignal.timeout(120_000)])
+				: AbortSignal.timeout(120_000),
 		})
 			.then(async (res) => {
 				if (!res.ok) {
@@ -33,6 +35,7 @@ export const createHttpOcrAdapter = (model: ResolvedOcrServiceSelection["model"]
 				);
 			})
 			.catch((error: unknown) => {
+				signal?.throwIfAborted();
 				// Log only the failure type: response bodies may contain document text.
 				console.warn("OCR service request failed", {
 					name: error instanceof Error ? error.name : "UnknownError",

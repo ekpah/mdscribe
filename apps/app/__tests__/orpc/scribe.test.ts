@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, setSystemTime, spyOn, test } f
 
 import { ORPCError, call } from "@orpc/server";
 import { aiDefaults, aiModel, aiProvider, eq, usageEvent } from "@repo/database";
+import * as ai from "ai";
 import { z } from "zod";
 
 import { aiMockState } from "@/__tests__/preload";
@@ -976,8 +977,8 @@ describe("Fill Inputs Handler", () => {
 		expect(messages[1].content).toContain(
 			`<input_fields>\n${JSON.stringify(inputFields)}\n</input_fields>`,
 		);
-		expect(messages[0].content).toContain("bevorzuge die einzelnen Komponenten");
-		expect(messages[0].content).toContain("Wert hat Vorrang vor der Berechnung");
+		expect(messages[0].content).toContain("ansonsten berechnet die Anwendung aus den Komponenten");
+		expect(messages[0].content).toContain("Explizite Ergebnisse haben Vorrang");
 	});
 
 	test("combines finite-choice values and literal citations with uncertain/text LLM fallback", async () => {
@@ -1129,6 +1130,12 @@ describe("Fill Inputs Handler", () => {
 				},
 			];
 			aiMockState.nextGenerateTextOutput = { suggestions: remaining };
+			const annotations = [
+				{ field: "RV_Diastole", passages: [2] },
+				{ field: "Beurteilung", passages: [6] },
+				{ field: "Infusionsrate", passages: [8] },
+			];
+			aiMockState.nextCitationOutput = { annotations };
 			const result = await call(fillInputsHandler, input, { context });
 			expect(result.suggestions).toEqual({
 				Aufnahme: {
@@ -1161,7 +1168,7 @@ describe("Fill Inputs Handler", () => {
 					value: 6,
 				},
 				RV_Diastole: {
-					citations: [{ quote: "RV mmHg\n49 / 2 (19)", source: "mdscribe://input/notes" }],
+					citations: [{ quote: "* RV mmHg\n* 49 / 2 (19)", source: "mdscribe://input/notes" }],
 					value: 2,
 				},
 				Thrombose: {
@@ -1179,14 +1186,16 @@ describe("Fill Inputs Handler", () => {
 			});
 			// The stream shows decision-model answers before the LLM has filled the rest.
 			aiMockState.nextGenerateTextOutput = { suggestions: remaining };
+			aiMockState.nextCitationOutput = { annotations };
 			const events: FillInputsEvent[] = [];
 			for await (const event of await call(fillInputsStreamHandler, input, { context })) {
 				events.push(event);
 			}
-			expect(events.map(({ stage }) => stage)).toEqual(["decisions", "complete"]);
+			expect(events.map(({ stage }) => stage)).toEqual(["decisions", "values", "complete"]);
 			expect(events[0].suggestions.PAWP.value).toBe(-3.7);
 			expect(events[0].suggestions).not.toHaveProperty("Beurteilung");
-			expect(events[1].suggestions).toEqual(result.suggestions);
+			expect(events[1].suggestions.Beurteilung).toEqual({ value: "PH" });
+			expect(events[2].suggestions).toEqual(result.suggestions);
 			// If all fields are decided, an invalid fallback output must never be needed.
 			aiMockState.nextGenerateTextOutput = { invalid: true };
 			const finiteOnly = await call(
@@ -1237,11 +1246,25 @@ describe("Fill Inputs Handler", () => {
 						})),
 				],
 			};
+			aiMockState.nextCitationOutput = {
+				annotations: [
+					...annotations,
+					{ field: "PAWP", passages: [1] },
+					{ field: "ZVD", passages: [3] },
+					{ field: "RA", passages: [4] },
+					{ field: "Zugang", passages: [5] },
+					{ field: "Thrombose", passages: [7] },
+					{ field: "Aufnahme", passages: [9] },
+					{ field: "Kontrolle", passages: [10] },
+					{ field: "Geburtsdatum", passages: [12] },
+				],
+			};
 			const fallback = await call(fillInputsHandler, input, { context });
 			expect(fallback.suggestions).toEqual(result.suggestions);
 		} finally {
 			setSystemTime();
 			delete aiMockState.nextGenerateTextOutput;
+			delete aiMockState.nextCitationOutput;
 			fetchSpy.mockRestore();
 			await server.close();
 		}
@@ -1428,6 +1451,9 @@ describe("Fill Inputs Handler", () => {
 					},
 				],
 			};
+			aiMockState.nextCitationOutput = {
+				annotations: [{ field: "Aufnahmediagnose", passages: [1] }],
+			};
 			const result = await call(
 				fillInputsHandler,
 				{
@@ -1487,6 +1513,370 @@ describe("Fill Inputs Handler", () => {
 				},
 			});
 		} finally {
+			await server.close();
+		}
+	});
+
+	test("streams inferred values before evidence and preserves them if citation enrichment fails", async () => {
+		const server = await startTestServer("fill-inputs-citation-pass");
+		try {
+			await createTestAiDefaults(server.db);
+			const { user } = await createTestUser(server.db);
+			const context = createTestContext({ db: server.db, session: createMockSession(user) });
+			const input = {
+				inputFields: [
+					{ label: "tlc_abs", type: "number" as const },
+					{ label: "beurteilung", type: "string" as const },
+					{ label: "dlco", type: "number" as const },
+				],
+				textContext: { befunde: "TLC: 3,78 L (92 %), z-score: -0,55", notes: "FEV1/FVC: 81,26 %" },
+			};
+			const values = {
+				beurteilung: { value: "Keine Obstruktion, keine Restriktion." },
+				tlc_abs: { value: 3.78 },
+			};
+			const generated = {
+				suggestions: Object.entries(values).map(([field, suggestion]) => ({
+					field,
+					...suggestion,
+				})),
+			};
+			aiMockState.nextGenerateTextOutput = generated;
+			aiMockState.nextCitationOutput = {
+				annotations: [
+					{ field: "tlc_abs", passages: [1], value: 999 },
+					{ field: "beurteilung", passages: [2, 1, 2, 0, 3, 1.5], value: "rewritten" },
+					{ field: "injected", passages: [1] },
+				],
+			};
+			const events: FillInputsEvent[] = [];
+			for await (const event of await call(fillInputsStreamHandler, input, { context })) {
+				events.push(event);
+			}
+			expect(events.map(({ stage }) => stage)).toEqual(["values", "complete"]);
+			expect(events[0].suggestions).toEqual(values);
+			expect(events[1].suggestions).toEqual({
+				beurteilung: {
+					...values.beurteilung,
+					citations: [
+						{ quote: input.textContext.notes, source: "mdscribe://input/notes" },
+						{ quote: input.textContext.befunde, source: "mdscribe://input/befunde" },
+					],
+				},
+				tlc_abs: {
+					citations: [{ quote: input.textContext.befunde, source: "mdscribe://input/befunde" }],
+					value: 3.78,
+				},
+			});
+			aiMockState.nextGenerateTextOutput = generated;
+			aiMockState.citationError = new Error("Citation provider unavailable");
+			const fallback = await call(fillInputsHandler, input, { context });
+			expect(fallback).toEqual({ citationError: true, ocrResults: [], suggestions: values });
+		} finally {
+			delete aiMockState.citationError;
+			delete aiMockState.nextGenerateTextOutput;
+			delete aiMockState.nextCitationOutput;
+			await server.close();
+		}
+	});
+
+	test("adds native-file citations only after the vision model has supplied values", async () => {
+		const server = await startTestServer("fill-inputs-native-citations");
+		try {
+			await createTestAiDefaults(server.db);
+			await server.db
+				.update(aiDefaults)
+				.set({ defaultFileImageModelId: null, defaultStandardSupportsDocuments: true })
+				.where(eq(aiDefaults.id, "global"));
+			const { user } = await createTestUser(server.db);
+			const context = createTestContext({ db: server.db, session: createMockSession(user) });
+			aiMockState.nextGenerateTextOutput = {
+				suggestions: [{ field: "Befund", value: "Unauffällig" }],
+			};
+			aiMockState.nextOcrOutput = { text: "Befund: Unauffällig" };
+			aiMockState.nextCitationOutput = { annotations: [{ field: "Befund", passages: [1] }] };
+			const events: FillInputsEvent[] = [];
+			const input = {
+				contextFiles: [
+					{
+						data: "iVBORw0KGgoAAAANSUhEUgAAAEAAAABAAQAAAACCEkxzAAAAEklEQVQoz2P4DwUMo4xRBukMAOPT/hB1CzVqAAAAAElFTkSuQmCC",
+						id: "native-file",
+						mimeType: "image/png",
+						name: "befund.png",
+						size: 75,
+					},
+				],
+				inputFields: [{ label: "Befund", type: "string" as const }],
+			};
+			for await (const event of await call(fillInputsStreamHandler, input, { context })) {
+				events.push(event);
+			}
+			expect(events[0]).toEqual({
+				ocrResults: [],
+				stage: "values",
+				suggestions: { Befund: { value: "Unauffällig" } },
+			});
+			expect(events[1]).toMatchObject({
+				ocrResults: [{ text: "Befund: Unauffällig" }],
+				stage: "complete",
+				suggestions: {
+					Befund: {
+						citations: [{ quote: "Befund: Unauffällig", source: "mdscribe://file/native-file" }],
+						value: "Unauffällig",
+					},
+				},
+			});
+			// Native bytes still reach generation, but the next evidence pass reuses submitted OCR.
+			const beforeRepeat = aiMockState.generateTextCallCount;
+			aiMockState.nextGenerateTextOutput = {
+				suggestions: [{ field: "Befund", value: "Unauffällig" }],
+			};
+			aiMockState.nextOcrOutput = { text: "This must not replace the cached transcription" };
+			aiMockState.nextCitationOutput = { annotations: [{ field: "Befund", passages: [1] }] };
+			const repeated = await call(
+				fillInputsHandler,
+				{
+					...input,
+					contextFiles: [{ ...input.contextFiles[0], ocrResult: events[1].ocrResults[0] }],
+				},
+				{ context },
+			);
+			expect(repeated).toEqual({
+				ocrResults: events[1].ocrResults,
+				suggestions: events[1].suggestions,
+			});
+			// Generation + annotation, no additional OCR request.
+			expect(aiMockState.generateTextCallCount - beforeRepeat).toBe(2);
+			const beforeEmpty = aiMockState.generateTextCallCount;
+			aiMockState.nextGenerateTextOutput = { suggestions: [] };
+			const empty = await call(fillInputsHandler, input, { context });
+			expect(empty).toEqual({ ocrResults: [], suggestions: {} });
+			expect(aiMockState.generateTextCallCount - beforeEmpty).toBe(1);
+		} finally {
+			delete aiMockState.nextGenerateTextOutput;
+			delete aiMockState.nextOcrOutput;
+			delete aiMockState.nextCitationOutput;
+			await server.close();
+		}
+	});
+
+	test("keeps completed native OCR when a later file fails and reuses it on retry", async () => {
+		const server = await startTestServer("fill-native-partial-ocr");
+		const originalGenerate = ai.generateText;
+		let ocrCalls = 0;
+		const modelSpy = spyOn(ai, "generateText").mockImplementation((options) => {
+			if (JSON.stringify(options.messages).includes("You are an OCR engine")) {
+				ocrCalls += 1;
+				if (ocrCalls === 2) {
+					throw new Error("Second document unavailable");
+				}
+			}
+			return originalGenerate(options);
+		});
+		try {
+			await createTestAiDefaults(server.db);
+			await server.db
+				.update(aiDefaults)
+				.set({ defaultFileImageModelId: null, defaultStandardSupportsDocuments: true })
+				.where(eq(aiDefaults.id, "global"));
+			const { user } = await createTestUser(server.db);
+			const context = createTestContext({ db: server.db, session: createMockSession(user) });
+			const input = {
+				contextFiles: ["first", "second"].map((id) => ({
+					data: "iVBORw0KGgoAAAANSUhEUgAAAEAAAABAAQAAAACCEkxzAAAAEklEQVQoz2P4DwUMo4xRBukMAOPT/hB1CzVqAAAAAElFTkSuQmCC",
+					id,
+					mimeType: "image/png",
+					name: `${id}.png`,
+					size: 75,
+				})),
+				inputFields: [{ label: "Befund", type: "string" as const }],
+			};
+			const generated = { suggestions: [{ field: "Befund", value: "Unauffällig" }] };
+			aiMockState.nextGenerateTextOutput = generated;
+			aiMockState.nextOcrOutput = { text: "Erster Befund: Unauffällig" };
+			const partial = await call(fillInputsHandler, input, { context });
+			expect(partial).toEqual({
+				citationError: true,
+				ocrResults: [{ backend: "llm", text: "Erster Befund: Unauffällig" }],
+				suggestions: { Befund: { value: "Unauffällig" } },
+			});
+			expect(ocrCalls).toBe(2);
+			aiMockState.nextGenerateTextOutput = generated;
+			aiMockState.nextOcrOutput = { text: "Zweiter Befund: Unauffällig" };
+			aiMockState.nextCitationOutput = { annotations: [{ field: "Befund", passages: [2] }] };
+			const repeated = await call(
+				fillInputsHandler,
+				{
+					...input,
+					contextFiles: input.contextFiles.map((file, index) => ({
+						...file,
+						...(partial.ocrResults[index] ? { ocrResult: partial.ocrResults[index] } : {}),
+					})),
+				},
+				{ context },
+			);
+			expect(ocrCalls).toBe(3);
+			expect(repeated.ocrResults.map(({ text }) => text)).toEqual([
+				"Erster Befund: Unauffällig",
+				"Zweiter Befund: Unauffällig",
+			]);
+			expect(repeated.suggestions.Befund).toEqual({
+				citations: [{ quote: "Zweiter Befund: Unauffällig", source: "mdscribe://file/second" }],
+				value: "Unauffällig",
+			});
+		} finally {
+			modelSpy.mockRestore();
+			delete aiMockState.nextGenerateTextOutput;
+			delete aiMockState.nextOcrOutput;
+			delete aiMockState.nextCitationOutput;
+			await server.close();
+		}
+	});
+
+	test.each(["caller", "budget"] as const)(
+		"stops native evidence extraction on %s abort and keeps streamed values",
+		async (abortSource) => {
+			const server = await startTestServer("fill-native-abort");
+			const caller = new AbortController();
+			const budget = new AbortController();
+			const started = Promise.withResolvers<AbortSignal>();
+			const originalGenerate = ai.generateText;
+			const originalTimeout = AbortSignal.timeout.bind(AbortSignal);
+			let ocrCalls = 0;
+			const timeoutSpy = spyOn(AbortSignal, "timeout").mockImplementation((ms) =>
+				ms === 30_000 ? budget.signal : originalTimeout(ms),
+			);
+			const modelSpy = spyOn(ai, "generateText").mockImplementation((options) => {
+				if (JSON.stringify(options.messages).includes("You are an OCR engine")) {
+					ocrCalls += 1;
+					const signal = options.abortSignal;
+					if (!signal) {
+						throw new Error("OCR request must be cancellable");
+					}
+					started.resolve(signal);
+					const pending = Promise.withResolvers<never>();
+					signal.addEventListener("abort", () => pending.reject(signal.reason), { once: true });
+					return pending.promise;
+				}
+				return originalGenerate(options);
+			});
+			try {
+				await createTestAiDefaults(server.db);
+				await server.db
+					.update(aiDefaults)
+					.set({ defaultFileImageModelId: null, defaultStandardSupportsDocuments: true })
+					.where(eq(aiDefaults.id, "global"));
+				const { user } = await createTestUser(server.db);
+				const context = createTestContext({ db: server.db, session: createMockSession(user) });
+				aiMockState.nextGenerateTextOutput = {
+					suggestions: [{ field: "Befund", value: "Unauffällig" }],
+				};
+				const stream = await call(
+					fillInputsStreamHandler,
+					{
+						contextFiles: ["first", "second"].map((id) => ({
+							data: "iVBORw0KGgoAAAANSUhEUgAAAEAAAABAAQAAAACCEkxzAAAAEklEQVQoz2P4DwUMo4xRBukMAOPT/hB1CzVqAAAAAElFTkSuQmCC",
+							id,
+							mimeType: "image/png",
+							name: `${id}.png`,
+							size: 75,
+						})),
+						inputFields: [{ label: "Befund", type: "string" }],
+					},
+					{ context, signal: caller.signal },
+				);
+				const first = await stream.next();
+				expect(first.value).toMatchObject({
+					stage: "values",
+					suggestions: { Befund: { value: "Unauffällig" } },
+				});
+				const pending = (async () => {
+					try {
+						return { error: undefined, value: await stream.next() };
+					} catch (error) {
+						return { error, value: undefined };
+					}
+				})();
+				const modelSignal = await started.promise;
+				(abortSource === "caller" ? caller : budget).abort(
+					new DOMException("Evidence stopped", "AbortError"),
+				);
+				const outcome = await pending;
+				expect(modelSignal.aborted).toBe(true);
+				expect(ocrCalls).toBe(1);
+				if (abortSource === "caller") {
+					expect(outcome.error).toBeDefined();
+				} else {
+					expect(outcome.value?.value).toMatchObject({
+						citationError: true,
+						stage: "complete",
+						suggestions: first.value?.suggestions,
+					});
+				}
+			} finally {
+				caller.abort();
+				budget.abort();
+				modelSpy.mockRestore();
+				timeoutSpy.mockRestore();
+				delete aiMockState.nextGenerateTextOutput;
+				await server.close();
+			}
+		},
+	);
+
+	test("returns completed autofill even when usage logging fails", async () => {
+		const server = await startTestServer("fill-inputs-logging-failure");
+		try {
+			await createTestAiDefaults(server.db);
+			const { user } = await createTestUser(server.db);
+			const context = createTestContext({ db: server.db, session: createMockSession(user) });
+			aiMockState.nextGenerateTextOutput = {
+				suggestions: [
+					{
+						citations: [{ quote: "Unauffällig", source: 1 }],
+						field: "Befund",
+						value: "Unauffällig",
+					},
+				],
+			};
+			aiMockState.nextCitationOutput = { annotations: [{ field: "Befund", passages: [1] }] };
+			const insertSpy = spyOn(server.db, "insert").mockImplementation(() => {
+				throw new Error("Usage database unavailable");
+			});
+			try {
+				const events: FillInputsEvent[] = [];
+				for await (const event of await call(
+					fillInputsStreamHandler,
+					{
+						inputFields: [{ label: "Befund", type: "string" }],
+						textContext: { notes: "Unauffällig" },
+					},
+					{ context },
+				)) {
+					events.push(event);
+				}
+				expect(events).toEqual([
+					{
+						ocrResults: [],
+						stage: "values",
+						suggestions: { Befund: { value: "Unauffällig" } },
+					},
+					{
+						ocrResults: [],
+						stage: "complete",
+						suggestions: {
+							Befund: {
+								citations: [{ quote: "Unauffällig", source: "mdscribe://input/notes" }],
+								value: "Unauffällig",
+							},
+						},
+					},
+				]);
+			} finally {
+				insertSpy.mockRestore();
+			}
+		} finally {
+			delete aiMockState.nextGenerateTextOutput;
 			await server.close();
 		}
 	});
@@ -1666,7 +2056,6 @@ describe("Fill Inputs Handler", () => {
 				"Seite Punktion": { value: "rechts" },
 			};
 			const suggestionItems = Object.entries(sparseSuggestions).map(([field, suggestion]) => ({
-				citations: [],
 				field,
 				...suggestion,
 			}));

@@ -73,6 +73,7 @@ const recognizeDocument = async (
 	data: Buffer,
 	mimeType: string,
 	model: ResolvedOcrServiceSelection["model"],
+	signal?: AbortSignal,
 ): Promise<OcrResult> => {
 	if (!model.apiKey) {
 		throw new Error("Mistral OCR API key is missing");
@@ -94,7 +95,9 @@ const recognizeDocument = async (
 		}),
 		headers: { Authorization: `Bearer ${model.apiKey}`, "Content-Type": "application/json" },
 		method: "POST",
-		signal: AbortSignal.timeout(120_000),
+		signal: signal
+			? AbortSignal.any([signal, AbortSignal.timeout(120_000)])
+			: AbortSignal.timeout(120_000),
 	});
 	// Do not echo provider bodies: they can contain document content.
 	if (response.status === 429) {
@@ -172,5 +175,5 @@ export const createMistralOcrAdapter = (
 	model: ResolvedOcrServiceSelection["model"],
 ): OcrAdapter => ({
 	kind: "document",
-	recognizeDocument: (data, mimeType) => recognizeDocument(data, mimeType, model),
+	recognizeDocument: (data, mimeType, signal) => recognizeDocument(data, mimeType, model, signal),
 });

@@ -95,8 +95,9 @@ export const createPrivatemodeOcrAdapter = (
 		backend: "privatemode-ocr",
 		close: () => client?.close(),
 		kind: "page",
-		recognizePage: async ({ image, page }) => {
+		recognizePage: async ({ image, page }, signal) => {
 			client ??= await createPrivatemodeOcrClient(model.apiKey, model.endpoint);
+			signal?.throwIfAborted();
 			let response: Awaited<ReturnType<PrivatemodeAI["chat"]["completions"]["create"]>>;
 			try {
 				// The official SDK attests and encrypts lazily. Never fall back to raw HTTP.
@@ -116,9 +117,14 @@ export const createPrivatemodeOcrAdapter = (
 						],
 						model: OCR_MODEL_IDS["privatemode-ocr"],
 					},
-					{ signal: AbortSignal.timeout(120_000) },
+					{
+						signal: signal
+							? AbortSignal.any([signal, AbortSignal.timeout(120_000)])
+							: AbortSignal.timeout(120_000),
+					},
 				);
 			} catch {
+				signal?.throwIfAborted();
 				throw new Error("Die Privatemode-OCR-Anfrage ist fehlgeschlagen.");
 			}
 			const [choice] = response.choices;

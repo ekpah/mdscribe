@@ -71,7 +71,7 @@ export interface InputContextController {
 	) => Promise<UploadedContextFile | null>;
 	setAudioRecordings: (recordings: AudioRecording[]) => void;
 	setContextFiles: (files: UploadedContextFile[]) => void;
-	setContextFileOcrResults: (results: OcrResult[]) => void;
+	setContextFileOcrResults: (results: OcrResult[], fileIds?: (string | undefined)[]) => void;
 	setTextContext: (textContext: InputContextTextContext) => void;
 	textContext: InputContextTextContext;
 }

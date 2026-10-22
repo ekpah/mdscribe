@@ -76,9 +76,9 @@ test("native vision is used only without a selected document model", async () =>
 				continue;
 			}
 			const result = await request;
-			expect(result.suggestions).toEqual({
-				Age: { citations: [{ quote: "Age 42", source: "mdscribe://file/native" }], value: 42 },
-			});
+			// Native generation succeeds before the optional evidence phase hits the OCR error.
+			expect(result.suggestions).toEqual({ Age: { value: 42 } });
+			expect(result.citationError).toBe(true);
 			expect(result.ocrResults).toEqual([]);
 			const options = aiMockState.lastGenerateTextOptions as { messages: { content: unknown }[] };
 			expect(JSON.stringify(options.messages)).not.toContain("mdscribe://");
@@ -202,11 +202,6 @@ test("upload OCR uses the OCR slot and every generation consumer reuses the unsi
 			{ quote: "History", source: "mdscribe://input/anamnese" },
 			{ quote: "Second", source: "mdscribe://file/second" },
 		];
-		const modelCitations = [
-			{ quote: "Recognized", source: 2 },
-			{ quote: "History", source: 1 },
-			{ quote: "Second", source: 3 },
-		];
 		const suggestions = {
 			Finding: { citations, value: "Recognized / History / Second" },
 		};
@@ -226,12 +221,9 @@ test("upload OCR uses the OCR slot and every generation consumer reuses the unsi
 			textContext: { anamnese: "History", notes: " " },
 		};
 		aiMockState.nextGenerateTextOutput = {
-			suggestions: Object.entries(suggestions).map(([field, suggestion]) => ({
-				field,
-				...suggestion,
-				citations: modelCitations,
-			})),
+			suggestions: [{ field: "Finding", value: suggestions.Finding.value }],
 		};
+		aiMockState.nextCitationOutput = { annotations: [{ field: "Finding", passages: [2, 1, 3] }] };
 		const filled = await call(fillInputsHandler, fillInput, { context });
 		expect(filled.suggestions).toEqual(suggestions);
 		expect(filled.ocrResults).toEqual([uploaded.result, secondResult]);
@@ -246,10 +238,9 @@ test("upload OCR uses the OCR slot and every generation consumer reuses the unsi
 		}
 		// Numbers belong to this request, not filenames or a previous request's ordering.
 		aiMockState.nextGenerateTextOutput = {
-			suggestions: [
-				{ citations: [{ quote: "Second", source: 1 }], field: "Finding", value: "Second" },
-			],
+			suggestions: [{ field: "Finding", value: "Second" }],
 		};
+		aiMockState.nextCitationOutput = { annotations: [{ field: "Finding", passages: [1] }] };
 		const reordered = await call(
 			fillInputsHandler,
 			{
@@ -262,30 +253,13 @@ test("upload OCR uses the OCR slot and every generation consumer reuses the unsi
 		expect(reordered.suggestions).toEqual({
 			Finding: { citations: [citations[2]], value: "Second" },
 		});
-		// Those constraints still apply to the model response at the public handler boundary.
-		for (const invalidCitations of [
-			[citations[0]],
-			[{ quote: "Recognized", source: "mdscribe://file/unsubmitted" }],
-			...[-1, 0, 1.5, 4, "2"].map((source) => [{ quote: "Recognized", source }]),
-			[{ ...modelCitations[0], quote: "" }],
-			[{ ...modelCitations[0], quote: "x".repeat(4001) }],
-			[],
-			Array.from({ length: 11 }, () => modelCitations[0]),
-		]) {
-			aiMockState.nextGenerateTextOutput = {
-				suggestions: [{ citations: invalidCitations, field: "Finding", value: "Recognized" }],
-			};
-			await expect(call(fillInputsHandler, fillInput, { context })).rejects.toThrow(
-				"Die Modellantwort entspricht nicht dem erwarteten Schema",
-			);
-		}
+		// Value constraints still apply independently of whether evidence is available.
 		for (const invalidSuggestions of [
-			[{ citations: modelCitations, field: "Unsubmitted", value: "text" }],
-			[{ citations: modelCitations, field: "Finding", value: true }],
-			[{ field: "Finding", value: "Recognized" }],
+			[{ field: "Unsubmitted", value: "text" }],
+			[{ field: "Finding", value: true }],
 			[
-				{ citations: modelCitations, field: "Age", value: 42 },
-				{ citations: modelCitations, field: "Age", value: 43 },
+				{ field: "Age", value: 42 },
+				{ field: "Age", value: 43 },
 			],
 		]) {
 			aiMockState.nextGenerateTextOutput = { suggestions: invalidSuggestions };

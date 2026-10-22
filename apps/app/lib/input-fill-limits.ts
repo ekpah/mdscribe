@@ -39,7 +39,8 @@ export const getBase64DecodedByteLength = (value: string | undefined): number =>
 export const getContextDocumentPayloadByteLength = (file: ContextDocument): number =>
 	file.kind === "ocr"
 		? new TextEncoder().encode(JSON.stringify(file)).byteLength
-		: getBase64DecodedByteLength(file.data);
+		: getBase64DecodedByteLength(file.data) +
+			(file.ocrResult ? new TextEncoder().encode(JSON.stringify(file.ocrResult)).byteLength : 0);
 
 export const formatPayloadBytes = (bytes: number): string => {
 	if (bytes >= 1024 * 1024) {

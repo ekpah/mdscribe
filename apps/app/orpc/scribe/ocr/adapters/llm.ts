@@ -104,11 +104,14 @@ export const createLlmOcrAdapter = ({
 }): OcrAdapter => ({
 	backend: "llm",
 	kind: "page",
-	recognizePage: async ({ image }) => {
+	recognizePage: async ({ image }, signal) => {
 		const openRouterReasoningEffort = await minimumOpenRouterReasoning(modelSelection);
+		signal?.throwIfAborted();
 		const generated = await generateText({
 			// One time budget for the request and the SDK's retries of transient errors.
-			abortSignal: AbortSignal.timeout(120_000),
+			abortSignal: signal
+				? AbortSignal.any([signal, AbortSignal.timeout(120_000)])
+				: AbortSignal.timeout(120_000),
 			maxOutputTokens: 24_000,
 			messages: [
 				{ content: OCR_PROMPT, role: "system" },
@@ -126,6 +129,7 @@ export const createLlmOcrAdapter = ({
 			}),
 			temperature: modelSelection.defaultTemperature ?? 0,
 		}).catch((error: unknown) => {
+			signal?.throwIfAborted();
 			// SDK errors may embed the source image or generated medical content.
 			console.warn("OCR model request failed", {
 				name: error instanceof Error ? error.name : "UnknownError",

@@ -80,6 +80,7 @@ interface FillInputSuggestion {
 }
 
 export interface FillInputsResult {
+	citationError?: boolean;
 	ocrResults: OcrResult[];
 	suggestions: Record<string, FillInputSuggestion>;
 }

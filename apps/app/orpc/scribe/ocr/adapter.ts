@@ -32,9 +32,13 @@ export type OcrAdapter =
 			/** Releases per-document resources after the last page. */
 			close?: () => void;
 			kind: "page";
-			recognizePage: (page: OcrPageImage) => Promise<OcrPageResult>;
+			recognizePage: (page: OcrPageImage, signal?: AbortSignal) => Promise<OcrPageResult>;
 	  }
 	| {
 			kind: "document";
-			recognizeDocument: (data: Buffer, mimeType: string) => Promise<OcrResult>;
+			recognizeDocument: (
+				data: Buffer,
+				mimeType: string,
+				signal?: AbortSignal,
+			) => Promise<OcrResult>;
 	  };

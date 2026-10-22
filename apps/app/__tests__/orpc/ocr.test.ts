@@ -6,7 +6,10 @@ import { eq, usageEvent } from "@repo/database";
 import { aiMockState, ocrMockState } from "@/__tests__/preload";
 import { createTestUser, startTestServer } from "@/__tests__/setup";
 import { AI_SCRIBE_OCR_EVENT_NAME } from "@/lib/usage-event-names";
-import { extractContextFileText } from "@/orpc/scribe/handlers/context-file-input";
+import {
+	extractContextFiles,
+	extractContextFileText,
+} from "@/orpc/scribe/handlers/context-file-input";
 import { extractOcrDocument } from "@/orpc/scribe/ocr";
 import { createHttpOcrAdapter } from "@/orpc/scribe/ocr/adapters/ocr-http";
 import type {
@@ -107,6 +110,47 @@ afterEach(() => {
 });
 
 describe("OCR module", () => {
+	test("cancels an in-flight OCR request without starting more pages or files", async () => {
+		useNativePages();
+		const controller = new AbortController();
+		const reason = new Error("OCR cancelled by caller");
+		const response = Promise.withResolvers<Response>();
+		let calls = 0;
+		const service = Bun.serve({
+			fetch() {
+				calls += 1;
+				controller.abort(reason);
+				return response.promise;
+			},
+			hostname: "127.0.0.1",
+			port: 0,
+		});
+		try {
+			const pending = extractContextFiles({
+				contextFiles: ["first", "second"].map((id) => ({
+					data: input.data.toString("base64"),
+					id,
+					mimeType: input.mimeType,
+					name: `${id}.pdf`,
+					size: input.data.length,
+				})),
+				modelSelection: {
+					...httpSelection,
+					model: { ...httpSelection.model, endpoint: `${service.url}ocr` },
+				},
+				signal: controller.signal,
+				userId: "test",
+			});
+			await expect(pending).rejects.toBe(reason);
+			expect(calls).toBe(1);
+			expect(ocrMockState.closed).toBe(1);
+		} finally {
+			controller.abort();
+			response.resolve(new Response(null, { status: 503 }));
+			service.stop(true);
+		}
+	});
+
 	test.each([undefined, 0, 90, 180, 270])(
 		"HTTP boxes use the supplied frame and reject automatic correction (rotation=%s)",
 		async (rotation) => {

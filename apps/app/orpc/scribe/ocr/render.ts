@@ -29,7 +29,9 @@ const encodePageImage = async (data: Buffer) => {
 export const renderPageImages = async function* renderPageImages(
 	data: Buffer,
 	mimeType: string,
+	signal?: AbortSignal,
 ): AsyncGenerator<OcrPageImage> {
+	signal?.throwIfAborted();
 	if (mimeType.startsWith("image/")) {
 		const {
 			height = 0,
@@ -40,6 +42,7 @@ export const renderPageImages = async function* renderPageImages(
 		}).metadata();
 		// EXIF orientations 5–8 swap the displayed axes.
 		const sideways = orientation >= 5;
+		signal?.throwIfAborted();
 		yield {
 			...(await encodePageImage(data)),
 			page: { height: sideways ? width : height, pageNum: 1, width: sideways ? height : width },
@@ -53,11 +56,14 @@ export const renderPageImages = async function* renderPageImages(
 	const parser = new LiteParse({ numWorkers: 1, ocrEnabled: false, quiet: true });
 	try {
 		const parsed = await parser.parse(data);
+		signal?.throwIfAborted();
 		if (parsed.pages.length !== parsed.totalPages || parsed.pageErrors.length > 0) {
 			throw new Error("Das Dokument konnte nicht vollständig gelesen werden.");
 		}
 		for (const { height, pageNum, width } of parsed.pages) {
+			signal?.throwIfAborted();
 			const [rendered] = await parser.screenshot(data, [pageNum]);
+			signal?.throwIfAborted();
 			if (!rendered) {
 				throw new Error("Die Dokumentseite konnte nicht gerendert werden.");
 			}
