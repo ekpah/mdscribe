@@ -4,8 +4,6 @@ import {
 	and,
 	asc,
 	eq,
-	favourites,
-	inArray,
 	isNull,
 	notInArray,
 	or,
@@ -295,23 +293,6 @@ const editorContextHandler = authed.handler(async ({ context }) => {
 		}),
 	]);
 
-	const templateIds = templates.map((item) => item.id);
-	const favouriteRows =
-		templateIds.length > 0
-			? await context.db
-					.select({
-						templateId: favourites.templateId,
-					})
-					.from(favourites)
-					.where(
-						and(
-							eq(favourites.userId, context.session.user.id),
-							inArray(favourites.templateId, templateIds),
-						),
-					)
-			: [];
-	const favouriteTemplateIds = new Set(favouriteRows.map((item) => item.templateId));
-
 	return {
 		canCreatePrivateAiScribeForms: entitlements.canCreatePrivateAiScribeForms,
 		promptHarnesses: SELECTABLE_PROMPT_HARNESS_OPTIONS,
@@ -319,7 +300,6 @@ const editorContextHandler = authed.handler(async ({ context }) => {
 		templates: templates.map((item) => ({
 			...item,
 			isAuthored: item.authorId === context.session.user.id,
-			isFavourite: favouriteTemplateIds.has(item.id),
 		})),
 	};
 });

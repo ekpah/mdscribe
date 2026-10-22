@@ -56,7 +56,6 @@ export default function AdminTemplatesPageClient() {
 
 	const [searchFilter, setSearchFilter] = useState("");
 	const [selectedAuthorId, setSelectedAuthorId] = useState("all");
-	const [selectedFavouriteOfUserId, setSelectedFavouriteOfUserId] = useState("all");
 
 	const authorOptions = useMemo(() => {
 		const options = new Map<string, { id: string; label: string }>();
@@ -73,35 +72,11 @@ export default function AdminTemplatesPageClient() {
 		return [...options.values()].toSorted((a, b) => a.label.localeCompare(b.label, "de-DE"));
 	}, [templateRows]);
 
-	const favouriteUserOptions = useMemo(() => {
-		const options = new Map<string, { id: string; label: string }>();
-
-		for (const item of templateRows) {
-			for (const favouriteUser of item.favouriteOf) {
-				options.set(favouriteUser.id, {
-					id: favouriteUser.id,
-					label: getUserDisplayName(favouriteUser),
-				});
-			}
-		}
-
-		return [...options.values()].toSorted((a, b) => a.label.localeCompare(b.label, "de-DE"));
-	}, [templateRows]);
-
-	const totalFavourites = templateRows.reduce((sum, item) => sum + item._count.favouriteOf, 0);
-
 	const filteredTemplates = useMemo(() => {
 		const normalizedSearch = searchFilter.trim().toLowerCase();
 
 		return templateRows.filter((item) => {
 			if (selectedAuthorId !== "all" && item.author?.id !== selectedAuthorId) {
-				return false;
-			}
-
-			if (
-				selectedFavouriteOfUserId !== "all" &&
-				!item.favouriteOf.some((favouriteUser) => favouriteUser.id === selectedFavouriteOfUserId)
-			) {
 				return false;
 			}
 
@@ -117,7 +92,7 @@ export default function AdminTemplatesPageClient() {
 				authorLabel.includes(normalizedSearch)
 			);
 		});
-	}, [searchFilter, selectedAuthorId, selectedFavouriteOfUserId, templateRows]);
+	}, [searchFilter, selectedAuthorId, templateRows]);
 
 	const handleSearchFilterChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
 		setSearchFilter(event.target.value);
@@ -192,21 +167,13 @@ export default function AdminTemplatesPageClient() {
 
 				<Card className="border-solarized-base2 bg-gradient-to-br from-solarized-base3 to-solarized-base2/50">
 					<CardContent className="p-4 sm:pt-6">
-						<div className="grid grid-cols-3 gap-4 sm:gap-6">
+						<div className="grid grid-cols-2 gap-4 sm:gap-6">
 							<div className="space-y-1">
 								<p className="font-medium text-solarized-base01 text-xs sm:text-sm">
 									{USER_MESSAGES.adminTemplates.totalTemplates}
 								</p>
 								<p className="font-semibold text-base text-solarized-base00 sm:text-lg">
 									{templateRows.length}
-								</p>
-							</div>
-							<div className="space-y-1">
-								<p className="font-medium text-solarized-base01 text-xs sm:text-sm">
-									{USER_MESSAGES.adminTemplates.totalFavourites}
-								</p>
-								<p className="font-semibold text-base text-solarized-cyan sm:text-lg">
-									{totalFavourites}
 								</p>
 							</div>
 							<div className="space-y-1">
@@ -253,30 +220,6 @@ export default function AdminTemplatesPageClient() {
 									value={selectedAuthorId}
 								/>
 							</div>
-
-							<div className="space-y-2">
-								<Label htmlFor="template-favourite-user-filter">
-									{USER_MESSAGES.adminTemplates.favouritedBy}
-								</Label>
-								<SearchableSelect
-									emptyMessage={USER_MESSAGES.searchableSelect.userEmpty}
-									id="template-favourite-user-filter"
-									onValueChange={setSelectedFavouriteOfUserId}
-									options={[
-										{
-											label: USER_MESSAGES.adminTemplates.allUsers,
-											value: "all",
-										},
-										...favouriteUserOptions.map((option) => ({
-											label: option.label,
-											value: option.id,
-										})),
-									]}
-									placeholder={USER_MESSAGES.adminTemplates.allUsers}
-									searchPlaceholder={USER_MESSAGES.searchableSelect.userSearch}
-									value={selectedFavouriteOfUserId}
-								/>
-							</div>
 						</div>
 
 						<div className="text-sm text-solarized-base01">
@@ -313,12 +256,6 @@ export default function AdminTemplatesPageClient() {
 														? getUserDisplayName(item.author)
 														: USER_MESSAGES.adminTemplates.unknown}
 												</p>
-											</div>
-											<div>
-												<p className="text-xs text-solarized-base01">
-													{USER_MESSAGES.adminTemplates.favourites}
-												</p>
-												<p className="text-solarized-base00">{item._count.favouriteOf}</p>
 											</div>
 										</div>
 

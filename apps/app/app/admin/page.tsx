@@ -117,7 +117,7 @@ const adminSections: AdminSection[] = [
 				title: "Benutzerverwaltung",
 			},
 			{
-				description: "Zentrale Übersicht aller Templates inklusive Favoriten und Autoren-Filter.",
+				description: "Zentrale Übersicht aller Templates inklusive Autoren-Filter.",
 				href: "/admin/templates",
 				icon: <Database className="h-5 w-5 text-solarized-blue" />,
 				status: "active",

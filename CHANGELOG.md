@@ -4,6 +4,7 @@
 
 ### Added
 
+- Template pages have an "Alle Eingaben leeren" button above the inputs that clears every typed value and AI suggestion at once.
 - markdoc-md exposes headless tag hooks (`useInfoTag`, `useCalcTag`, `useBranchTag`), typed tag props, and an `onVariableChange` callback on `DynamicMarkdocRenderer`, so applications can supply their own tag components, such as inline inputs, without reimplementing value resolution, rounding, or case selection.
 - Feature flags with the Flags SDK, defined in code in `apps/app/flags.ts`. The Template Agent is the first flag and stays admin-only in both the editor and its API.
 - Vercel AI Gateway is available as an AI provider, with API-key validation, language-model synchronization, and user-owned keys for admin-exposed connections.
@@ -32,6 +33,7 @@
 
 ### Changed
 
+- Removed the favourites feature in favour of collections. A migration moves each user's favourites into a new "Favoriten" collection and drops the `_favourites` table. The template sidebar opens the first collection by default, the dashboard lists collections instead of favourites, editor category suggestions draw on collection templates, and favourite counts are gone from the sidebar, dashboard, and admin pages.
 - AI models now have a `kind` (`chat`, `decision`, `extraction`, `ocr`) instead of the `supportsDecisions` flag, and each default slot only accepts its kinds. Models also store input modalities, context window, max output tokens, and a pi-ai-compatible `cost` (token rates per million, request-wide tiers, plus optional per-request, per-image, per-audio-minute and per-page prices); OpenRouter sync fills them from its catalog. Provider and model settings live in `options` JSON (the OpenRouter routing mode moved there), and `{key}` placeholders in a provider's base URL are filled from its options. Migration `0035_model_config` backfills existing rows. Model rows are unique per provider, model ID and kind, so one model can be both a chat and a decision model.
 - The decision model (Entscheidungsmodell) can now also be Cloudflare Clef or Clef Flash via Workers AI, or OpenAI's Decisions API (`gpt-6-luna`, synced as a separate decision entry). Clef requests are split into batches of 64 questions, and their cost is computed from the model's input price. Locating citations on document images still requires an OpenRouter decision model, because only its Decisions API answers box questions.
 - In the template editor, marked text inserted as a Switch or Condition now becomes the content of the first case instead of the tag's name, keeping formatting and embedded tags; Info and Calc still use it as the name.

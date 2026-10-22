@@ -47,7 +47,7 @@ const FIELD_EXPLANATIONS = {
 	prompt:
 		"Der Basis-Prompt ist das Prompt-Harness, das Inhalt, Ton und Struktur der Generierung vorgibt.",
 	template:
-		"Das Template gibt Stil, Format und Zielstruktur des erzeugten Textes vor. Eigene und favorisierte Templates können ebenfalls ausgewählt werden.",
+		"Das Template gibt Stil, Format und Zielstruktur des erzeugten Textes vor. Eigene und öffentliche Templates können ebenfalls ausgewählt werden.",
 } as const;
 
 type ScribeFormList = Awaited<ReturnType<typeof orpc.admin.scribeForms.list.call>>;

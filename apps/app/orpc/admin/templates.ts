@@ -1,4 +1,4 @@
-import { desc, eq, favourites, inArray, template, user } from "@repo/database";
+import { desc, eq, template, user } from "@repo/database";
 import { z } from "zod";
 
 import { authed } from "@/orpc";
@@ -54,51 +54,10 @@ const listAdminTemplatesHandler = authed
 			.leftJoin(user, eq(template.authorId, user.id))
 			.orderBy(desc(template.updatedAt));
 
-		if (templates.length === 0) {
-			return [];
-		}
-
-		const templateIds = templates.map((item) => item.id);
-		const favouriteRows = await context.db
-			.select({
-				templateId: favourites.templateId,
-				user: {
-					email: user.email,
-					id: user.id,
-					name: user.name,
-				},
-			})
-			.from(favourites)
-			.innerJoin(user, eq(favourites.userId, user.id))
-			.where(inArray(favourites.templateId, templateIds));
-
-		const favouritesByTemplate = new Map<
-			string,
-			{
-				id: string;
-				name: string | null;
-				email: string;
-			}[]
-		>();
-
-		for (const row of favouriteRows) {
-			const existing = favouritesByTemplate.get(row.templateId) ?? [];
-			existing.push(row.user);
-			favouritesByTemplate.set(row.templateId, existing);
-		}
-
-		return templates.map((item) => {
-			const favouriteOf = favouritesByTemplate.get(item.id) ?? [];
-			return {
-				...item,
-				_count: {
-					favouriteOf: favouriteOf.length,
-				},
-				favouriteOf,
-				isAuthored: item.authorId === context.session.user.id,
-				isFavourite: favouriteOf.some((favUser) => favUser.id === context.session.user.id),
-			};
-		});
+		return templates.map((item) => ({
+			...item,
+			isAuthored: item.authorId === context.session.user.id,
+		}));
 	});
 
 export const templatesHandler = {

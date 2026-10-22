@@ -256,9 +256,6 @@ const DeleteTemplateButton = ({
 					queryKey: orpc.templates.list.queryOptions().queryKey,
 				}),
 				queryClient.invalidateQueries({
-					queryKey: orpc.templates.favourites.queryOptions().queryKey,
-				}),
-				queryClient.invalidateQueries({
 					queryKey: orpc.templates.authored.queryOptions().queryKey,
 				}),
 				queryClient.invalidateQueries({
@@ -414,9 +411,6 @@ export default function Editor({
 		await Promise.all([
 			queryClient.invalidateQueries({
 				queryKey: orpc.templates.list.queryOptions().queryKey,
-			}),
-			queryClient.invalidateQueries({
-				queryKey: orpc.templates.favourites.queryOptions().queryKey,
 			}),
 			queryClient.invalidateQueries({
 				queryKey: orpc.templates.authored.queryOptions().queryKey,

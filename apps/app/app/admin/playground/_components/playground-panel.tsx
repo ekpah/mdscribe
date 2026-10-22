@@ -223,7 +223,7 @@ const getProviderGroup = (model: PlaygroundModel): string =>
 
 const PLAYGROUND_EDITOR_TEXTAREA_CLASS = "font-mono text-xs leading-[1.35]";
 const TEMPLATE_SELECTOR_INFO =
-	"Das Template gibt Stil, Format und Zielstruktur des erzeugten Textes vor. Eigene und favorisierte Templates können ebenfalls ausgewählt werden.";
+	"Das Template gibt Stil, Format und Zielstruktur des erzeugten Textes vor. Eigene und öffentliche Templates können ebenfalls ausgewählt werden.";
 
 const DirtySelectorLabel = ({ info, isDirty, label }: DirtySelectorLabelProps) => (
 	<div className="flex min-h-7 flex-col justify-start sm:w-24 sm:shrink-0">

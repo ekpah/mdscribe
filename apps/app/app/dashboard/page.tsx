@@ -12,20 +12,19 @@ import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import {
 	Activity,
 	ArrowRight,
-	BookmarkIcon,
 	Brain,
 	ClipboardCheck,
 	CreditCard,
 	ExternalLinkIcon,
 	FileCheck,
 	FileText,
+	FolderIcon,
 	Heart,
 	PlusIcon,
 	SearchIcon,
 	Settings,
 	ShieldCheck,
 	ShieldIcon,
-	Star,
 	Stethoscope,
 	Zap,
 } from "lucide-react";
@@ -263,12 +262,16 @@ const getRecentActivityItems = (
 	});
 
 interface DashboardTemplate {
-	_count: {
-		favouriteOf: number;
-	};
 	category: string;
 	id: string;
 	title: string;
+}
+
+interface DashboardCollection {
+	description: string | null;
+	id: string;
+	name: string;
+	templates: unknown[];
 }
 
 interface DashboardActivity {
@@ -348,7 +351,7 @@ const DashboardHeader = ({
 );
 
 const DashboardQuickStats = ({
-	favoriteCount,
+	collectionCount,
 	hasActiveByokConnection,
 	isMonthlyBudgetReached,
 	monthlyUsagePercentage,
@@ -358,7 +361,7 @@ const DashboardQuickStats = ({
 	usageResetsAt,
 	userTemplateCount,
 }: {
-	favoriteCount: number;
+	collectionCount: number;
 	hasActiveByokConnection: boolean;
 	isMonthlyBudgetReached: boolean;
 	monthlyUsagePercentage: number;
@@ -379,13 +382,13 @@ const DashboardQuickStats = ({
 				</CardHeader>
 				<CardContent className="space-y-3">
 					<div className="grid grid-cols-2 gap-3">
-						<Link href="/templates?activeCollection=favourites">
+						<Link href="/templates">
 							<div className="rounded-lg border border-solarized-blue/20 bg-solarized-blue/5 p-3 transition-colors hover:bg-solarized-blue/10">
 								<div className="flex items-center gap-2 text-solarized-base01 text-xs">
-									<BookmarkIcon className="h-3 w-3 text-solarized-blue" />
-									Favoriten
+									<FolderIcon className="h-3 w-3 text-solarized-blue" />
+									Sammlungen
 								</div>
-								<p className="mt-1 font-bold text-solarized-base03 text-xl">{favoriteCount}</p>
+								<p className="mt-1 font-bold text-solarized-base03 text-xl">{collectionCount}</p>
 							</div>
 						</Link>
 						<Link href="/templates?activeCollection=authored">
@@ -546,16 +549,16 @@ const AiFunctionsSection = ({ functionKeys }: { functionKeys: DashboardAiFunctio
 	</Card>
 );
 
-const FavoriteTemplatesCard = ({ templates }: { templates: DashboardTemplate[] }) => (
+const CollectionsCard = ({ collections }: { collections: DashboardCollection[] }) => (
 	<Card className="h-full border-0 bg-solarized-base3/80 shadow-xl backdrop-blur-sm">
 		<CardHeader className="flex flex-row items-center justify-between">
 			<div>
 				<CardTitle className="flex items-center gap-2 font-bold text-2xl text-solarized-base03">
-					<Star className="h-6 w-6 text-solarized-yellow" />
-					Meine Favoriten
+					<FolderIcon className="h-6 w-6 text-solarized-yellow" />
+					Meine Sammlungen
 				</CardTitle>
 				<CardDescription className="text-solarized-base01">
-					Ihre am häufigsten verwendeten Templates
+					Ihre Templates, nach Sammlungen geordnet
 				</CardDescription>
 			</div>
 			<Link href="/templates">
@@ -567,27 +570,26 @@ const FavoriteTemplatesCard = ({ templates }: { templates: DashboardTemplate[] }
 		</CardHeader>
 		<CardContent>
 			<div className="space-y-3">
-				{templates.length > 0 ? (
-					templates.map((template) => (
+				{collections.length > 0 ? (
+					collections.map((collection) => (
 						<Card
 							className="border border-solarized-base2 transition-all duration-200 hover:shadow-md"
-							key={template.id}
+							key={collection.id}
 						>
 							<CardContent className="p-4">
 								<div className="flex items-start justify-between">
 									<div className="flex-1">
 										<div className="mb-2 flex items-center gap-2">
 											<Badge className="text-xs" variant="secondary">
-												{template.category}
-											</Badge>
-											<Badge className="text-xs" variant="outline">
-												<Heart className="mr-1 h-3 w-3" />
-												{template._count.favouriteOf}
+												{collection.templates.length} Templates
 											</Badge>
 										</div>
-										<h3 className="mb-1 font-semibold text-solarized-base03">{template.title}</h3>
+										<h3 className="mb-1 font-semibold text-solarized-base03">{collection.name}</h3>
+										{collection.description ? (
+											<p className="text-sm text-solarized-base01">{collection.description}</p>
+										) : null}
 									</div>
-									<Link href={`/templates/${template.id}`}>
+									<Link href={`/templates?activeCollection=${encodeURIComponent(collection.id)}`}>
 										<Button className="gap-1" size="sm" variant="ghost">
 											<ExternalLinkIcon className="h-3 w-3" />
 											Öffnen
@@ -600,10 +602,10 @@ const FavoriteTemplatesCard = ({ templates }: { templates: DashboardTemplate[] }
 				) : (
 					<Card className="border-2 border-solarized-base1 border-dashed">
 						<CardContent className="p-8 text-center">
-							<BookmarkIcon className="mx-auto mb-4 h-12 w-12 text-solarized-base2" />
-							<h3 className="mb-2 font-semibold text-solarized-base03">Noch keine Favoriten</h3>
+							<FolderIcon className="mx-auto mb-4 h-12 w-12 text-solarized-base2" />
+							<h3 className="mb-2 font-semibold text-solarized-base03">Noch keine Sammlungen</h3>
 							<p className="mb-4 text-sm text-solarized-base01">
-								Markieren Sie Templates als Favoriten, um sie hier schnell zu finden.
+								Legen Sie Sammlungen an, um Ihre Templates schnell wiederzufinden.
 							</p>
 							<Link href="/templates">
 								<Button className="gap-2">
@@ -653,9 +655,6 @@ const UserTemplatesCard = ({ templates }: { templates: DashboardTemplate[] }) =>
 									<Badge className="text-xs" variant="secondary">
 										{template.category}
 									</Badge>
-									<span className="text-solarized-base1 text-xs">
-										{template._count.favouriteOf} ♥
-									</span>
 								</div>
 							</div>
 							<Link href={`/templates/${template.id}`}>
@@ -739,7 +738,7 @@ export default async function DashboardPage() {
 	// Use the shared getQueryClient for proper SSR caching
 	const queryClient = getQueryClient();
 	const usageQueryOptions = orpc.getUsage.queryOptions();
-	const favouritesQueryOptions = orpc.templates.favourites.queryOptions();
+	const collectionsQueryOptions = orpc.user.collections.list.queryOptions();
 	const authoredQueryOptions = orpc.templates.authored.queryOptions();
 	const aiFunctionRecommendationsQueryOptions = orpc.user.aiFunctionRecommendations.queryOptions();
 	const recentActivityQueryOptions = orpc.user.recentActivity.queryOptions();
@@ -749,7 +748,7 @@ export default async function DashboardPage() {
 	// while queries are still in flight, and data is hydrated to client
 	await Promise.all([
 		queryClient.prefetchQuery(usageQueryOptions),
-		queryClient.prefetchQuery(favouritesQueryOptions),
+		queryClient.prefetchQuery(collectionsQueryOptions),
 		queryClient.prefetchQuery(authoredQueryOptions),
 		queryClient.prefetchQuery(aiFunctionRecommendationsQueryOptions),
 		queryClient.prefetchQuery(recentActivityQueryOptions),
@@ -757,7 +756,7 @@ export default async function DashboardPage() {
 
 	// Get the cached data for server rendering
 	const data = queryClient.getQueryData(usageQueryOptions.queryKey);
-	const favoriteTemplates = queryClient.getQueryData(favouritesQueryOptions.queryKey);
+	const collections = queryClient.getQueryData(collectionsQueryOptions.queryKey);
 	const userTemplates = queryClient.getQueryData(authoredQueryOptions.queryKey);
 	const aiFunctionRecommendations = queryClient.getQueryData(
 		aiFunctionRecommendationsQueryOptions.queryKey,
@@ -786,7 +785,7 @@ export default async function DashboardPage() {
 						userImage={session.user.image}
 					/>
 					<DashboardQuickStats
-						favoriteCount={favoriteTemplates?.length ?? 0}
+						collectionCount={collections?.length ?? 0}
 						hasActiveByokConnection={hasActiveByokConnection}
 						isMonthlyBudgetReached={isMonthlyBudgetReached}
 						monthlyUsagePercentage={monthlyUsagePercentage}
@@ -801,7 +800,7 @@ export default async function DashboardPage() {
 					/>
 					<div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8">
 						<div className="lg:col-span-2">
-							<FavoriteTemplatesCard templates={favoriteTemplates ?? []} />
+							<CollectionsCard collections={collections ?? []} />
 						</div>
 						<div className="space-y-6">
 							<UserTemplatesCard templates={userTemplates ?? []} />

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 import { call } from "@orpc/server";
-import { aiScribeFormConfig, aiScribeWorkspace, and, eq, template } from "@repo/database";
+import { aiScribeFormConfig, aiScribeWorkspace, eq, template } from "@repo/database";
 
 import type { TestServer } from "@/__tests__/setup";
 import {
@@ -68,7 +68,7 @@ describe("Templates oRPC Handlers", () => {
 				expect(result).toBeNull();
 			});
 
-			test("returns template with author and favourite count", async () => {
+			test("returns template with author", async () => {
 				// Create a user and template
 				const { user } = await createTestUser(server.db);
 				const testTemplate = await createTestTemplate(server.db, user.id, {
@@ -91,49 +91,7 @@ describe("Templates oRPC Handlers", () => {
 				expect("stripeCustomerId" in ((result?.author ?? {}) as Record<string, unknown>)).toBe(
 					false,
 				);
-				expect(result?._count?.favouriteOf).toBe(0);
-				expect(result?.favouriteOf).toEqual([]);
 				expect(result?.examples).toEqual([]);
-			});
-
-			test("returns correct favourite count when template is favourited", async () => {
-				const { user: author } = await createTestUser(server.db, {
-					email: "author@test.com",
-				});
-				const { user: fan1 } = await createTestUser(server.db, {
-					email: "fan1@test.com",
-				});
-				const { user: fan2 } = await createTestUser(server.db, {
-					email: "fan2@test.com",
-				});
-
-				const testTemplate = await createTestTemplate(server.db, author.id);
-
-				// Add favourites
-				const { favourites } = await import("@repo/database");
-				await server.db.insert(favourites).values([
-					{ templateId: testTemplate.id, userId: fan1.id },
-					{ templateId: testTemplate.id, userId: fan2.id },
-				]);
-
-				const context = createTestContext({ db: server.db });
-
-				const result = await call(templatesHandler.get, { id: testTemplate.id }, { context });
-
-				expect(result?._count?.favouriteOf).toBe(2);
-				expect(result?.favouriteOf).toEqual([]);
-
-				const fanContext = createTestContext({
-					db: server.db,
-					session: createMockSession(fan1),
-				});
-				const fanResult = await call(
-					templatesHandler.get,
-					{ id: testTemplate.id },
-					{ context: fanContext },
-				);
-				expect(fanResult?._count?.favouriteOf).toBe(2);
-				expect(fanResult?.favouriteOf).toEqual([{ id: fan1.id }]);
 			});
 
 			test("returns template examples", async () => {
@@ -267,54 +225,6 @@ describe("Templates oRPC Handlers", () => {
 	});
 
 	describe("Authenticated Endpoints", () => {
-		describe("templates.favourites", () => {
-			test("returns empty array when user has no favourites", async () => {
-				const { user } = await createTestUser(server.db);
-				const session = createMockSession(user);
-				const context = createTestContext({ db: server.db, session });
-
-				const result = await call(templatesHandler.favourites, undefined, {
-					context,
-				});
-
-				expect(result).toEqual([]);
-			});
-
-			test("returns user's favourite templates", async () => {
-				const { user: author } = await createTestUser(server.db, {
-					email: "author@test.com",
-				});
-				const { user } = await createTestUser(server.db, {
-					email: "user@test.com",
-				});
-
-				const template1 = await createTestTemplate(server.db, author.id, {
-					title: "Template 1",
-				});
-				const template2 = await createTestTemplate(server.db, author.id, {
-					title: "Template 2",
-				});
-
-				// Add favourites
-				const { favourites } = await import("@repo/database");
-				await server.db.insert(favourites).values([
-					{ templateId: template1.id, userId: user.id },
-					{ templateId: template2.id, userId: user.id },
-				]);
-
-				const session = createMockSession(user);
-				const context = createTestContext({ db: server.db, session });
-
-				const result = await call(templatesHandler.favourites, undefined, {
-					context,
-				});
-
-				expect(result).toHaveLength(2);
-				expect(result.map((t) => t.title)).toContain("Template 1");
-				expect(result.map((t) => t.title)).toContain("Template 2");
-			});
-		});
-
 		describe("templates.authored", () => {
 			test("returns empty array when user has no authored templates", async () => {
 				const { user } = await createTestUser(server.db);
@@ -708,98 +618,6 @@ describe("Templates oRPC Handlers", () => {
 						where: eq(template.id, testTemplate.id),
 					}),
 				).toBeDefined();
-			});
-		});
-
-		describe("templates.addFavourite", () => {
-			test("adds template to user's favourites", async () => {
-				const { user: author } = await createTestUser(server.db, {
-					email: "author@test.com",
-				});
-				const { user } = await createTestUser(server.db);
-				const testTemplate = await createTestTemplate(server.db, author.id);
-
-				const session = createMockSession(user);
-				const context = createTestContext({ db: server.db, session });
-
-				const result = await call(
-					templatesHandler.addFavourite,
-					{ templateId: testTemplate.id },
-					{ context },
-				);
-
-				expect(result).toEqual({ success: true });
-
-				// Verify it was added
-				const { favourites, eq: dbEq, and: dbAnd } = await import("@repo/database");
-				const [fav] = await server.db
-					.select()
-					.from(favourites)
-					.where(
-						dbAnd(dbEq(favourites.templateId, testTemplate.id), dbEq(favourites.userId, user.id)),
-					)
-					.limit(1);
-
-				expect(fav).toBeDefined();
-			});
-
-			test("handles duplicate favourite gracefully", async () => {
-				const { user: author } = await createTestUser(server.db, {
-					email: "author@test.com",
-				});
-				const { user } = await createTestUser(server.db);
-				const testTemplate = await createTestTemplate(server.db, author.id);
-
-				const session = createMockSession(user);
-				const context = createTestContext({ db: server.db, session });
-
-				// Add twice
-				await call(templatesHandler.addFavourite, { templateId: testTemplate.id }, { context });
-
-				const result = await call(
-					templatesHandler.addFavourite,
-					{ templateId: testTemplate.id },
-					{ context },
-				);
-
-				expect(result).toEqual({ success: true });
-			});
-		});
-
-		describe("templates.removeFavourite", () => {
-			test("removes template from user's favourites", async () => {
-				const { user: author } = await createTestUser(server.db, {
-					email: "author@test.com",
-				});
-				const { user } = await createTestUser(server.db);
-				const testTemplate = await createTestTemplate(server.db, author.id);
-
-				// Add favourite first
-				const { favourites } = await import("@repo/database");
-				await server.db.insert(favourites).values({
-					templateId: testTemplate.id,
-					userId: user.id,
-				});
-
-				const session = createMockSession(user);
-				const context = createTestContext({ db: server.db, session });
-
-				const result = await call(
-					templatesHandler.removeFavourite,
-					{ templateId: testTemplate.id },
-					{ context },
-				);
-
-				expect(result).toEqual({ success: true });
-
-				// Verify it was removed
-				const [fav] = await server.db
-					.select()
-					.from(favourites)
-					.where(and(eq(favourites.templateId, testTemplate.id), eq(favourites.userId, user.id)))
-					.limit(1);
-
-				expect(fav).toBeUndefined();
 			});
 		});
 	});

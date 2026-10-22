@@ -310,12 +310,6 @@ export default function UsersPageClient({
 												<p className="font-medium text-solarized-base00">{user._count.templates}</p>
 											</div>
 											<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
-												<p className="text-solarized-base01">Favoriten</p>
-												<p className="font-medium text-solarized-base00">
-													{user._count.favourites}
-												</p>
-											</div>
-											<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
 												<p className="text-solarized-base01">
 													{USER_MESSAGES.adminUsers.aiScribeForms}
 												</p>

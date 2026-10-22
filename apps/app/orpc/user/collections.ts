@@ -1,12 +1,9 @@
 import {
 	and,
-	count,
 	desc,
 	eq,
-	favourites,
 	inArray,
 	or,
-	sql,
 	template,
 	templateCollection,
 	templateCollectionTemplate,
@@ -14,11 +11,6 @@ import {
 import { z } from "zod";
 
 import { authed } from "@/orpc";
-
-const favouriteCount = (templateId: typeof template.id) =>
-	sql<number>`(SELECT ${count()} FROM ${favourites} WHERE ${favourites.templateId} = ${templateId})`.as(
-		"favouriteCount",
-	);
 
 const collectionIdInput = z.object({
 	id: z.string(),
@@ -63,7 +55,6 @@ const listCollectionsHandler = authed.handler(async ({ context }) => {
 		.select({
 			category: template.category,
 			collectionId: templateCollectionTemplate.collectionId,
-			favouritesCount: favouriteCount(template.id),
 			id: template.id,
 			title: template.title,
 		})
@@ -81,7 +72,6 @@ const listCollectionsHandler = authed.handler(async ({ context }) => {
 		string,
 		{
 			category: string;
-			favouritesCount: number;
 			id: string;
 			title: string;
 		}[]
@@ -89,7 +79,6 @@ const listCollectionsHandler = authed.handler(async ({ context }) => {
 	for (const row of templates) {
 		const entry = {
 			category: row.category,
-			favouritesCount: Number(row.favouritesCount ?? 0),
 			id: row.id,
 			title: row.title,
 		};

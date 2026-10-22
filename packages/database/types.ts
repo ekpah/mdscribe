@@ -9,7 +9,6 @@ import type {
 	contextTransfer,
 	aiScribeWorkspace,
 	documentTemplate,
-	favourites,
 	session,
 	subscription,
 	template,
@@ -37,7 +36,6 @@ export type Subscription = InferSelectModel<typeof subscription>;
 export type UsageEvent = InferSelectModel<typeof usageEvent>;
 export type ContextTransfer = InferSelectModel<typeof contextTransfer>;
 export type TextSnippet = InferSelectModel<typeof textSnippet>;
-export type Favourite = InferSelectModel<typeof favourites>;
 export type UserAiProvider = InferSelectModel<typeof userAiProvider>;
 
 // Insert types (for creating records)
@@ -55,7 +53,6 @@ export type NewUsageObservation = InferInsertModel<typeof usageObservation>;
 export type NewUsageTrace = InferInsertModel<typeof usageTrace>;
 export type NewContextTransfer = InferInsertModel<typeof contextTransfer>;
 export type NewTextSnippet = InferInsertModel<typeof textSnippet>;
-export type NewFavourite = InferInsertModel<typeof favourites>;
 export type NewUserAiProvider = InferInsertModel<typeof userAiProvider>;
 
 // AI Provider types

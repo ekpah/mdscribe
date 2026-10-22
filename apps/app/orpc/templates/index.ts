@@ -5,10 +5,10 @@ import {
 	count,
 	desc,
 	eq,
-	favourites,
 	or,
-	sql,
 	template,
+	templateCollection,
+	templateCollectionTemplate,
 	user,
 } from "@repo/database";
 import type { Database, Template } from "@repo/database";
@@ -26,16 +26,7 @@ import { getOptionalAuthSession } from "@/orpc/middlewares/auth";
 const templateVisibilitySchema = z.enum(["public", "private"]);
 type TemplateVisibility = z.infer<typeof templateVisibilitySchema>;
 
-// Helper: Count how many users have favourited a template
-const favouriteCount = (templateId: typeof template.id) =>
-	sql<number>`(SELECT ${count()} FROM ${favourites} WHERE ${favourites.templateId} = ${templateId})`.as(
-		"favouriteCount",
-	);
-
 const templateListSelection = {
-	_count: {
-		favouriteOf: favouriteCount(template.id),
-	},
 	authorId: template.authorId,
 	category: template.category,
 	id: template.id,
@@ -55,9 +46,7 @@ interface TemplateAuthorSummary {
 }
 
 type TemplateWithRelations = Template & {
-	favouriteOf: { id: string }[];
 	author: TemplateAuthorSummary | null;
-	_count: { favouriteOf: number };
 };
 
 // ============================================================================
@@ -95,10 +84,6 @@ const updateTemplateInput = z.object({
 
 const deleteTemplateInput = z.object({
 	id: z.string(),
-});
-
-const favouriteInput = z.object({
-	templateId: z.string(),
 });
 
 const lexicalSearchInput = z.object({
@@ -244,23 +229,8 @@ const getTemplateHandler = pub
 			return null;
 		}
 
-		const [favouriteUsers, countResult] = await Promise.all([
-			userId
-				? context.db
-						.select({ id: favourites.userId })
-						.from(favourites)
-						.where(and(eq(favourites.templateId, input.id), eq(favourites.userId, userId)))
-				: Promise.resolve([]),
-			context.db
-				.select({ count: count() })
-				.from(favourites)
-				.where(eq(favourites.templateId, input.id))
-				.then((result) => result[0]),
-		]);
-
 		return {
 			...templateData,
-			_count: { favouriteOf: Number(countResult?.count ?? 0) },
 			author: templateData.author?.id
 				? {
 						id: templateData.author.id,
@@ -268,32 +238,12 @@ const getTemplateHandler = pub
 						name: templateData.author.name,
 					}
 				: null,
-			favouriteOf: favouriteUsers,
 		};
 	});
 
 // ============================================================================
 // Authenticated Handlers - Read Operations
 // ============================================================================
-
-/**
- * Get templates favourited by the current user
- */
-const getFavouritesHandler = authed.handler(async ({ context }) => {
-	const favoriteTemplates = await context.db
-		.select(templateListSelection)
-		.from(template)
-		.innerJoin(favourites, eq(favourites.templateId, template.id))
-		.where(
-			and(
-				eq(favourites.userId, context.session.user.id),
-				visibleTemplateWhere(context.session.user.id),
-			),
-		)
-		.orderBy(desc(template.updatedAt));
-
-	return favoriteTemplates;
-});
 
 /**
  * Get templates authored by the current user
@@ -331,11 +281,15 @@ const getEditorContextHandler = authed.handler(async ({ context }) => {
 	);
 
 	if (categorySuggestions.length < limit) {
-		const favouriteCategories = await context.db
+		const collectionCategories = await context.db
 			.select({ category: template.category })
-			.from(favourites)
-			.innerJoin(template, eq(favourites.templateId, template.id))
-			.where(and(eq(favourites.userId, userId), visibleTemplateWhere(userId)))
+			.from(templateCollectionTemplate)
+			.innerJoin(
+				templateCollection,
+				eq(templateCollectionTemplate.collectionId, templateCollection.id),
+			)
+			.innerJoin(template, eq(templateCollectionTemplate.templateId, template.id))
+			.where(and(eq(templateCollection.userId, userId), visibleTemplateWhere(userId)))
 			.groupBy(template.category)
 			.orderBy(desc(count()))
 			.limit(limit);
@@ -343,7 +297,7 @@ const getEditorContextHandler = authed.handler(async ({ context }) => {
 		addCategories(
 			categorySuggestions,
 			seen,
-			favouriteCategories.map((item) => item.category),
+			collectionCategories.map((item) => item.category),
 			limit,
 		);
 	}
@@ -494,70 +448,19 @@ const deleteTemplateHandler = authed.input(deleteTemplateInput).handler(({ conte
 );
 
 // ============================================================================
-// Authenticated Handlers - Favourite Operations
-// ============================================================================
-
-/**
- * Add a template to favourites
- */
-const addFavouriteHandler = authed.input(favouriteInput).handler(async ({ context, input }) => {
-	const [visibleTemplate] = await context.db
-		.select({ id: template.id })
-		.from(template)
-		.where(and(eq(template.id, input.templateId), visibleTemplateWhere(context.session.user.id)))
-		.limit(1);
-
-	if (!visibleTemplate) {
-		throw new ORPCError("NOT_FOUND", {
-			message: "Textbaustein nicht gefunden.",
-		});
-	}
-
-	await context.db
-		.insert(favourites)
-		.values({
-			templateId: input.templateId,
-			userId: context.session.user.id,
-		})
-		.onConflictDoNothing();
-
-	return { success: true };
-});
-
-/**
- * Remove a template from favourites
- */
-const removeFavouriteHandler = authed.input(favouriteInput).handler(async ({ context, input }) => {
-	await context.db
-		.delete(favourites)
-		.where(
-			and(
-				eq(favourites.templateId, input.templateId),
-				eq(favourites.userId, context.session.user.id),
-			),
-		);
-
-	return { success: true };
-});
-
-// ============================================================================
 // Exports
 // ============================================================================
 
 export const templatesHandler = {
-	addFavourite: addFavouriteHandler,
+	// Authenticated - Read
 	authored: getAuthoredHandler,
 	// Authenticated - CRUD
 	create: createTemplateHandler,
 	delete: deleteTemplateHandler,
 	editorContext: getEditorContextHandler,
-	// Authenticated - Read
-	favourites: getFavouritesHandler,
 	// Public
 	get: getTemplateHandler,
 	list: listTemplatesHandler,
-	// Authenticated - Favourites
-	removeFavourite: removeFavouriteHandler,
 	search: searchTemplatesHandler,
 	update: updateTemplateHandler,
 };

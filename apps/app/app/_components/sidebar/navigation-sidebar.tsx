@@ -272,7 +272,6 @@ export const groupNavigationItemsByCategory = <
 		readonly category: string;
 		readonly title: string;
 		readonly url: string;
-		readonly favouritesCount?: number;
 	},
 >(
 	items: readonly TItem[],
@@ -282,7 +281,6 @@ export const groupNavigationItemsByCategory = <
 	for (const item of items) {
 		const existing = groups.get(item.category) ?? [];
 		existing.push({
-			count: item.favouritesCount,
 			href: item.url,
 			title: item.title,
 		});

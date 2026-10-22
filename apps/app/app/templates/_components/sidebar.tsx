@@ -20,16 +20,7 @@ import {
 } from "@repo/design-system/components/ui/sidebar";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-	Bookmark,
-	Folder,
-	FolderPlus,
-	Plus,
-	Pencil,
-	PlusCircle,
-	Search,
-	StarIcon,
-} from "lucide-react";
+import { Folder, FolderPlus, Plus, Pencil, PlusCircle, Search } from "lucide-react";
 import type { LucideProps } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -53,7 +44,6 @@ interface Template {
 	category: string;
 	title: string;
 	url: string;
-	favouritesCount: number;
 }
 
 interface CustomCollection {
@@ -64,16 +54,13 @@ interface CustomCollection {
 		id: string;
 		title: string;
 		category: string;
-		favouritesCount: number;
 	}[];
 }
 
 interface SidebarSegment {
 	category: string;
-	documents: { title: string; url: string; favouritesCount: number }[];
+	documents: { title: string; url: string }[];
 }
-
-const FavouriteCollectionIcon = (props: LucideProps) => <Bookmark {...props} strokeWidth={1.5} />;
 
 const AuthoredCollectionIcon = (props: LucideProps) => <Pencil {...props} strokeWidth={1.5} />;
 
@@ -84,18 +71,13 @@ const generateSegments = ({ templates }: { templates: Template[] }) => {
 		const { category } = current;
 		const template = current.title;
 		const route = current.url;
-		const { favouritesCount } = current;
 		const existingCategory = segments.find((segment) => segment.category === category);
 		if (existingCategory) {
-			existingCategory.documents.push({
-				favouritesCount,
-				title: template,
-				url: route,
-			});
+			existingCategory.documents.push({ title: template, url: route });
 		} else {
 			segments.push({
 				category,
-				documents: [{ favouritesCount, title: template, url: route }],
+				documents: [{ title: template, url: route }],
 			});
 		}
 	}
@@ -103,28 +85,13 @@ const generateSegments = ({ templates }: { templates: Template[] }) => {
 	return segments;
 };
 
-const formatCount = (count: number): string => {
-	if (count >= 1_000_000_000) {
-		return `${(count / 1_000_000_000).toFixed(1).replace(/\.0$/, "")}B`;
-	}
-	if (count >= 1_000_000) {
-		return `${(count / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
-	}
-	if (count >= 1000) {
-		return `${(count / 1000).toFixed(1).replace(/\.0$/, "")}k`;
-	}
-	return count.toString();
-};
-
 export default function AppSidebar({
 	templates,
-	favouriteTemplates,
 	authoredTemplates,
 	customCollections,
 	isLoggedIn,
 }: {
 	templates: string;
-	favouriteTemplates: string;
 	authoredTemplates: string;
 	customCollections: string;
 	isLoggedIn: boolean;
@@ -135,16 +102,8 @@ export default function AppSidebar({
 	const searchParams = useSearchParams();
 	const initialFilter = searchParams.get("filter") || "";
 	const [searchTerm, setSearchTerm] = useState(initialFilter);
-	const [activeCollection, setActiveCollection] = useQueryState("activeCollection", {
-		defaultValue: isLoggedIn ? "favourites" : "visible",
-	});
-
 	const queryClient = useQueryClient();
 	const initialTemplates = useMemo(() => JSON.parse(templates) as Template[], [templates]);
-	const initialFavouriteTemplates = useMemo(
-		() => JSON.parse(favouriteTemplates) as Template[],
-		[favouriteTemplates],
-	);
 	const initialAuthoredTemplates = useMemo(
 		() => JSON.parse(authoredTemplates) as Template[],
 		[authoredTemplates],
@@ -153,6 +112,12 @@ export default function AppSidebar({
 		() => JSON.parse(customCollections) as CustomCollection[],
 		[customCollections],
 	);
+	const defaultCollection = isLoggedIn
+		? (initialCustomCollections[0]?.id ?? "authored")
+		: "visible";
+	const [activeCollection, setActiveCollection] = useQueryState("activeCollection", {
+		defaultValue: defaultCollection,
+	});
 
 	const { data: customCollectionsQueryData } = useQuery({
 		...orpc.user.collections.list.queryOptions(),
@@ -206,11 +171,6 @@ export default function AppSidebar({
 	const userCollections = isLoggedIn
 		? [
 				{
-					key: "favourites",
-					logo: FavouriteCollectionIcon,
-					name: "Favoriten",
-				},
-				{
 					key: "authored",
 					logo: AuthoredCollectionIcon,
 					name: "Von Dir erstellt",
@@ -230,7 +190,9 @@ export default function AppSidebar({
 
 	const collections = isLoggedIn ? [...userCollections, ...customCollectionEntries] : [];
 
-	const fallbackCollection = isLoggedIn ? "favourites" : "visible";
+	const fallbackCollection = isLoggedIn
+		? (customCollectionEntries[0]?.key ?? "authored")
+		: "visible";
 	const activeCollectionValue = collections.some(
 		(collection) => collection.key === activeCollection,
 	)
@@ -298,9 +260,6 @@ export default function AppSidebar({
 	);
 
 	const menuSegments = (() => {
-		if (activeCollectionValue === "favourites") {
-			return initialFavouriteTemplates;
-		}
 		if (activeCollectionValue === "authored") {
 			return initialAuthoredTemplates;
 		}
@@ -312,10 +271,7 @@ export default function AppSidebar({
 
 	const fuse = createTemplateFuse(menuSegments);
 
-	const filteredLinks = fuse
-		.search(searchTerm, { limit: 10 })
-		.map((res) => res.item)
-		.toSorted((a, b) => (b as Template).favouritesCount - (a as Template).favouritesCount);
+	const filteredLinks = fuse.search(searchTerm, { limit: 10 }).map((res) => res.item);
 
 	const orderedSegments = generateSegments({
 		templates: searchTerm ? filteredLinks : menuSegments,
@@ -336,7 +292,6 @@ export default function AppSidebar({
 		() =>
 			orderedSegments.map((segment) => ({
 				items: segment.documents.map((item) => ({
-					count: item.favouritesCount,
 					href: item.url,
 					title: item.title,
 				})),
@@ -351,19 +306,6 @@ export default function AppSidebar({
 			`${item.href}?activeCollection=${encodeURIComponent(activeCollectionValue)}`,
 		[activeCollectionValue],
 	);
-
-	const renderTemplateItemMeta = useCallback((item: NavigationSidebarItem) => {
-		if (!item.count || item.count <= 0) {
-			return null;
-		}
-
-		return (
-			<span className="ml-2 flex items-center text-muted-foreground text-xs">
-				<StarIcon className="mr-0.5 h-3 w-3" />
-				{formatCount(item.count)}
-			</span>
-		);
-	}, []);
 
 	return (
 		<NavigationSidebar
@@ -487,7 +429,6 @@ export default function AppSidebar({
 					</SidebarGroup>
 				</>
 			}
-			renderItemMeta={renderTemplateItemMeta}
 			sectionButtonClassName="font-semibold text-foreground text-lg"
 			sections={navigationSections}
 		/>

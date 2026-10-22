@@ -26,7 +26,6 @@ export interface UserData {
 		aiScribeForms: number;
 		aiScribeWorkspaces: number;
 		templates: number;
-		favourites: number;
 		usageEvents: number;
 	};
 }
@@ -148,11 +147,6 @@ export const columns = [
 		cell: ({ getValue }) => <span className="text-solarized-base00">{getValue()}</span>,
 		header: ({ column }) => <DataTableColumnHeader column={column} title="Vorlagen" />,
 		id: "templates",
-	}),
-	columnHelper.accessor("_count.favourites", {
-		cell: ({ getValue }) => <span className="text-solarized-base00">{getValue()}</span>,
-		header: ({ column }) => <DataTableColumnHeader column={column} title="Favoriten" />,
-		id: "favourites",
 	}),
 	columnHelper.accessor("_count.aiScribeForms", {
 		cell: ({ getValue }) => <span className="text-solarized-base00">{getValue()}</span>,

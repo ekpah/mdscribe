@@ -1,8 +1,9 @@
 "use client";
 
+import { Button } from "@repo/design-system/components/ui/button";
 import { Card } from "@repo/design-system/components/ui/card";
 import { cn } from "@repo/design-system/lib/utils";
-import { FileText, ListChecks } from "lucide-react";
+import { Eraser, FileText, ListChecks } from "lucide-react";
 import { createMdscribeSource, resolveCitation } from "markdoc-md/citations";
 import type { CitationRequest, CitationTextSource } from "markdoc-md/citations";
 import type { InputTagType } from "markdoc-md/parse";
@@ -207,6 +208,7 @@ export const InputPreviewSection = ({
 	templateInformation,
 }: InputPreviewSectionProps) => {
 	const [values, setValues] = useState<Record<string, unknown>>({});
+	const [clearCount, setClearCount] = useState(0);
 	const [mobilePanel, setMobilePanel] = useState<MobilePanel>("preview");
 	const [previewPanelElement, setPreviewPanelElement] = useState<HTMLDivElement | null>(null);
 	const [usesPreviewPanelPortal, setUsesPreviewPanelPortal] = useState(false);
@@ -302,6 +304,13 @@ export const InputPreviewSection = ({
 		},
 		[onValuesChange],
 	);
+
+	// Remounting the inputs drops typed values and AI suggestions together.
+	const handleClearInputs = useCallback(() => {
+		setClearCount((count) => count + 1);
+		setValues({});
+		onValuesChange?.({});
+	}, [onValuesChange]);
 
 	const handlePreviewPanelRef = useCallback((node: HTMLDivElement | null) => {
 		setPreviewPanelElement(node);
@@ -534,28 +543,45 @@ export const InputPreviewSection = ({
 					key="Inputs"
 					role={hasInputTags ? "tabpanel" : undefined}
 				>
-					<Inputs
-						activeInputFocusKey={mobilePanel === "inputs" ? activeInputFocusKey : undefined}
-						activeInputName={activeInputName}
-						key={resetKey}
-						inputTags={inputTags}
-						onChange={handleFormChange}
-						onCitationsSelect={handleCitationsSelect}
-						onFillInputs={isLoggedIn ? handleFillInputs : undefined}
-						onInputBlur={onInputBlur}
-						onInputSelect={onInputSelect}
-						renderFillControls={({ onSubmit }) => (
-							<InputContextControls
-								className="shrink-0 border-t border-t-solarized-blue/30 bg-solarized-blue/5 px-4 py-3"
-								controller={inputContextController}
-								onSubmit={async ({ audioFiles, contextFiles, textContext }) => {
-									await onSubmit(audioFiles, textContext, contextFiles);
-								}}
-								panelPortalTarget={usesPreviewPanelPortal ? previewPanelElement : null}
-							/>
-						)}
-						showFillInputs={isLoggedIn}
-					/>
+					{contentType === "template" ? (
+						<div className="flex shrink-0 items-center justify-between gap-2 border-b px-3 py-1.5">
+							<span className="font-medium text-muted-foreground text-xs">Eingaben</span>
+							<Button
+								className="h-7 gap-1.5 px-2 text-muted-foreground text-xs hover:text-foreground"
+								onClick={handleClearInputs}
+								size="sm"
+								type="button"
+								variant="ghost"
+							>
+								<Eraser aria-hidden className="h-3.5 w-3.5" />
+								Alle Eingaben leeren
+							</Button>
+						</div>
+					) : null}
+					<div className="min-h-0 flex-1">
+						<Inputs
+							activeInputFocusKey={mobilePanel === "inputs" ? activeInputFocusKey : undefined}
+							activeInputName={activeInputName}
+							key={`${resetKey ?? ""}:${clearCount}`}
+							inputTags={inputTags}
+							onChange={handleFormChange}
+							onCitationsSelect={handleCitationsSelect}
+							onFillInputs={isLoggedIn ? handleFillInputs : undefined}
+							onInputBlur={onInputBlur}
+							onInputSelect={onInputSelect}
+							renderFillControls={({ onSubmit }) => (
+								<InputContextControls
+									className="shrink-0 border-t border-t-solarized-blue/30 bg-solarized-blue/5 px-4 py-3"
+									controller={inputContextController}
+									onSubmit={async ({ audioFiles, contextFiles, textContext }) => {
+										await onSubmit(audioFiles, textContext, contextFiles);
+									}}
+									panelPortalTarget={usesPreviewPanelPortal ? previewPanelElement : null}
+								/>
+							)}
+							showFillInputs={isLoggedIn}
+						/>
+					</div>
 				</div>
 				{edgeTabs}
 				<div

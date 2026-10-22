@@ -342,24 +342,6 @@ export const textSnippet = pgTable(
 	(table) => [uniqueIndex("TextSnippet_userId_key_key").on(table.userId, table.key)],
 );
 
-// Many-to-many junction table for favourites
-// DB columns are "A"/"B" (Prisma legacy), but we use descriptive TS names
-export const favourites = pgTable(
-	"_favourites",
-	{
-		templateId: text("A")
-			.notNull()
-			.references(() => template.id, { onDelete: "cascade" }),
-		userId: text("B")
-			.notNull()
-			.references(() => user.id, { onDelete: "cascade" }),
-	},
-	(table) => [
-		primaryKey({ columns: [table.templateId, table.userId] }),
-		index("_favourites_B_index").on(table.userId),
-	],
-);
-
 export const templateCollectionTemplate = pgTable(
 	"TemplateCollectionTemplate",
 	{
@@ -642,7 +624,6 @@ export const userRelations = relations(user, ({ many }) => ({
 	aiScribeFormConfigs: many(aiScribeFormConfig),
 	aiScribeWorkspaces: many(aiScribeWorkspace),
 	documentTemplates: many(documentTemplate),
-	favourites: many(favourites),
 	sessions: many(session),
 	subscriptions: many(subscription),
 	templateCollections: many(templateCollection),
@@ -662,7 +643,6 @@ export const sessionRelations = relations(session, ({ one }) => ({
 export const templateRelations = relations(template, ({ one, many }) => ({
 	author: one(user, { fields: [template.authorId], references: [user.id] }),
 	collectionTemplates: many(templateCollectionTemplate),
-	favouriteOf: many(favourites),
 }));
 
 export const documentTemplateRelations = relations(documentTemplate, ({ one }) => ({
@@ -694,14 +674,6 @@ export const usageObservationRelations = relations(usageObservation, ({ one }) =
 
 export const textSnippetRelations = relations(textSnippet, ({ one }) => ({
 	user: one(user, { fields: [textSnippet.userId], references: [user.id] }),
-}));
-
-export const favouritesRelations = relations(favourites, ({ one }) => ({
-	template: one(template, {
-		fields: [favourites.templateId],
-		references: [template.id],
-	}),
-	user: one(user, { fields: [favourites.userId], references: [user.id] }),
 }));
 
 export const templateCollectionRelations = relations(templateCollection, ({ one, many }) => ({

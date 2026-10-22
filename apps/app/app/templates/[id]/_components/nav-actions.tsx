@@ -5,7 +5,6 @@ import {
 	DropdownMenu,
 	DropdownMenuCheckboxItem,
 	DropdownMenuContent,
-	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@repo/design-system/components/ui/dropdown-menu";
 import {
@@ -17,7 +16,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Clock, File as FileIcon, FileUser, FolderPlus, Pencil, Share2, User } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { toast } from "sonner";
 
 import { orpc } from "@/lib/orpc";
@@ -32,7 +31,6 @@ interface TemplateCollection {
 export const NavActions = ({
 	author,
 	isAuthor,
-	isFavourite,
 	isLoggedIn,
 	lastEdited,
 	templateId,
@@ -40,7 +38,6 @@ export const NavActions = ({
 }: {
 	author?: string;
 	isAuthor: boolean;
-	isFavourite: boolean;
 	isLoggedIn: boolean;
 	lastEdited: Date;
 	templateId?: string;
@@ -50,23 +47,13 @@ export const NavActions = ({
 		className: "h-4 w-4 shrink-0",
 		strokeWidth: 2,
 	} as const;
-	const [isBookmark, setBookmark] = useState(isFavourite);
 	const queryClient = useQueryClient();
 
 	const collectionsQueryKey = orpc.user.collections.list.queryOptions().queryKey;
-	const favouritesQueryKey = orpc.templates.favourites.queryOptions().queryKey;
-	const templatesQueryKey = orpc.templates.list.queryOptions().queryKey;
 
 	const invalidateCollections = useCallback(async () => {
 		await queryClient.invalidateQueries({ queryKey: collectionsQueryKey });
 	}, [queryClient, collectionsQueryKey]);
-
-	const invalidateTemplateLists = useCallback(async () => {
-		await Promise.all([
-			queryClient.invalidateQueries({ queryKey: favouritesQueryKey }),
-			queryClient.invalidateQueries({ queryKey: templatesQueryKey }),
-		]);
-	}, [queryClient, favouritesQueryKey, templatesQueryKey]);
 
 	const { data: collections = [] } = useQuery({
 		...orpc.user.collections.list.queryOptions(),
@@ -89,22 +76,6 @@ export const NavActions = ({
 		);
 	}, [templateId, typedCollections]);
 
-	const favouriteMutation = useMutation({
-		mutationFn: async (shouldBeFavourite: boolean) => {
-			if (!templateId) {
-				return;
-			}
-
-			await (shouldBeFavourite
-				? orpc.templates.addFavourite.call({ templateId })
-				: orpc.templates.removeFavourite.call({ templateId }));
-		},
-		onSuccess: async (_, shouldBeFavourite) => {
-			setBookmark(shouldBeFavourite);
-			await invalidateTemplateLists();
-		},
-	});
-
 	const addTemplateMutation = useMutation(
 		orpc.user.collections.addTemplate.mutationOptions({
 			onSuccess: async () => {
@@ -119,23 +90,6 @@ export const NavActions = ({
 				await invalidateCollections();
 			},
 		}),
-	);
-
-	const handleToggleFavourite = useCallback(
-		async (checked: boolean) => {
-			if (!templateId || checked === isBookmark) {
-				return;
-			}
-
-			try {
-				await favouriteMutation.mutateAsync(checked);
-				toast.success(checked ? "Favorit gespeichert" : "Favorit entfernt");
-			} catch (error) {
-				console.error("Error updating favourite:", error);
-				toast.error("Fehler beim Aktualisieren der Favoriten");
-			}
-		},
-		[templateId, isBookmark, favouriteMutation],
 	);
 
 	const handleToggleCollection = useCallback(
@@ -161,17 +115,6 @@ export const NavActions = ({
 
 	const isCollectionMutationPending =
 		addTemplateMutation.isPending || removeTemplateMutation.isPending;
-
-	const handleFavouriteCheckedChange = useCallback(
-		async (checked: boolean) => {
-			try {
-				await handleToggleFavourite(Boolean(checked));
-			} catch (error) {
-				console.error("Error toggling favourite:", error);
-			}
-		},
-		[handleToggleFavourite],
-	);
 
 	const collectionCheckedHandlers = useMemo(() => {
 		const handlers: Record<string, (checked: boolean) => Promise<void>> = {};
@@ -273,16 +216,6 @@ export const NavActions = ({
 						}
 					/>
 					<DropdownMenuContent align="end" className="w-64">
-						<DropdownMenuCheckboxItem
-							checked={isBookmark}
-							disabled={favouriteMutation.isPending}
-							onCheckedChange={handleFavouriteCheckedChange}
-						>
-							<span className="font-medium">Favoriten</span>
-						</DropdownMenuCheckboxItem>
-
-						{typedCollections.length > 0 ? <DropdownMenuSeparator /> : null}
-
 						{typedCollections.map((collection) => {
 							const handleCollectionCheckedChange = collectionCheckedHandlers[collection.id];
 							if (!handleCollectionCheckedChange) {

@@ -49,10 +49,6 @@ const adminUsersHandler = authed.use(requiredAdminMiddleware).handler(async ({ c
 	const usersQuery = context.db
 		.select({
 			_count: {
-				favourites: sql<number>`(
-						SELECT COUNT(*) FROM "_favourites"
-						WHERE "_favourites"."B" = ${user.id}
-					)::int`.as("favouritesCount"),
 				templates: sql<number>`(
 						SELECT COUNT(*) FROM "Template"
 						WHERE "Template"."authorId" = ${user.id}

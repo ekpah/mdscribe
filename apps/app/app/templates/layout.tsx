@@ -13,20 +13,6 @@ const getTemplates = async (queryClient: QueryClient) => {
 	return templates;
 };
 
-const getFavouriteTemplates = async (queryClient: QueryClient, isLoggedIn: boolean) => {
-	if (!isLoggedIn) {
-		return [];
-	}
-	try {
-		const templates = await queryClient.fetchQuery(orpc.templates.favourites.queryOptions());
-		return templates;
-	} catch (error) {
-		// If authentication fails, return empty array instead of crashing
-		console.warn("Failed to fetch favourite templates:", error);
-		return [];
-	}
-};
-
 const getAuthoredTemplates = async (queryClient: QueryClient, isLoggedIn: boolean) => {
 	if (!isLoggedIn) {
 		return [];
@@ -58,17 +44,6 @@ const generateSidebarLinks = async (queryClient: QueryClient) => {
 	const templates = await getTemplates(queryClient);
 	return templates.map((temp) => ({
 		category: temp.category,
-		favouritesCount: temp._count.favouriteOf,
-		title: temp.title,
-		url: `/templates/${temp.id}`,
-	}));
-};
-
-const generateFavouriteTemplates = async (queryClient: QueryClient, isLoggedIn: boolean) => {
-	const templates = await getFavouriteTemplates(queryClient, isLoggedIn);
-	return templates.map((temp) => ({
-		category: temp.category,
-		favouritesCount: temp._count.favouriteOf,
 		title: temp.title,
 		url: `/templates/${temp.id}`,
 	}));
@@ -78,7 +53,6 @@ const generateAuthoredTemplates = async (queryClient: QueryClient, isLoggedIn: b
 	const templates = await getAuthoredTemplates(queryClient, isLoggedIn);
 	return templates.map((temp) => ({
 		category: temp.category,
-		favouritesCount: temp._count.favouriteOf,
 		title: temp.title,
 		url: `/templates/${temp.id}`,
 	}));
@@ -97,7 +71,6 @@ export default async function Layout({ children }: { children: React.ReactNode }
 						<AppSidebar
 							authoredTemplates="[]"
 							customCollections="[]"
-							favouriteTemplates="[]"
 							isLoggedIn={isLoggedIn}
 							key="Sidebar"
 							templates="[]"
@@ -109,9 +82,6 @@ export default async function Layout({ children }: { children: React.ReactNode }
 							await generateAuthoredTemplates(queryClient, isLoggedIn),
 						)}
 						customCollections={JSON.stringify(await getCustomCollections(queryClient, isLoggedIn))}
-						favouriteTemplates={JSON.stringify(
-							await generateFavouriteTemplates(queryClient, isLoggedIn),
-						)}
 						isLoggedIn={isLoggedIn}
 						key="Sidebar"
 						templates={JSON.stringify(await generateSidebarLinks(queryClient))}

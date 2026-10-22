@@ -44,9 +44,6 @@ const NotePage = async ({ params, searchParams }: PageProps<"/templates/[id]">) 
 		throw new Error("Document not found");
 	}
 
-	const isFavourite = doc?.favouriteOf.some(
-		(user: { id: string | undefined }) => user.id === session?.user?.id,
-	);
 	const isAuthor = doc.authorId === session?.user?.id;
 
 	return (
@@ -67,7 +64,6 @@ const NotePage = async ({ params, searchParams }: PageProps<"/templates/[id]">) 
 				<NavActions
 					author={doc.author?.name ?? undefined}
 					isAuthor={isAuthor}
-					isFavourite={isFavourite}
 					isLoggedIn={!!session?.user?.id}
 					lastEdited={doc.updatedAt}
 					templateId={doc.id}

@@ -253,6 +253,13 @@
 			"when": 1792540000000,
 			"tag": "0035_model_config",
 			"breakpoints": true
+		},
+		{
+			"idx": 36,
+			"version": "7",
+			"when": 1792900000000,
+			"tag": "0036_favourites_to_collections",
+			"breakpoints": true
 		}
 	]
 }

@@ -47,7 +47,7 @@ const NONE_VALUE = "__none__";
 const FIELD_EXPLANATIONS = {
 	prompt: "Der Basis-Prompt legt Inhalt, Ton und Struktur der Generierung fest.",
 	template:
-		"Das Template gibt Stil, Format und Zielstruktur des erzeugten Textes vor. Eigene und favorisierte Templates können ebenfalls ausgewählt werden.",
+		"Das Template gibt Stil, Format und Zielstruktur des erzeugten Textes vor. Eigene und öffentliche Templates können ebenfalls ausgewählt werden.",
 	visibility:
 		"Öffentliche AI Vorlagen können alle Nutzer sehen und verwenden. Private AI Vorlagen sind nur mit entsprechender Kontoberechtigung verfügbar.",
 } as const;

@@ -2,7 +2,6 @@
 
 import { DataTableColumnHeader } from "@repo/design-system/components/ui/data-table";
 import { createColumnHelper } from "@tanstack/react-table";
-import { Users } from "lucide-react";
 
 import { USER_MESSAGES } from "@/lib/user-messages";
 
@@ -17,14 +16,6 @@ export interface AdminTemplateRow {
 		name: string | null;
 		email: string;
 	} | null;
-	favouriteOf: {
-		id: string;
-		name: string | null;
-		email: string;
-	}[];
-	_count: {
-		favouriteOf: number;
-	};
 }
 
 export const getUserDisplayName = (user: { name: string | null; email: string }): string => {
@@ -94,34 +85,6 @@ export const columns = [
 		enableSorting: false,
 		header: USER_MESSAGES.adminTemplates.author,
 		id: "author",
-	}),
-	columnHelper.accessor("_count.favouriteOf", {
-		cell: ({ row, getValue }) => {
-			const visibleFavouriteUsers = row.original.favouriteOf.slice(0, 2);
-			const remainingFavourites = Math.max(
-				0,
-				row.original.favouriteOf.length - visibleFavouriteUsers.length,
-			);
-
-			return (
-				<div className="space-y-1">
-					<div className="flex items-center gap-2">
-						<Users className="h-3.5 w-3.5 text-solarized-base01" />
-						<span className="font-medium text-solarized-base00">{getValue()}</span>
-					</div>
-					{visibleFavouriteUsers.length > 0 && (
-						<div className="text-solarized-base01 text-xs">
-							{visibleFavouriteUsers.map((favUser) => getUserDisplayName(favUser)).join(", ")}
-							{remainingFavourites > 0 ? ` +${remainingFavourites}` : ""}
-						</div>
-					)}
-				</div>
-			);
-		},
-		header: ({ column }) => (
-			<DataTableColumnHeader column={column} title={USER_MESSAGES.adminTemplates.favourites} />
-		),
-		id: "favourites",
 	}),
 	columnHelper.accessor("updatedAt", {
 		cell: ({ getValue }) => (
