@@ -4,8 +4,8 @@
 
 set -euo pipefail
 
-readonly BUN_VERSION="1.3.14"
-readonly NODE_VERSION="24.19.0"
+readonly BUN_VERSION="1.4.4"
+readonly NODE_VERSION="24.22.1"
 readonly PGVECTOR_VERSION="0.8.1"
 readonly DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/mdscribe"
 readonly TEST_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/mdscribe_test"
