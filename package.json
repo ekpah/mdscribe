@@ -50,13 +50,11 @@
 		"ultracite": "^7.12.4"
 	},
 	"overrides": {
-		"ajv": "8.20.0",
-		"linkify-it": "5.0.2",
-		"markdown-it": "14.3.3",
+		"esbuild@~0.18.20": "0.25.12",
+		"postcss-selector-parser": "7.1.6",
 		"prosemirror-model": "1.25.12",
 		"prosemirror-view": "1.42.6",
-		"react": "19.3.1",
-		"tar": "7.5.22"
+		"react": "19.3.1"
 	},
 	"engines": {
 		"node": ">=20.9.0"
