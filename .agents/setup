@@ -4,54 +4,70 @@
 
 set -euo pipefail
 
+SECONDS=0
+step() {
+	printf '\n[setup +%ss] %s\n' "${SECONDS}" "$*"
+}
+trap 'status=$?; printf "\n[setup +%ss] Finished (exit %s).\n" "${SECONDS}" "${status}"' EXIT
+
 readonly BUN_VERSION="1.4.4"
 readonly NODE_VERSION="24.22.1"
 readonly PGVECTOR_VERSION="0.8.1"
 readonly DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/mdscribe"
 readonly TEST_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/mdscribe_test"
 
-echo "Installing system dependencies..."
-sudo apt-get update
-sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-	build-essential \
-	ca-certificates \
-	curl \
-	postgresql \
-	postgresql-contrib \
-	postgresql-server-dev-15 \
-	libgl1 \
-	libglib2.0-0 \
-	libgomp1 \
-	libsm6 \
-	libxext6 \
-	libxrender1 \
-	ssl-cert \
+step "Checking system dependencies..."
+readonly -a SYSTEM_PACKAGES=(
+	build-essential
+	ca-certificates
+	curl
+	postgresql
+	postgresql-contrib
+	postgresql-server-dev-15
+	libgl1
+	libglib2.0-0
+	libgomp1
+	libsm6
+	libxext6
+	libxrender1
+	ssl-cert
 	xz-utils
+)
+missing_packages=()
+for package in "${SYSTEM_PACKAGES[@]}"; do
+	if [[ "$(dpkg-query -W -f='${Status}' "${package}" 2>/dev/null || true)" != "install ok installed" ]]; then
+		missing_packages+=("${package}")
+	fi
+done
+if (( ${#missing_packages[@]} )); then
+	sudo apt-get update
+	sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${missing_packages[@]}"
+fi
 
 if [[ ! -f /etc/ssl/certs/ssl-cert-snakeoil.pem ]]; then
 	sudo DEBIAN_FRONTEND=noninteractive \
 		/usr/sbin/make-ssl-cert generate-default-snakeoil --force-overwrite
 fi
 
+step "Checking pgvector ${PGVECTOR_VERSION}..."
 if [[ ! -f "$(pg_config --sharedir)/extension/vector.control" ]]; then
-	echo "Installing pgvector ${PGVECTOR_VERSION}..."
 	(
 		pgvector_source="$(mktemp -d)"
 		trap 'rm -rf -- "${pgvector_source}"' EXIT
 		curl -fsSL "https://github.com/pgvector/pgvector/archive/refs/tags/v${PGVECTOR_VERSION}.tar.gz" \
 			| tar -xz --strip-components=1 -C "${pgvector_source}"
-		make -C "${pgvector_source}"
+		make -j"$(nproc)" -C "${pgvector_source}"
 		sudo make -C "${pgvector_source}" install
 	)
 fi
 
-echo "Installing Node.js ${NODE_VERSION}..."
+step "Checking Node.js ${NODE_VERSION}..."
 if ! command -v node >/dev/null 2>&1 || [[ "$(node --version)" != "v${NODE_VERSION}" ]]; then
 	curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
 		| sudo tar -xJ --strip-components=1 -C /usr/local
 fi
 
-echo "Installing Bun ${BUN_VERSION}..."
+step "Checking Bun ${BUN_VERSION}..."
 if ! command -v bun >/dev/null 2>&1 || [[ "$(bun --version)" != "${BUN_VERSION}" ]]; then
 	curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}"
 fi
@@ -59,27 +75,27 @@ export BUN_INSTALL="${HOME}/.bun"
 export PATH="${BUN_INSTALL}/bin:${PATH}"
 sudo ln -sf "${BUN_INSTALL}/bin/bun" /usr/local/bin/bun
 
-echo "Installing workspace dependencies..."
+step "Installing workspace dependencies..."
 bun install --frozen-lockfile
 
 readonly PADDLEOCR_VENV="${HOME}/.cache/mdscribe/paddleocr-venv"
 readonly PADDLEOCR_HOME="${HOME}/.cache/mdscribe/paddleocr-models"
-echo "Installing the PaddleOCR CPU service..."
+step "Installing the PaddleOCR CPU service..."
 uv python install 3.12
 uv venv --python 3.12 --allow-existing "${PADDLEOCR_VENV}"
+# PyPI publishes the same CPU runtime as the vendor index, without its slow CDN.
+# Resolve together so the runtime install does not first fetch incompatible NumPy/Pillow versions.
 uv pip install --python "${PADDLEOCR_VENV}/bin/python" \
-	--index-url https://www.paddlepaddle.org.cn/packages/stable/cpu/ \
-	paddlepaddle==3.3.1
-uv pip install --python "${PADDLEOCR_VENV}/bin/python" \
+	paddlepaddle==3.3.1 \
 	--requirement services/paddleocr/requirements.txt
 
-echo "Warming PaddleOCR model files..."
+step "Warming PaddleOCR model files..."
 mkdir -p "${PADDLEOCR_HOME}"
 HOME="${PADDLEOCR_HOME}" PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True \
 	PYTHONPATH="${PWD}/services/paddleocr" \
 	"${PADDLEOCR_VENV}/bin/python" -c \
 	'from server import _create_pipeline; pipeline = _create_pipeline(); assert pipeline is not None' \
-	2>"${HOME}/.cache/mdscribe/paddleocr-warm.log"
+	2>&1 | tee "${HOME}/.cache/mdscribe/paddleocr-warm.log"
 
 ensure_env_defaults() {
 	local env_file="$1"
@@ -114,7 +130,7 @@ readonly -a ENV_DEFAULTS=(
 	"STRIPE_PLUS_PRICE_ID_ANNUAL=orb-placeholder"
 )
 
-echo "Ensuring local development environment..."
+step "Ensuring local development environment..."
 ensure_env_defaults .env "${ENV_DEFAULTS[@]}"
 
 if [[ ! -e apps/app/.env && ! -L apps/app/.env ]]; then
@@ -122,14 +138,14 @@ if [[ ! -e apps/app/.env && ! -L apps/app/.env ]]; then
 fi
 ensure_env_defaults apps/app/.env "${ENV_DEFAULTS[@]}"
 
-echo "Starting PostgreSQL..."
+step "Starting PostgreSQL..."
 while read -r version cluster _ status _; do
 	if [[ "${status}" != "online" ]]; then
 		sudo pg_ctlcluster --skip-systemctl-redirect "${version}" "${cluster}" start
 	fi
 done < <(pg_lsclusters --no-header)
 
-echo "Preparing local databases..."
+step "Preparing local databases..."
 sudo -u postgres psql --quiet --set ON_ERROR_STOP=1 <<'SQL'
 ALTER USER postgres PASSWORD 'postgres';
 ALTER SYSTEM SET fsync = 'off';
@@ -143,8 +159,8 @@ for database in mdscribe mdscribe_test; do
 	fi
 done
 
-echo "Applying database migrations and development seed data..."
+step "Applying database migrations and development seed data..."
 NODE_ENV="development" MDSCRIBE_ALLOW_DEV_SEED="1" MDSCRIBE_SKIP_AI_SEED="1" POSTGRES_DATABASE_URL="${DATABASE_URL}" \
 	bun run db:bootstrap
 
-echo "Orb setup complete."
+step "Orb setup complete."
