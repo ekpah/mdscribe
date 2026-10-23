@@ -861,17 +861,30 @@ const CalcReference = ({
 	);
 };
 
-/** A list may mention one variable more than once, so positions key its entries. */
+/**
+ * A list may mention one variable more than once, so positions key its entries.
+ * Of several branch-guarded infos of one variable, only the first shown renders.
+ */
 const renderInputList = (
 	inputs: InputTagType[],
 	context: RenderContext,
 	parentCalcKey?: string,
-): React.ReactNode =>
-	inputs.map((input, index) => (
-		<Fragment key={`${input.name}:${input.attributes.primary}:${index}`}>
-			{renderInputTag(input, context, parentCalcKey)}
-		</Fragment>
-	));
+): React.ReactNode => {
+	const shownInfos = new Set<string>();
+	return inputs.map((input, index) => {
+		if (input.name === "Info" && isBranchVisible(input.visibility, context.values)) {
+			if (shownInfos.has(input.attributes.primary)) {
+				return null;
+			}
+			shownInfos.add(input.attributes.primary);
+		}
+		return (
+			<Fragment key={`${input.name}:${input.attributes.primary}:${index}`}>
+				{renderInputTag(input, context, parentCalcKey)}
+			</Fragment>
+		);
+	});
+};
 
 const renderInputTag = (
 	input: InputTagType,

@@ -570,20 +570,29 @@ const processNodeToInputTags = (
  * Collapses mentions of a variable within each input list: repeated mentions
  * merge, and a calc replaces an info of the same name (the value is computed
  * and the info's unit fills a missing calc unit). Branch-guarded inputs stay
- * separate, so nested controls never suppress independent ones.
+ * separate, so nested controls never suppress independent ones, but a
+ * branch-guarded info is dropped when the list already shows its variable
+ * unconditionally.
  */
 const deduplicateVariableInputs = (inputs: InputTagType[]): InputTagType[] => {
 	const calculations = new Map<string, CalcInputTagType>();
+	const unguarded = new Set<string>();
 	for (const input of inputs) {
 		input.children = deduplicateVariableInputs(input.children ?? []);
 		const { primary } = input.attributes;
+		if (input.name !== "Case" && primary && !input.visibility) {
+			unguarded.add(primary);
+		}
 		if (input.name === "Calc" && primary && !input.visibility && !calculations.has(primary)) {
 			calculations.set(primary, input);
 		}
 	}
 	const remaining = inputs.filter((input) => {
-		if (input.name !== "Info" || input.visibility) {
+		if (input.name !== "Info") {
 			return true;
+		}
+		if (input.visibility) {
+			return !unguarded.has(input.attributes.primary);
 		}
 		const calculation = calculations.get(input.attributes.primary);
 		if (calculation) {

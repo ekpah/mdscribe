@@ -239,10 +239,22 @@ describe("condition input extraction", () => {
 				attributes: { description: "Hinterwanddicke", type: "number", unit: "mm" },
 				name: "Info",
 			});
-			const nested = inputs.find((input) => input.visibility);
-			expect(nested).toMatchObject({ attributes: { primary: "lvpwd" }, name: "Info" });
+			// The independent input already covers the nested mention.
+			expect(inputs.some((input) => input.visibility)).toBe(false);
 		});
 	}
+
+	test("a nested mention without an independent input stays guarded", () => {
+		const { inputs } = analyzeMarkdocTemplate(
+			`{% condition "a" %}{% case gt=0 %}{% info "b" type="number" /%}{% /case %}{% /condition %}{% condition "c" %}{% case gt=0 %}{% condition "b" %}{% case gt=0 %},{% /case %}{% /condition %} C {% info "c" type="number" /%}{% /case %}{% /condition %}`,
+		);
+		expect(inputs.map((input) => [input.attributes.primary, Boolean(input.visibility)])).toEqual([
+			["a", false],
+			["b", true],
+			["c", false],
+			["b", true],
+		]);
+	});
 
 	test("keeps repeated inputs in separate cases and at top level", () => {
 		const field = `{% info "note" /%}`;

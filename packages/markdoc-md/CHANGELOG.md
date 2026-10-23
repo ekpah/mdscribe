@@ -13,6 +13,10 @@
 - `MarkdocComponentMap` types the built-in render names, so a replacement `Info`, `Switch`, `Calc`, … must accept that tag's props. Custom render names still accept any component.
 - Remove unused internal calculation-prop exports and the duplicate Score component export. The default component map still renders legacy `score` tags through Calc; public package entrypoints remain unchanged.
 
+### Fixed
+
+- Input extraction drops a branch-guarded `info` when the same input list already has an unguarded input of that variable, so fields mentioned inside `condition` cases are no longer listed repeatedly.
+
 ## [0.2.0] - 2026-10-18
 
 ### Fixed
