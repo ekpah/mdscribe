@@ -313,6 +313,17 @@ export const AiscribeTemplate = ({ config, isAdmin = false }: AiscribeTemplatePr
 			return;
 		}
 
+		// Documents are recognized before anything is sent; their errors are user-facing.
+		let inputContextPayload: Awaited<ReturnType<typeof inputContextController.prepareSubmission>>;
+		try {
+			inputContextPayload = await inputContextController.prepareSubmission();
+		} catch (error) {
+			toast.error(
+				error instanceof Error && error.message ? error.message : USER_MESSAGES.unknownError,
+			);
+			return;
+		}
+
 		// Clear previous messages before starting a new request
 		setMessages([]);
 		setActiveTab("output");
@@ -331,7 +342,6 @@ export const AiscribeTemplate = ({ config, isAdmin = false }: AiscribeTemplatePr
 						...additionalInputData,
 					});
 
-			const inputContextPayload = await inputContextController.prepareSubmission();
 			// Use refs to avoid race condition - ref updates are synchronous.
 			preparedAudioFilesRef.current = inputContextPayload.audioFiles;
 			preparedContextFilesRef.current = inputContextPayload.contextFiles;

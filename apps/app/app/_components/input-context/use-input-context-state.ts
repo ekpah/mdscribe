@@ -294,10 +294,16 @@ export const useInputContextState = ({
 		if (contextFilesRef.current.length > 0) {
 			policy = await loadPolicy(true);
 			if (policy.ocrConfigured) {
-				if (contextFilesRef.current.some((file) => file.ocrStatus === "awaiting-alignment")) {
-					throw new Error(
-						"Bitte für Bilder die OCR starten, bei Bedarf vorher in der Vorschau manuell ausrichten.",
-					);
+				// Submitting confirms images whose OCR was not started yet, with any
+				// alignment saved in the preview, like the file row's "OCR starten".
+				for (const file of contextFilesRef.current) {
+					if (
+						file.ocrStatus === "awaiting-alignment" &&
+						file.viewRotation &&
+						!(await rotateContextFile(file.id, file.viewRotation))
+					) {
+						throw new Error(`„${file.file.name}“ konnte nicht ausgerichtet werden.`);
+					}
 				}
 				await Promise.all(ocrPromisesRef.current.values());
 				// A submit can happen before the upload effect has started its requests.
@@ -355,7 +361,15 @@ export const useInputContextState = ({
 			contextFiles: submittedContextFiles,
 			textContext: toSubmittedTextContext(textContext),
 		};
-	}, [agent, audioRecordings, loadPolicy, runOcr, textContext, updateContextFile]);
+	}, [
+		agent,
+		audioRecordings,
+		loadPolicy,
+		rotateContextFile,
+		runOcr,
+		textContext,
+		updateContextFile,
+	]);
 
 	return {
 		addAudioFiles,

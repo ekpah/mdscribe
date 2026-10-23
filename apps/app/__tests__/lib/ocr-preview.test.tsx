@@ -267,7 +267,7 @@ test("generation OCR replaces existing preview text and boxes without clearing u
 	expect(stdout).toContain("Generation OCR preview refresh: OK");
 });
 
-test("images require alignment and submissions stay blocked until OCR completes", async () => {
+test("unstarted image OCR runs on submit and submissions wait until OCR completes", async () => {
 	const child = Bun.spawn(
 		[
 			execPath,
@@ -330,22 +330,20 @@ test("images require alignment and submissions stay blocked until OCR completes"
 			controller = render();
 			assert.equal(controller.contextFiles[0].ocrStatus,"awaiting-alignment");
 			assert.notEqual(controller.contextFiles[0].file,image);
-			await assert.rejects(controller.prepareSubmission(),/manuell ausrichten/);
 			assert.deepEqual(calls,[]);
+			// Submitting an image whose OCR was not started runs OCR first and waits for it.
 			// A selected document model takes precedence over native vision.
 			native = true;
-			await assert.rejects(controller.prepareSubmission(),/manuell ausrichten/);
-			assert.deepEqual(calls,[]);
-			controller.retryContextFileOcr(controller.contextFiles[0].id);
-			controller = render();
-			assert.equal(controller.hasPendingOcr,true);
-			await assert.rejects(controller.prepareSubmission(),/Dokumenterkennung läuft noch/);
+			let submitted = false;
+			const firstSubmission = controller.prepareSubmission().finally(() => { submitted = true; });
 			await new Promise(resolve => setTimeout(resolve,0));
 			controller = render();
+			assert.deepEqual(calls,["scan.png"]);
 			assert.equal(controller.hasPendingOcr,true);
+			assert.equal(submitted,false);
 			await assert.rejects(controller.prepareSubmission(),/Dokumenterkennung läuft noch/);
 			releaseOcr();
-			await new Promise(resolve => setTimeout(resolve,0));
+			assert.equal((await firstSubmission).contextFiles[0].ocrResult.text,"document-v1 scan.png");
 			controller = render();
 			assert.equal(controller.hasPendingOcr,false);
 			const submission = await controller.prepareSubmission();
@@ -382,11 +380,11 @@ test("images require alignment and submissions stay blocked until OCR completes"
 			assert.equal(encodes,2);
 			// The remaining checks reuse the original file object.
 			invalidated = false;
-			// Replacements without status cannot bypass the manual-image gate.
+			// Replacements without status are recognized before submission, too.
 			controller.setContextFiles([{id:"raw",file:image}]);
 			controller = render();
-			await assert.rejects(controller.prepareSubmission(),/manuell ausrichten/);
-			assert.deepEqual(calls,["scan.png","scan.png"]);
+			assert.equal((await controller.prepareSubmission()).contextFiles[0].kind,"ocr");
+			assert.deepEqual(calls,["scan.png","scan.png","scan.png"]);
 			controller.setContextFiles([]);
 			controller.addContextFiles([new File(["pdf"],"letter.pdf",{type:"application/pdf"})]);
 			controller = render();
@@ -395,7 +393,7 @@ test("images require alignment and submissions stay blocked until OCR completes"
 			await new Promise(resolve => setTimeout(resolve,0));
 			controller = render();
 			await controller.prepareSubmission();
-			assert.deepEqual(calls,["scan.png","scan.png","letter.pdf"]);
+			assert.deepEqual(calls,["scan.png","scan.png","scan.png","letter.pdf"]);
 			// Without a document model, no OCR occurs and native vision gets original bytes.
 			configured = false;
 			controller.setContextFiles([{id:"no-ocr",file:image}]);
@@ -415,10 +413,10 @@ test("images require alignment and submissions stay blocked until OCR completes"
 			controller.setContextFileOcrResults([{backend:"llm",text:"stale"}],[raw.id]);
 			controller = render();
 			assert.ok(!("ocrResult" in (await controller.prepareSubmission()).contextFiles[0]));
-			assert.equal(calls.length,3);
+			assert.equal(calls.length,4);
 			native = false;
 			await assert.rejects(controller.prepareSubmission(),/Vision-fähiges/);
-			console.log("Manual image gate and automatic PDF OCR: OK");
+			console.log("Image OCR on submit and automatic PDF OCR: OK");
 			`,
 		],
 		{ cwd: `${import.meta.dir}/../..`, stderr: "pipe", stdout: "pipe" },
@@ -429,5 +427,5 @@ test("images require alignment and submissions stay blocked until OCR completes"
 		child.exited,
 	]);
 	expect({ exitCode, stderr }).toMatchObject({ exitCode: 0 });
-	expect(stdout).toContain("Manual image gate and automatic PDF OCR: OK");
+	expect(stdout).toContain("Image OCR on submit and automatic PDF OCR: OK");
 });
