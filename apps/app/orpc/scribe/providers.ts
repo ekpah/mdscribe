@@ -577,7 +577,7 @@ const resolveProviderCredentials = async (
  * Fills `{key}` placeholders in the base URL from provider options, so stored
  * URLs stay templates (e.g. Workers AI's `{accountId}`), like pi-ai's.
  */
-export const expandProviderBaseUrl = (
+const expandProviderBaseUrl = (
 	provider: Pick<AiProviderRow, "baseUrl" | "options">,
 ): string | null =>
 	provider.baseUrl?.replaceAll(/\{(\w+)\}/g, (_match, key: string) => {

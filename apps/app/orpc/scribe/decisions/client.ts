@@ -13,7 +13,7 @@ export type DecisionQuestions = Record<
 	{ type: "choice" | "box" | "noul"; instructions: string; criteria?: Record<string, string> }
 >;
 
-export const DECISION_PROTOCOLS = ["openrouter", "workers-ai", "openai"] as const;
+const DECISION_PROTOCOLS = ["openrouter", "workers-ai", "openai"] as const;
 export type DecisionProtocol = (typeof DECISION_PROTOCOLS)[number];
 
 export const isDecisionProtocol = (protocol: string): protocol is DecisionProtocol =>

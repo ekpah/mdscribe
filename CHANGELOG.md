@@ -68,6 +68,7 @@
 
 ### Fixed
 
+- OCR layout tests now release their two-page parser fixture, preventing order-dependent autofill failures in CI. Remove two unused internal exports so Knip passes without suppressions.
 - Pin every CI action to its verified full commit SHA so the workflow can start under the repository's SHA-pinning security policy, without changing action major versions or weakening the policy.
 - Production Docker pruning now uses the Turborepo version pinned in the root manifest, fixing builds that failed to parse Bun's versioned overrides after the lockfile update. Page collection uses a build-only, unreachable database placeholder instead of requiring production credentials; runtime still requires its own database URL. CI now checks pull requests and pushes to main/staging with formatting, lint, types, Knip, the full test suite, and a separate production Docker build; repository guidance requires the same pre-delivery checks.
 - Template inputs no longer repeat a field that is also mentioned inside `condition` cases: a nested mention is dropped when the field already has its own input, and of several nested mentions only the first shown one renders.

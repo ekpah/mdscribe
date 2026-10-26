@@ -84,6 +84,8 @@ test.each([{ zdr: false }, { zdr: true }])(
 				expect(summary?.metadata).not.toHaveProperty("ocr.pages");
 			}
 		} finally {
+			delete ocrMockState.result;
+			delete aiMockState.nextOcrOutputs;
 			await server.close();
 		}
 	},

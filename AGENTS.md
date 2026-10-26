@@ -10,6 +10,7 @@
 
 - Always run `bun run lint`, `bun run test`, and `bun run knip` before handing off code changes. Report failures rather than skipping checks or treating existing failures as a pass.
 - Also run `bun run format:check` and `bun run typecheck`.
+- Automated tests must not call live AI models or incur provider charges. Use mocks or local fixture servers instead.
 - For dependency, lockfile, Dockerfile, or build-configuration changes, build the production image with `docker build --build-arg NEXT_PUBLIC_BASE_URL=https://mdscribe.example --tag mdscribe:check .`. A host installation or dev-server build is not a substitute for the Docker build. If Docker is unavailable, report the limitation explicitly.
 
 ## Seeded test account
