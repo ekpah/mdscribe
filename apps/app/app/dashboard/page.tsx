@@ -725,7 +725,7 @@ const RecentActivityCard = ({ activities }: { activities: DashboardActivity[] })
 export default async function DashboardPage() {
 	// Auth check - must happen before queries
 	const requestHeaders = await headers();
-	const session = await getServerSession().catch((_e) => {
+	const session = await getServerSession().catch(() => {
 		throw redirect(createSignInRedirect(getRequestedPath(requestHeaders, "/dashboard")));
 	});
 

@@ -22,7 +22,7 @@ const setCheckBoxWidgetOnValue = (checkbox: PDFCheckBox, widgetIndex: number, va
 	const widget = checkbox.acroField.getWidgets()[widgetIndex];
 	const normalAppearance = widget?.getAppearances()?.normal;
 	if (!(normalAppearance instanceof PDFDict)) {
-		throw new Error("Expected checkbox widget normal appearance dictionary");
+		throw new TypeError("Expected checkbox widget normal appearance dictionary");
 	}
 
 	const yesName = PDFName.of("Yes");

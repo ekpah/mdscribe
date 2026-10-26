@@ -6,8 +6,8 @@ Thank you for your interest in contributing to MDScribe! This guide will help yo
 
 ### Prerequisites
 
-- [Bun](https://bun.sh/) (v1.2+)
-- Node.js 18+
+- [Bun](https://bun.sh/) 1.4.4 (the pinned package manager)
+- Node.js 24.22.1 recommended (also supported: 22.23.4+ on Node 22, 24.22.1+ on Node 24, or 26.12.1+)
 - Git
 
 ### Getting Started

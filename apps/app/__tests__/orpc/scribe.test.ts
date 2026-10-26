@@ -1052,7 +1052,10 @@ describe("Fill Inputs Handler", () => {
 								{
 									choice,
 									confidence: 0.99,
-									probabilities: { other: Number((1 - chance).toFixed(3)), [choice]: chance },
+									probabilities: Object.fromEntries([
+										["other", Number((1 - chance).toFixed(3))],
+										[choice, chance],
+									]),
 								},
 							];
 						}),

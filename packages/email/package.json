@@ -9,15 +9,14 @@
 	},
 	"dependencies": {
 		"@react-email/components": "1.0.12",
-		"nodemailer": "^10.1.2",
+		"nodemailer": "^10.2.1",
 		"react": "catalog:"
 	},
 	"devDependencies": {
 		"@types/bun": "catalog:",
 		"@types/node": "catalog:",
 		"@types/react": "catalog:",
-		"@types/smtp-server": "^3.5.13",
-		"smtp-server": "^3.19.23",
+		"smtp-server": "^3.21.1",
 		"typescript": "catalog:"
 	}
 }

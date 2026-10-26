@@ -17,7 +17,7 @@ export default async function SubscriptionPage() {
 	}
 
 	const requestHeaders = await headers();
-	const session = await getServerSession().catch((_e) => {
+	const session = await getServerSession().catch(() => {
 		throw redirect(createSignInRedirect(getRequestedPath(requestHeaders, "/subscription")));
 	});
 
