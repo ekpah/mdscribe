@@ -8,7 +8,8 @@ WORKDIR /app
 COPY . .
 
 # Generate a pruned monorepo containing only app + its transitive workspace deps.
-RUN bunx --bun turbo@2.10.9 prune app --docker --out-dir=out
+# Use the project's pinned version so the lockfile parser cannot drift from CI.
+RUN bunx --bun "turbo@$(bun -p 'require("./package.json").devDependencies.turbo')" prune app --docker --out-dir=out
 
 # ---- Dependencies ----
 FROM base AS deps
@@ -55,7 +56,10 @@ ENV NEXT_PUBLIC_BASE_URL=${NEXT_PUBLIC_BASE_URL}
 # Build only the app (docs is deployed separately).
 # Run Next directly under Node to avoid Bun worker_threads build issues.
 # Webpack output avoids Turbopack's hashed ESM externals, unsupported by the Bun runner.
-RUN cd apps/app && node ../../node_modules/next/dist/bin/next build --webpack
+# Page collection imports the DB client, but must not connect to a real database.
+# Scope the placeholder to this command; runtime still requires its own database URL.
+RUN cd apps/app && POSTGRES_DATABASE_URL=postgres://build:build@127.0.0.1:1/build \
+    node ../../node_modules/next/dist/bin/next build --webpack
 
 # ---- Runner ----
 FROM base AS runner

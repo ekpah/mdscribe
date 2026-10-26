@@ -195,17 +195,46 @@ Key conventions:
 - **Iteration**: Use `for...of` instead of `Array.forEach`
 - **Functions**: Use arrow functions instead of function expressions
 
-Run the linter before submitting:
+Run all checks before submitting (build the workspace entrypoints first on a clean checkout):
 
 ```bash
+bun run --cwd packages/markdoc-md build
+bun run format:check
 bun run lint
+bun run typecheck
+bun run knip
+bun run test
 ```
+
+### Production build and deployment checks
+
+CI runs these checks on pull requests and pushes to `main` and `staging`, including
+the full test suite rather than only affected tests. Once dependencies are installed,
+check failures do not skip the remaining checks. A separate job builds the complete
+production Docker image, without publishing or deploying it:
+
+```bash
+docker build --build-arg NEXT_PUBLIC_BASE_URL=https://mdscribe.example --tag mdscribe:check .
+```
+
+Run this build locally for dependency, lockfile, Dockerfile, or build-configuration
+changes. The Docker pruner reads the pinned Turborepo version from `package.json`;
+do not introduce a separate version pin in the Dockerfile.
+
+CI alone does not prevent Coolify from deploying a direct push before checks finish.
+Before enabling automatic production deployments, require both
+`Format + Lint + Types + Knip + Unit Tests` and `Production Docker Build` in GitHub
+branch protection, require changes through pull requests, and either deploy only
+validated merges or trigger Coolify after successful CI for the exact commit.
+Do not treat a successful push as a successful deployment: verify the deployed
+commit and application health separately. Changing branch protection or Coolify's
+deployment triggers requires repository/operator approval.
 
 ## Pull Request Guidelines
 
 - Keep PRs focused on a single change
 - Include a clear description of what changed and why
-- Ensure `bun run lint` and `bun run build` pass
+- Ensure formatting, lint, typecheck, Knip, tests, and the production Docker build pass
 - Add tests for new functionality where applicable
 - Target the `staging` branch
 
