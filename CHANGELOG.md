@@ -68,6 +68,7 @@
 
 ### Fixed
 
+- Pin every CI action to its verified full commit SHA so the workflow can start under the repository's SHA-pinning security policy, without changing action major versions or weakening the policy.
 - Production Docker pruning now uses the Turborepo version pinned in the root manifest, fixing builds that failed to parse Bun's versioned overrides after the lockfile update. Page collection uses a build-only, unreachable database placeholder instead of requiring production credentials; runtime still requires its own database URL. CI now checks pull requests and pushes to main/staging with formatting, lint, types, Knip, the full test suite, and a separate production Docker build; repository guidance requires the same pre-delivery checks.
 - Template inputs no longer repeat a field that is also mentioned inside `condition` cases: a nested mention is dropped when the field already has its own input, and of several nested mentions only the first shown one renders.
 - Submitting with uploaded images whose OCR was not started no longer fails; in AIScribe it previously showed only "Es ist ein unbekannter Fehler aufgetreten". Submission now runs OCR first, with any alignment saved in the preview, and sends once it completes. AIScribe also shows the actual message when document preparation fails.
