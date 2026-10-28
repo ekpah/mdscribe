@@ -134,7 +134,7 @@ test("seeds all available providers, Gemini defaults, and preserves admin choice
 	// Keys for OCR-capable providers also make their OCR models selectable.
 	const allModels = await db.select().from(aiModel);
 	expect(allModels.filter(isOcrRow).map(({ modelId }) => modelId)).toEqual([
-		"mistral-ocr-4-0",
+		"mistral-ocr-4-1",
 		"ocr",
 	]);
 	const [defaults] = await db.select().from(aiDefaults);

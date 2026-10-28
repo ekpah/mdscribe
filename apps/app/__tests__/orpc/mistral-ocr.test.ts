@@ -50,7 +50,7 @@ test("native Mistral provider validates credentials, stays document-only, and pr
 			}
 			return Response.json(
 				path === "/v1/models"
-					? { data: [{ id: "mistral-ocr-4-0" }, { id: "mistral-small" }] }
+					? { data: [{ id: "mistral-ocr-4-1" }, { id: "mistral-small" }] }
 					: response,
 				{ status },
 			);
@@ -109,7 +109,7 @@ test("native Mistral provider validates credentials, stays document-only, and pr
 					type: "document_url",
 				},
 				include_blocks: true,
-				model: "mistral-ocr-4-0",
+				model: "mistral-ocr-4-1",
 				table_format: "html",
 			},
 			path: "/v1/ocr",
@@ -144,7 +144,7 @@ test("native Mistral provider validates credentials, stays document-only, and pr
 		expect(events).toHaveLength(2);
 		const visible = events.find((event) => event.result === result.text);
 		const redacted = events.find((event) => event.result === "[zdr - content redacted]");
-		expect(visible?.model).toBe("mistral-ocr-4-0");
+		expect(visible?.model).toBe("mistral-ocr-4-1");
 		expect(visible?.metadata).toMatchObject({
 			billingUnit: "page",
 			ocrBackend: "mistral-ocr",
@@ -227,7 +227,7 @@ test("native Mistral HTML tables are resolved per page verbatim, never from boxe
 			apiKey: "synthetic-key",
 			credentialSource: "operator",
 			endpoint: server.url.toString(),
-			modelName: "mistral-ocr-4-0",
+			modelName: "mistral-ocr-4-1",
 			providerId: "test",
 			providerProtocol: "mistral-ocr",
 		});

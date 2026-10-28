@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const OCR_MODEL_IDS = {
-	"mistral-ocr": "mistral-ocr-4-0",
+	"mistral-ocr": "mistral-ocr-4-1",
 	"ocr-http": "ocr",
 	"privatemode-ocr": "deepseek-ocr-2",
 } as const;

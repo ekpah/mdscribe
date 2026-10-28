@@ -367,15 +367,15 @@ const fetchMistralOcrModel = async (
 	const body = z
 		.object({ data: z.array(z.object({ id: z.string() })) })
 		.parse(await response.json());
-	if (!body.data.some((model) => model.id === "mistral-ocr-4-0")) {
+	if (!body.data.some((model) => model.id === OCR_MODEL_IDS["mistral-ocr"])) {
 		throw new ORPCError("BAD_REQUEST", {
-			message: "Mistral OCR 4 ist für diese Verbindung nicht verfügbar",
+			message: "Mistral OCR 4.1 ist für diese Verbindung nicht verfügbar",
 		});
 	}
 	return [
 		{
-			displayName: "Mistral OCR 4",
-			modelId: "mistral-ocr-4-0",
+			displayName: "Mistral OCR 4.1",
+			modelId: OCR_MODEL_IDS["mistral-ocr"],
 			supportedParameters: [],
 			supportsReasoning: false,
 		},
