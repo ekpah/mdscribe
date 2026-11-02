@@ -26,7 +26,7 @@ image = (
     .entrypoint([])
     # Modal looks for `python`; the vLLM image only ships `python3`.
     .run_commands("ln -sf $(command -v python3) /usr/local/bin/python")
-    .pip_install("python-multipart==0.0.22")
+    .pip_install("python-multipart==0.0.33")
     .env(
         {
             "HF_HOME": f"{CACHE_DIR}/hf",

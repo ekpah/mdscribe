@@ -15,6 +15,8 @@ export const createSqlClient = (
 	},
 ): SqlClient =>
 	postgres(connectionString, {
+		// Preserve v3 Date/array parameter inference when upgrading to Postgres.js 4.
+		infer: true,
 		max: options?.max ?? 1,
 		prepare: options?.prepare ?? false,
 	});

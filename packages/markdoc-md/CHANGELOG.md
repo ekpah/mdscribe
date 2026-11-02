@@ -10,6 +10,7 @@
 
 ### Changed
 
+- Update Markdoc to 0.5.11 and FHIRPath to 5.2.3 without changing the public template or variable contracts.
 - `MarkdocComponentMap` types the built-in render names, so a replacement `Info`, `Switch`, `Calc`, … must accept that tag's props. Custom render names still accept any component.
 - Remove unused internal calculation-prop exports and the duplicate Score component export. The default component map still renders legacy `score` tags through Calc; public package entrypoints remain unchanged.
 

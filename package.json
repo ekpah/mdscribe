@@ -42,18 +42,18 @@
 	"devDependencies": {
 		"@shadcn/lint": "^0.2.3",
 		"@types/node": "catalog:",
-		"knip": "^6.42.1",
-		"oxfmt": "^0.74.0",
-		"oxlint": "^1.89.0",
+		"knip": "^6.43.0",
+		"oxfmt": "^0.75.0",
+		"oxlint": "^1.90.0",
 		"turbo": "2.11.10",
 		"typescript": "catalog:",
 		"ultracite": "^7.12.4"
 	},
 	"overrides": {
-		"esbuild@~0.18.20": "0.25.12",
+		"esbuild@~0.18.20": "0.28.2",
 		"postcss-selector-parser": "7.1.7",
 		"prosemirror-model": "1.25.12",
-		"prosemirror-view": "1.42.7",
+		"prosemirror-view": "1.42.8",
 		"react": "19.3.1"
 	},
 	"engines": {
@@ -68,20 +68,20 @@
 		"@types/node": "^24.19.2",
 		"@types/react": "^19.3.0",
 		"@types/react-dom": "^19.3.0",
-		"postcss": "^8.5.31",
+		"postcss": "^8.5.32",
 		"lucide-react": "^0.577.0",
 		"zod": "^4.6.7",
 		"next": "^16.4.3",
 		"recharts": "^3.10.1",
-		"react-hook-form": "^7.90.0",
+		"react-hook-form": "^7.91.0",
 		"react-hotkeys-hook": "^5.3.3",
 		"sonner": "^2.0.8",
 		"@tanstack/react-table": "^8.21.3",
-		"ai": "^6.0.315",
-		"@ai-sdk/anthropic": "^3.0.135",
-		"@ai-sdk/openai": "^3.0.131",
-		"@ai-sdk/openai-compatible": "^2.0.87",
-		"@ai-sdk/react": "^3.0.318",
+		"ai": "^6.0.320",
+		"@ai-sdk/anthropic": "^3.0.136",
+		"@ai-sdk/openai": "^3.0.135",
+		"@ai-sdk/openai-compatible": "^2.0.88",
+		"@ai-sdk/react": "^3.0.323",
 		"@tailwindcss/postcss": "^4.3.3"
 	}
 }

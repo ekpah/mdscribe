@@ -27,9 +27,9 @@ image = (
     )
     .pip_install(
         "paddleocr[doc-parser]==3.7.0",
-        "fastapi[standard]==0.131.0",
-        "python-multipart==0.0.22",
-        "pillow==12.1.1",
+        "fastapi[standard]==0.162.0",
+        "python-multipart==0.0.33",
+        "pillow==13.0.0",
         "numpy==2.3.5",
     )
     # vLLM pins torch/CUDA wheels that clash with paddlepaddle-gpu, so the VLM
@@ -39,7 +39,7 @@ image = (
         "uv venv /opt/vllm --python 3.12",
         # PaddleX also requires xformers and flash-attn on CUDA; use the prebuilt
         # torch 2.8 wheel instead of compiling flash-attn from source.
-        "uv pip install --python /opt/vllm/bin/python 'paddlex[genai-vllm-server]==3.7.0'"
+        "uv pip install --python /opt/vllm/bin/python 'paddlex[genai-vllm-server]==3.7.2'"
         " torch==2.8.0 xformers==0.0.32.post1"
         " https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3/"
         "flash_attn-2.8.3+cu12torch2.8cxx11abiTRUE-cp312-cp312-linux_x86_64.whl",
