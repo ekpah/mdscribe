@@ -85,6 +85,10 @@ export const useInputContextState = ({
 		return policyRef.current;
 	}, []);
 	useEffect(() => {
+		// Public template previews also mount this hook; only uploads need the authenticated policy.
+		if (contextFiles.length === 0) {
+			return;
+		}
 		(async () => {
 			try {
 				await loadPolicy();
@@ -92,7 +96,7 @@ export const useInputContextState = ({
 				toast.error("Dokumenten-Einstellungen konnten nicht geladen werden.");
 			}
 		})();
-	}, [loadPolicy]);
+	}, [contextFiles.length, loadPolicy]);
 	const commitContextFiles = useCallback((next: UploadedContextFile[]) => {
 		contextFilesRef.current = next;
 		setContextFiles(next);

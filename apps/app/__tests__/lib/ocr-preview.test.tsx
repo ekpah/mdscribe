@@ -267,7 +267,7 @@ test("generation OCR replaces existing preview text and boxes without clearing u
 	expect(stdout).toContain("Generation OCR preview refresh: OK");
 });
 
-test("unstarted image OCR runs on submit and submissions wait until OCR completes", async () => {
+test("text context needs no document policy; file submissions wait until OCR completes", async () => {
 	const child = Bun.spawn(
 		[
 			execPath,
@@ -280,6 +280,7 @@ test("unstarted image OCR runs on submit and submissions wait until OCR complete
 			const states = [], refs = [], calls = [];
 			let native = false;
 			let configured = true, documentModel = "document-v1", encodes = 0;
+			let policyAvailable = false;
 			let releaseOcr;
 			const pendingOcr = new Promise(resolve => { releaseOcr = resolve; });
 			mock.module("react", () => ({
@@ -299,7 +300,10 @@ test("unstarted image OCR runs on submit and submissions wait until OCR complete
 			}));
 			mock.module("sonner", () => ({toast:{error:message=>{throw Error(message)}}}));
 			mock.module("@/lib/orpc", () => ({orpc:{scribe:{
-				documentInputPolicy:{call:async()=>({ocrConfigured:configured,supportsDocuments:native,agentSupportsDocuments:native})},
+				documentInputPolicy:{call:async()=>{
+					if (!policyAvailable) throw Error("UNAUTHORIZED");
+					return {ocrConfigured:configured,supportsDocuments:native,agentSupportsDocuments:native};
+				}},
 				extractContextFile:{call:async({file})=>{
 					calls.push(file.name);
 					await pendingOcr;
@@ -314,6 +318,14 @@ test("unstarted image OCR runs on submit and submissions wait until OCR complete
 				return controller;
 			};
 			let controller = render();
+			// Public template pages mount this hook without a session or any uploaded files.
+			await new Promise(resolve => setTimeout(resolve,0));
+			assert.deepEqual(await controller.prepareSubmission(),{audioFiles:[],contextFiles:[],textContext:{}});
+			controller.setTextContext({notes:"Only text"});
+			controller = render();
+			await new Promise(resolve => setTimeout(resolve,0));
+			assert.deepEqual((await controller.prepareSubmission()).textContext,{notes:"Only text"});
+			policyAvailable = true;
 			const image = new File(["image"], "scan.png", {type:"image/png"});
 			// Safari can invalidate a picked file later; OCR must read an early copy.
 			let invalidated = false;
@@ -328,6 +340,7 @@ test("unstarted image OCR runs on submit and submissions wait until OCR complete
 			}
 			invalidated = true;
 			controller = render();
+			assert.equal(controller.ocrConfigured,true);
 			assert.equal(controller.contextFiles[0].ocrStatus,"awaiting-alignment");
 			assert.notEqual(controller.contextFiles[0].file,image);
 			assert.deepEqual(calls,[]);
