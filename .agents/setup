@@ -21,6 +21,9 @@ readonly -a SYSTEM_PACKAGES=(
 	build-essential
 	ca-certificates
 	curl
+	# Roboto is in the app's system font stack; without it, headless Chromium
+	# takes spaces and digits from Noto Color Emoji and screenshots look broken.
+	fonts-roboto
 	postgresql
 	postgresql-contrib
 	postgresql-server-dev-15

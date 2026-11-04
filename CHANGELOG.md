@@ -74,6 +74,7 @@
 
 ### Fixed
 
+- Orb setup installs Roboto, so headless-browser screenshots no longer take spaces and digits from the emoji font and show wide gaps between words.
 - Public template previews no longer request authenticated document-upload settings until a file is added, preventing misleading document-settings errors for guests.
 - OCR layout tests now release their two-page parser fixture, preventing order-dependent autofill failures in CI. Remove two unused internal exports so Knip passes without suppressions.
 - Pin every CI action to its verified full commit SHA so the workflow can start under the repository's SHA-pinning security policy, without changing action major versions or weakening the policy.
