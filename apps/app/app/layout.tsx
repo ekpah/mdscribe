@@ -4,6 +4,7 @@ import { DesignSystemProvider } from "@repo/design-system/providers";
 import { dehydrate, HydrationBoundary, QueryClient } from "@tanstack/react-query";
 import type { Metadata } from "next";
 import dynamic from "next/dynamic";
+import { Inter } from "next/font/google";
 
 import "@repo/design-system/styles/globals.css";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
@@ -17,6 +18,9 @@ import { USER_MESSAGES } from "@/lib/user-messages";
 
 import MenubarSkeleton from "./_components/landing/skeletons/menubar-skeleton";
 import QueryProvider from "./providers/query-provider";
+
+// Self-hosted at build time, so text renders the same on every OS and browsers never contact Google.
+const inter = Inter({ display: "swap", subsets: ["latin"], variable: "--font-inter" });
 
 const Menubar = dynamic(() => import("./_components/menubar"), {
 	loading: () => <MenubarSkeleton />,
@@ -38,7 +42,7 @@ export default async function RootLayout({ children }: RootLayoutProperties) {
 	queryClient.setQueryData(sessionQueryKey, session);
 
 	return (
-		<html lang="de" suppressHydrationWarning>
+		<html className={inter.variable} lang="de" suppressHydrationWarning>
 			<head>
 				<meta content="width=device-width, initial-scale=1.0" name="viewport" />
 				<meta content="strict-origin" name="referrer" />
