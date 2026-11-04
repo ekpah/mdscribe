@@ -14,6 +14,7 @@ import {
 	isGenerationStrategyFullyByok,
 	resolveAgentGenerationStrategy,
 } from "@/orpc/scribe/providers";
+import { getUserPersonalContext } from "@/orpc/user/personal-context";
 
 import { prepareAgentMedia } from "./lib/prepare-media";
 import type { PreparedAgentMedia } from "./lib/prepare-media";
@@ -173,6 +174,7 @@ export const scribeAgentChatHandler = authed
 			userId: context.session.user.id,
 		});
 
+		const personalContext = await getUserPersonalContext(context.db, context.session.user.id);
 		const requestStartedAt = Date.now();
 		let firstTokenAt: number | undefined;
 		const reasoningChunks: string[] = [];
@@ -239,7 +241,7 @@ export const scribeAgentChatHandler = authed
 			},
 			providerOptions,
 			stopWhen: stepCountIs(AGENT_MAX_STEPS),
-			system: buildAgentSystemPrompt(sections),
+			system: buildAgentSystemPrompt(sections, personalContext),
 			temperature: effectiveTemperature,
 			tools,
 		});

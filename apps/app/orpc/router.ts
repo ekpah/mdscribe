@@ -149,6 +149,10 @@ export const router = {
 			const handlerModule = await import("./user/collections");
 			return { default: handlerModule.collectionsHandler };
 		}),
+		personalContext: lazy(async () => {
+			const handlerModule = await import("./user/personal-context");
+			return { default: handlerModule.personalContextHandler };
+		}),
 		recentActivity: lazy(async () => {
 			const handlerModule = await import("./user/activity");
 			return { default: handlerModule.activityHandler.recentActivity };

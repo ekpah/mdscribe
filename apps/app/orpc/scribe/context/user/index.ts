@@ -1,1 +1,1 @@
-export { composeUserContext } from "./compose";
+export { composePersonalPreferences, composeUserContext } from "./compose";

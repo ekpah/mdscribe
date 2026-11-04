@@ -1,3 +1,5 @@
+import { composePersonalPreferences } from "@/orpc/scribe/context/user";
+
 import type { ScribeAgentSection } from "./types";
 
 const formatSection = (section: ScribeAgentSection): string =>
@@ -10,7 +12,10 @@ ${section.content.trim() || "(noch leer)"}
  * current letter (provided inline) and applies changes by calling the
  * `editSection` tool with the complete new content of a section.
  */
-export const buildAgentSystemPrompt = (sections: ScribeAgentSection[]): string => `<system_role>
+export const buildAgentSystemPrompt = (
+	sections: ScribeAgentSection[],
+	personalContext?: string,
+): string => `<system_role>
 Sie sind ein erfahrener Klinikarzt und unterstützen als Dokumentations-Agent beim Erstellen und Überarbeiten eines Arztbriefs. Sie formulieren ärztlich-sachlich, kompakt und medizinisch präzise.
 </system_role>
 
@@ -30,7 +35,7 @@ Sie sind ein erfahrener Klinikarzt und unterstützen als Dokumentations-Agent be
 - Bei unklaren Angaben oder Fehlern entsprechende Informationen weglassen oder die Unsicherheit ausdrücken.
 - Bei fehlenden Informationen nur dokumentieren, was aus den Eingaben sicher ableitbar ist.
 </uncertainty_handling>
-
+${personalContext?.trim() ? `\n${composePersonalPreferences(personalContext)}\n` : ""}
 <doctors_note>
 ${sections.map(formatSection).join("\n")}
 </doctors_note>`;

@@ -4,6 +4,7 @@
 
 ### Added
 
+- Users can store a personal context (documentation preferences such as abbreviations, style, or a signature line) in a text box under Einstellungen → AI-Scribe. It is sent with every AI-Scribe generation, including custom AI templates and sections the documentation agent regenerates, and with the documentation agent's chat, as `<personal_preferences>` inside the user context. It takes precedence over general style guidance and is never treated as patient data.
 - Template pages have an "Alle Eingaben leeren" button above the inputs that clears every typed value and AI suggestion at once.
 - markdoc-md exposes headless tag hooks (`useInfoTag`, `useCalcTag`, `useBranchTag`), typed tag props, and an `onVariableChange` callback on `DynamicMarkdocRenderer`, so applications can supply their own tag components, such as inline inputs, without reimplementing value resolution, rounding, or case selection.
 - Feature flags with the Flags SDK, defined in code in `apps/app/flags.ts`. The Template Agent is the first flag and stays admin-only in both the editor and its API.

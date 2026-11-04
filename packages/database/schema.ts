@@ -43,6 +43,8 @@ export const user = pgTable("User", {
 		.$defaultFn(() => crypto.randomUUID()),
 	image: text("image"),
 	name: text("name"),
+	// Free-text documentation preferences added to every AI-Scribe generation.
+	personalContext: text("personalContext"),
 	stripeCustomerId: text("stripeCustomerId"),
 	updatedAt: timestamp("updatedAt", { mode: "date", precision: 3 })
 		.notNull()

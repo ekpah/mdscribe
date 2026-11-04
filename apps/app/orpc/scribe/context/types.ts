@@ -42,6 +42,8 @@ export interface ContextBuildInput {
 
 export interface ComposeScribeContextInput {
 	formData: Record<string, unknown>;
+	/** The signed-in user's saved documentation preferences. */
+	personalContext?: string | null;
 	promptContextKey?: string;
 	sessionUser?: Session["user"] | null;
 	selectedTemplateReference?: string;

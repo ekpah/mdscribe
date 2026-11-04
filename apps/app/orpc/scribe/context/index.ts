@@ -57,7 +57,7 @@ export const composeScribeContext = (input: ComposeScribeContextInput): Composed
 		selectedTemplateReference: input.selectedTemplateReference,
 		sources,
 	});
-	const userContext = composeUserContext(input.sessionUser);
+	const userContext = composeUserContext(input.sessionUser, input.personalContext);
 	// Context composition order is intentional:
 	// 1) template guidance (target structure/style),
 	// 2) user/doctor context,

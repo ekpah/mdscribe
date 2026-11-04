@@ -1,0 +1,1 @@
+export const PERSONAL_CONTEXT_MAX_LENGTH = 4000;

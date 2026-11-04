@@ -49,6 +49,7 @@ import type {
 	ModelConfig,
 	PromptMessage,
 } from "@/orpc/scribe/types";
+import { getUserPersonalContext } from "@/orpc/user/personal-context";
 
 import type { ScribeEntitlements } from "./usage-limit";
 
@@ -363,10 +364,12 @@ const toTemplateContextInput = (template: {
 const resolveBuiltInRequest = ({
 	documentType,
 	formData,
+	personalContext,
 	sessionUser,
 }: {
 	documentType: DocumentType;
 	formData: Record<string, unknown>;
+	personalContext: string;
 	sessionUser: ContextBuildInput["sessionUser"];
 }): ResolvedScribeRequest => {
 	const config = documentTypeConfigs[documentType];
@@ -378,6 +381,7 @@ const resolveBuiltInRequest = ({
 
 	const { contextPrompt, contextXml } = composeScribeContext({
 		formData,
+		personalContext,
 		promptContextKey: documentType,
 		sessionUser,
 	});
@@ -400,11 +404,13 @@ const resolveCustomFormRequest = async ({
 	db,
 	formData,
 	formId,
+	personalContext,
 	sessionUser,
 }: {
 	db: Database;
 	formData: Record<string, unknown>;
 	formId: string;
+	personalContext: string;
 	sessionUser: NonNullable<ContextBuildInput["sessionUser"]>;
 }): Promise<ResolvedScribeRequest> => {
 	const customForm = await db.query.aiScribeFormConfig.findFirst({
@@ -436,6 +442,7 @@ const resolveCustomFormRequest = async ({
 	const template = customForm.template ? toTemplateContextInput(customForm.template) : null;
 	const { contextPrompt, contextXml } = composeScribeContext({
 		formData,
+		personalContext,
 		promptContextKey: promptHarnessId,
 		sessionUser,
 		template,
@@ -747,17 +754,20 @@ export const runScribeGeneration = async ({
 	}
 
 	const hasFileInput = hasFileLikeInput(rawPrompt);
+	const personalContext = await getUserPersonalContext(context.db, context.session.user.id);
 	const resolvedRequestPromise =
 		input.source === "customForm"
 			? resolveCustomFormRequest({
 					db: context.db,
 					formData: rawPrompt,
 					formId: input.formId,
+					personalContext,
 					sessionUser: context.session.user,
 				})
 			: resolveBuiltInRequest({
 					documentType: input.documentType,
 					formData: rawPrompt,
+					personalContext,
 					sessionUser: context.session.user,
 				});
 

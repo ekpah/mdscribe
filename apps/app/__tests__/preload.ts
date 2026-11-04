@@ -259,6 +259,7 @@ export const aiMockState: {
 	lastGenerateTextOptions?: unknown;
 	lastOcrGenerateTextOptions?: unknown;
 	lastCitationGenerateTextOptions?: unknown;
+	lastStreamTextOptions?: unknown;
 	nextCitationOutput?: unknown;
 	citationError?: Error;
 	nextGenerateTextOutput?: unknown;
@@ -423,6 +424,7 @@ mock.module("ai", () => ({
 	},
 	streamText: (options: { onFinish?: (event: unknown) => void }) => {
 		aiMockState.streamTextCallCount += 1;
+		aiMockState.lastStreamTextOptions = options;
 		return createMockStreamResult(options);
 	},
 	tool: <T>(definition: T): T => definition,

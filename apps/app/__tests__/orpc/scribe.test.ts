@@ -46,6 +46,7 @@ import {
 } from "@/orpc/scribe/providers";
 import type { ResolvedModel } from "@/orpc/scribe/providers";
 import type { DocumentType } from "@/orpc/scribe/types";
+import { personalContextHandler } from "@/orpc/user/personal-context";
 
 /**
  * Comprehensive tests for scribe oRPC handlers
@@ -2505,6 +2506,49 @@ describe("Scribe Stream Handler", () => {
 			expect(result).toBeDefined();
 			// The result should be an async iterator
 			expect(typeof result[Symbol.asyncIterator]).toBe("function");
+		});
+
+		test("sends the saved personal context with every generation", async () => {
+			const { user } = await createTestUser(server.db);
+			const session = createMockSession(user);
+			const context = createTestContext({ db: server.db, session });
+			await call(
+				personalContextHandler.update,
+				{ personalContext: '  Schreibe "Pat." statt "Patient".  ' },
+				{ context },
+			);
+
+			expect(await call(personalContextHandler.get, undefined, { context })).toEqual({
+				personalContext: 'Schreibe "Pat." statt "Patient".',
+			});
+
+			await call(
+				scribeStreamHandler,
+				{
+					documentType: "discharge",
+					messages: [
+						{
+							id: "1",
+							parts: [{ text: '{"notes":"Thoraxschmerz"}', type: "text" as const }],
+							role: "user" as const,
+						},
+					],
+				},
+				{ context },
+			);
+
+			const { messages } = aiMockState.lastStreamTextOptions as {
+				messages: { content: string; role: string }[];
+			};
+			const userContent = messages.findLast((message) => message.role === "user")?.content ?? "";
+			const preferences = userContent.slice(
+				userContent.indexOf("<personal_preferences>"),
+				userContent.indexOf("</personal_preferences>"),
+			);
+			expect(preferences).toContain('Schreibe "Pat." statt "Patient".');
+			expect(userContent.indexOf("</user_context>")).toBeLessThan(
+				userContent.indexOf("<patient_context>"),
+			);
 		});
 
 		test("resolves admin-configured default model", async () => {
