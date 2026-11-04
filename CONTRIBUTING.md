@@ -211,21 +211,22 @@ bun run test
 CI runs these checks on pull requests and pushes to `main` and `staging`, including
 the full test suite rather than only affected tests. Once dependencies are installed,
 check failures do not skip the remaining checks. A separate job builds the complete
-production Docker image, without publishing or deploying it:
+production Docker image with cached layers, without publishing or deploying it.
+For dependency, lockfile, Dockerfile, or build-configuration changes, check that
+this job passes for your commit. To reproduce a failure locally, run:
 
 ```bash
 docker build --build-arg NEXT_PUBLIC_BASE_URL=https://mdscribe.example --tag mdscribe:check .
 ```
 
-Run this build locally for dependency, lockfile, Dockerfile, or build-configuration
-changes. The Docker pruner reads the pinned Turborepo version from `package.json`;
+The Docker pruner reads the pinned Turborepo version from `package.json`;
 do not introduce a separate version pin in the Dockerfile.
 
-CI alone does not prevent Coolify from deploying a direct push before checks finish.
-Before enabling automatic production deployments, require both
-`Format + Lint + Types + Knip + Unit Tests` and `Production Docker Build` in GitHub
-branch protection, require changes through pull requests, and either deploy only
-validated merges or trigger Coolify after successful CI for the exact commit.
+Production deploys only when CI passes on `main`. Coolify's auto deploy is set to
+manual deployments only, and the `Deploy to Coolify` job calls its deploy webhook
+(`COOLIFY_WEBHOOK` and `COOLIFY_TOKEN` repository secrets) after both checks pass.
+Coolify builds whatever `main` points to, so the job skips the deploy when `main` has
+moved past the tested commit; that newer commit's own run deploys it.
 Do not treat a successful push as a successful deployment: verify the deployed
 commit and application health separately. Changing branch protection or Coolify's
 deployment triggers requires repository/operator approval.

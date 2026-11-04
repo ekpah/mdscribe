@@ -11,7 +11,7 @@
 - Always run `bun run lint`, `bun run test`, and `bun run knip` before handing off code changes. Report failures rather than skipping checks or treating existing failures as a pass.
 - Also run `bun run format:check` and `bun run typecheck`.
 - Automated tests must not call live AI models or incur provider charges. Use mocks or local fixture servers instead.
-- For dependency, lockfile, Dockerfile, or build-configuration changes, build the production image with `docker build --build-arg NEXT_PUBLIC_BASE_URL=https://mdscribe.example --tag mdscribe:check .`. A host installation or dev-server build is not a substitute for the Docker build. If Docker is unavailable, report the limitation explicitly.
+- CI's `Production Docker Build` job builds the production image for every push, so do not run the Docker build in the orb. For dependency, lockfile, Dockerfile, or build-configuration changes, watch that job for the pushed commit, and do not report the change as done until it passes. A host installation or dev-server build is not a substitute for it. To debug a failure locally, run `docker build --build-arg NEXT_PUBLIC_BASE_URL=https://mdscribe.example --tag mdscribe:check .`.
 
 ## Seeded test account
 

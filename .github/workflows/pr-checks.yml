@@ -39,8 +39,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -91,80 +89,40 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - name: Build production image
-        run: docker build --build-arg NEXT_PUBLIC_BASE_URL=https://mdscribe.example --tag mdscribe:ci .
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
-  pr-summary:
-    name: PR Test Summary
+      # Reuse unchanged layers, such as the dependency install, from earlier runs.
+      - name: Build production image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          build-args: NEXT_PUBLIC_BASE_URL=https://mdscribe.example
+          tags: mdscribe:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to Coolify
     runs-on: ubuntu-latest
     needs: [lint-and-unit, docker-build]
-    if: always() && github.event_name == 'pull_request'
-    permissions:
-      contents: read
-      pull-requests: write
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 5
     steps:
-      - name: Build summary body
-        id: summary
+      # Coolify builds whatever main points to, not this run's commit. If main has
+      # moved on, the newer commit's own run deploys it after its checks pass.
+      - name: Check main still points to this commit
+        id: head
         run: |
-          lint_status="${{ needs.lint-and-unit.result }}"
-          docker_status="${{ needs.docker-build.result }}"
+          head_sha="$(git ls-remote "https://github.com/${{ github.repository }}" refs/heads/main | cut -f1)"
+          echo "current=$([[ "${head_sha}" == "${GITHUB_SHA}" ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "main is at ${head_sha}; this run tested ${GITHUB_SHA}."
 
-          to_emoji() {
-            case "$1" in
-              success) echo "✅ Passed" ;;
-              failure) echo "❌ Failed" ;;
-              cancelled) echo "⚪ Cancelled" ;;
-              skipped) echo "⚪ Skipped" ;;
-              *) echo "⚠️ $1" ;;
-            esac
-          }
-
-          {
-            echo 'body<<EOF'
-            echo '<!-- pr-test-summary -->'
-            echo '## CI Test Summary'
-            echo
-            echo '| Check | Result |'
-            echo '| --- | --- |'
-            echo "| Format + Lint + Types + Knip + Unit Tests | $(to_emoji "$lint_status") |"
-            echo "| Production Docker Build | $(to_emoji "$docker_status") |"
-            echo
-            echo "Workflow run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            echo 'EOF'
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Upsert PR comment
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
-        with:
-          script: |
-            const body = `${{ steps.summary.outputs.body }}`;
-            const marker = '<!-- pr-test-summary -->';
-            const { owner, repo } = context.repo;
-            const issue_number = context.payload.pull_request.number;
-
-            const comments = await github.paginate(github.rest.issues.listComments, {
-              owner,
-              repo,
-              issue_number,
-              per_page: 100,
-            });
-
-            const existing = comments.find((comment) =>
-              comment.user.type === 'Bot' && comment.body.includes(marker),
-            );
-
-            if (existing) {
-              await github.rest.issues.updateComment({
-                owner,
-                repo,
-                comment_id: existing.id,
-                body,
-              });
-            } else {
-              await github.rest.issues.createComment({
-                owner,
-                repo,
-                issue_number,
-                body,
-              });
-            }
+      - name: Trigger Coolify deployment
+        if: steps.head.outputs.current == 'true'
+        env:
+          COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+        run: |
+          curl --fail-with-body --silent --show-error --request GET "${COOLIFY_WEBHOOK}" \
+            --header "Authorization: Bearer ${COOLIFY_TOKEN}"
