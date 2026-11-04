@@ -211,7 +211,7 @@ bun run test
 CI runs these checks on pull requests and pushes to `main` and `staging`, including
 the full test suite rather than only affected tests. Once dependencies are installed,
 check failures do not skip the remaining checks. A separate job builds the complete
-production Docker image with cached layers, without publishing or deploying it.
+production Docker image, without publishing or deploying it.
 For dependency, lockfile, Dockerfile, or build-configuration changes, check that
 this job passes for your commit. To reproduce a failure locally, run:
 
