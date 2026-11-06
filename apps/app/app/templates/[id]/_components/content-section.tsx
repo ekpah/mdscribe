@@ -1,14 +1,25 @@
 "use client";
 
+import { Button } from "@repo/design-system/components/ui/button";
 import { cn } from "@repo/design-system/lib/utils";
-import { FileText, Info, ListChecks } from "lucide-react";
+import { Check, Copy, FileText, Info, ListChecks } from "lucide-react";
 import { parseMarkdocToInputs } from "markdoc-md/parse";
 import { DynamicMarkdocRenderer } from "markdoc-md/react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import type { RefObject, SyntheticEvent } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { InputPreviewSection } from "@/app/_components/input-preview-section";
+import {
+	copyInlineSelection,
+	inlineInputComponents,
+	InlineEditingScope,
+	InlineFieldsProvider,
+	InlineKeyboardBar,
+} from "@/app/_components/markdoc-inline-inputs";
+import { getRenderedClipboardContent } from "@/lib/rendered-clipboard";
 import { USER_MESSAGES } from "@/lib/user-messages";
 
 type TemplateContentView = "template" | "examples" | "information";
@@ -72,6 +83,43 @@ const ContentViewTabs = ({
 	</nav>
 );
 
+const CopyTextButton = ({ sourceRef }: { sourceRef: RefObject<HTMLDivElement | null> }) => {
+	const [isCopied, setIsCopied] = useState(false);
+	return (
+		<Button
+			onClick={async () => {
+				if (!sourceRef.current) {
+					return;
+				}
+				const { html, text } = getRenderedClipboardContent(sourceRef.current);
+				try {
+					await navigator.clipboard.write([
+						new ClipboardItem({
+							"text/html": new Blob([html], { type: "text/html" }),
+							"text/plain": new Blob([text], { type: "text/plain" }),
+						}),
+					]);
+					setIsCopied(true);
+					toast.success("Text kopiert");
+					setTimeout(() => setIsCopied(false), 2000);
+				} catch {
+					toast.error("Kopieren fehlgeschlagen. Bitte manuell kopieren.");
+				}
+			}}
+			size="sm"
+			type="button"
+			variant="outline"
+		>
+			{isCopied ? (
+				<Check aria-hidden className="h-4 w-4" />
+			) : (
+				<Copy aria-hidden className="h-4 w-4" />
+			)}
+			Kopieren
+		</Button>
+	);
+};
+
 const ExamplesPreview = ({ examples }: { examples: string[] }) => {
 	if (examples.length === 0) {
 		return (
@@ -123,11 +171,14 @@ const InformationPreview = ({ information }: { information: string }) => {
 
 export default function ContentSection({
 	contentView,
+	inlineInputs,
 	note,
 	examples,
 	information,
 }: {
 	contentView: TemplateContentView;
+	/** Edit fields inline in the text instead of in the side column. */
+	inlineInputs: boolean;
 	note: string;
 	examples: string[];
 	information: string;
@@ -167,6 +218,17 @@ export default function ContentSection({
 		setActiveInputName(tagName);
 		setActiveInputFocusKey((currentKey) => currentKey + 1);
 	}, []);
+	// Highlights every occurrence of the field edited last, without moving focus.
+	const handleInlineTagActivate = useCallback((event: SyntheticEvent) => {
+		const tag =
+			event.target instanceof Element
+				? event.target.closest<HTMLElement>("[data-markdoc-input]")
+				: null;
+		if (tag?.dataset.markdocInput) {
+			setActiveInputName(tag.dataset.markdocInput);
+		}
+	}, []);
+	const copySourceRef = useRef<HTMLDivElement>(null);
 
 	return (
 		<InputPreviewSection
@@ -175,30 +237,70 @@ export default function ContentSection({
 			activePreviewFocusKey={activePreviewFocusKey}
 			contentType="template"
 			edgeTabs={contentTabs}
+			inlineInputs={inlineInputs}
 			inputTags={inputTags}
 			onInputSelect={handleInputSelect}
-			preview={(values, onCitationSelect) => {
+			preview={(values, onCitationSelect, fields) => {
 				if (contentView === "examples") {
 					return <ExamplesPreview examples={examples} />;
 				}
 				if (contentView === "information") {
 					return <InformationPreview information={information} />;
 				}
+				if (!inlineInputs) {
+					return (
+						<DynamicMarkdocRenderer
+							activeTagName={activeInputName}
+							className="prose prose-slate grow"
+							layout="template"
+							markdocContent={note as string}
+							onCitationSelect={onCitationSelect}
+							onTagSelect={handleMarkdocTagSelect}
+							variables={values}
+						/>
+					);
+				}
 				return (
-					<DynamicMarkdocRenderer
-						activeTagName={activeInputName}
-						className="prose prose-slate grow"
-						layout="template"
-						markdocContent={note as string}
-						onCitationSelect={onCitationSelect}
-						onTagSelect={handleMarkdocTagSelect}
-						variables={values}
-					/>
+					<InlineFieldsProvider value={fields}>
+						<InlineEditingScope>
+							<InlineKeyboardBar />
+							<div
+								className="contents"
+								onClickCapture={handleInlineTagActivate}
+								onCopy={copyInlineSelection}
+								onFocusCapture={handleInlineTagActivate}
+							>
+								<DynamicMarkdocRenderer
+									activeTagName={activeInputName}
+									className="prose prose-slate grow"
+									components={inlineInputComponents}
+									layout="template"
+									markdocContent={note as string}
+									onCitationSelect={onCitationSelect}
+									onVariableChange={fields.setValue}
+									variables={values}
+								/>
+							</div>
+							{/* The copied text: the same rendering without any input controls. */}
+							<div hidden ref={copySourceRef}>
+								<DynamicMarkdocRenderer
+									layout="template"
+									markdocContent={note as string}
+									variables={values}
+								/>
+							</div>
+						</InlineEditingScope>
+					</InlineFieldsProvider>
 				);
 			}}
 			resetKey={note}
 			templateExamples={examples}
 			templateInformation={information}
+			toolbarActions={
+				inlineInputs && contentView === "template" ? (
+					<CopyTextButton sourceRef={copySourceRef} />
+				) : undefined
+			}
 		/>
 	);
 }

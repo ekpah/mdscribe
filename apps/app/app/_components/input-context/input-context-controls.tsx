@@ -24,6 +24,8 @@ type InputContextControlsVariant = "overlay" | "tabs";
 
 interface InputContextControlsProps {
 	className?: string;
+	/** Closes the open context panel when filling starts, so the filled content shows. */
+	closeOnSubmit?: boolean;
 	controller: InputContextController;
 	defaultPanel?: InputContextPanel | null;
 	disabled?: boolean;
@@ -501,6 +503,7 @@ const InputContextToolbar = ({
 
 export const InputContextControls = ({
 	className,
+	closeOnSubmit = false,
 	controller,
 	defaultPanel = null,
 	disabled = false,
@@ -579,6 +582,9 @@ export const InputContextControls = ({
 		}
 
 		setIsSubmitting(true);
+		if (closeOnSubmit) {
+			setOpenPanel(null);
+		}
 
 		try {
 			await onSubmit(await controller.prepareSubmission());
@@ -590,7 +596,7 @@ export const InputContextControls = ({
 		} finally {
 			setIsSubmitting(false);
 		}
-	}, [controller, disabled, isSubmitting, onSubmit]);
+	}, [closeOnSubmit, controller, disabled, isSubmitting, onSubmit]);
 
 	const handleTextContextLimitExceeded = useCallback((maxCharacters: number) => {
 		toast.error(

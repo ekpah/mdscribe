@@ -202,7 +202,7 @@ export const SwitchInput = ({
 							inputClassName,
 						)}
 					>
-						<SelectValue placeholder={`Select ${input.attributes.primary}`} />
+						<SelectValue placeholder={`${input.attributes.primary} auswählen`} />
 					</SelectTrigger>
 					<SelectContent className="border-input bg-popover text-popover-foreground opacity-100 data-closed:animate-none data-open:animate-none">
 						{options?.map((caseTag) => (

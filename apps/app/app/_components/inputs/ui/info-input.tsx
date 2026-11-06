@@ -217,7 +217,7 @@ const InfoInput = ({
 						onBlur={handleNumberBlur}
 						onChange={handleNumberChange}
 						onFocus={handleNumberFocus}
-						placeholder={`Enter ${input.attributes.primary}`}
+						placeholder={`${input.attributes.primary} eingeben`}
 						ref={decimalMaskRef}
 						type="text"
 						value={displayValue}
@@ -252,7 +252,7 @@ const InfoInput = ({
 					id={controlId}
 					name={input.attributes.primary}
 					onChange={handleTextChange}
-					placeholder={`Enter ${input.attributes.primary}`}
+					placeholder={`${input.attributes.primary} eingeben`}
 					type="text"
 					value={displayValue}
 				/>

@@ -3,12 +3,12 @@
 import { Button } from "@repo/design-system/components/ui/button";
 import { Card } from "@repo/design-system/components/ui/card";
 import { cn } from "@repo/design-system/lib/utils";
-import { Eraser, FileText, ListChecks } from "lucide-react";
+import { Bot, Eraser, Redo2, Undo2 } from "lucide-react";
 import { createMdscribeSource, resolveCitation } from "markdoc-md/citations";
 import type { CitationRequest, CitationTextSource } from "markdoc-md/citations";
 import type { InputTagType } from "markdoc-md/parse";
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { CitationPreviewDialog } from "@/app/_components/citation-preview-dialog";
@@ -30,38 +30,51 @@ import {
 import type { OcrResult } from "@/lib/ocr-types";
 import { orpc } from "@/lib/orpc";
 
+import type { SideInputsSelection } from "./input-side-panel";
+import { InputSidePanelCard } from "./input-side-panel";
 import type {
 	FillInputsAudioFile,
 	FillInputsContextFile,
 	FillInputsInputField,
 	FillInputsResult,
 	FillInputsTextContext,
+	TemplateFields,
 } from "./inputs/inputs";
-import Inputs from "./inputs/inputs";
+import { collectFillInputFields, useTemplateFields } from "./inputs/inputs";
+import type { InlineFields } from "./markdoc-inline-inputs";
+
+/** Where field edits happen: inline tags, their details, and the document step bar. */
+const fieldEditorSelector = "[data-markdoc-input], [data-inline-panel], [data-field-editor]";
 
 // Matches the batch limit of `resolveDocumentCitations`.
 const MAX_LOCATED_QUOTES = 100;
 
-type MobilePanel = "inputs" | "preview";
-
-interface InputPreviewSectionProps {
-	activeInputFocusKey?: string | number;
-	activeInputName?: string | null;
-	activePreviewFocusKey?: string | number;
+interface InputPreviewSectionProps extends SideInputsSelection {
 	contentType: "document" | "template";
 	edgeTabs?: ReactNode;
 	inputTags: InputTagType[];
-	onInputBlur?: (inputName: string) => void;
-	onInputSelect?: (inputName: string) => void;
+	/**
+	 * Fields are edited in the preview, with a bottom toolbar, instead of in the
+	 * side input column. Gated by `inlineInputsFlag`.
+	 */
+	inlineInputs?: boolean;
+	/** Shows a field for review; templates focus its inline tag by default. */
+	onReviewField?: (inputName: string) => void;
 	onValuesChange?: (values: Record<string, unknown>) => void;
 	preview: (
 		values: Record<string, unknown>,
 		onCitationSelect: (citation: CitationRequest) => void,
+		/** Field states and writes for editing inside the preview. */
+		fields: InlineFields,
+		/** The complete field state, for editors that reuse the side-form controls. */
+		form: TemplateFields,
 	) => ReactNode;
 	previewToolbar?: ReactNode;
 	resetKey?: string;
 	templateExamples?: string[];
 	templateInformation?: string;
+	/** Further global actions in the bottom toolbar, such as copying the text. */
+	toolbarActions?: ReactNode;
 }
 
 const TEXT_CONTEXT_LABELS: Record<keyof FillInputsTextContext, string> = {
@@ -92,124 +105,25 @@ const revokePreviewUrls = (previews: CitationPreview[] | null) => {
 	}
 };
 
-const getMobileTabClassName = (isActive: boolean) =>
-	cn(
-		"relative flex min-h-0 flex-1 flex-col items-center justify-center gap-2 border-b px-1 text-muted-foreground transition-colors last:border-b-0 hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-		isActive && "bg-background text-foreground shadow-xs",
-	);
-
-const MobilePanelTab = ({
-	controls,
-	icon,
-	id,
-	isActive,
-	label,
-	onClick,
-}: {
-	controls: string;
-	icon: ReactNode;
-	id: string;
-	isActive: boolean;
-	label: string;
-	onClick: () => void;
-}) => (
-	<button
-		aria-controls={controls}
-		aria-label={`${label} anzeigen`}
-		aria-selected={isActive}
-		className={getMobileTabClassName(isActive)}
-		id={id}
-		onClick={onClick}
-		role="tab"
-		type="button"
-	>
-		<span
-			className={cn(
-				"absolute left-0 h-10 w-1 rounded-r-full",
-				isActive ? "bg-primary" : "bg-transparent",
-			)}
-		/>
-		{icon}
-		<span className="rotate-180 font-medium text-[11px] leading-none [writing-mode:vertical-rl]">
-			{label}
-		</span>
-	</button>
-);
-
-const MobilePanelTabs = ({
-	mobilePanel,
-	mobileTabId,
-	onPanelChange,
-}: {
-	mobilePanel: MobilePanel;
-	mobileTabId: string;
-	onPanelChange: (panel: MobilePanel) => void;
-}) => (
-	<div
-		aria-label="Mobile Ansicht"
-		className="flex w-11 shrink-0 flex-col border-r bg-muted/30 md:hidden"
-		role="tablist"
-	>
-		<MobilePanelTab
-			controls={`${mobileTabId}-preview-panel`}
-			icon={<FileText aria-hidden className="h-4 w-4" />}
-			id={`${mobileTabId}-preview-tab`}
-			isActive={mobilePanel === "preview"}
-			label="Template"
-			onClick={() => onPanelChange("preview")}
-		/>
-		<MobilePanelTab
-			controls={`${mobileTabId}-inputs-panel`}
-			icon={<ListChecks aria-hidden className="h-4 w-4" />}
-			id={`${mobileTabId}-inputs-tab`}
-			isActive={mobilePanel === "inputs"}
-			label="Eingaben"
-			onClick={() => onPanelChange("inputs")}
-		/>
-	</div>
-);
-
-const getInputPanelClassName = (hasInputTags: boolean, mobilePanel: MobilePanel) =>
-	cn(
-		"min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:col-span-1",
-		hasInputTags && mobilePanel === "inputs" && "flex",
-		hasInputTags && mobilePanel !== "inputs" && "hidden md:flex",
-		!hasInputTags && "hidden",
-	);
-
-const getPreviewPanelClassName = (
-	hasInputTags: boolean,
-	mobilePanel: MobilePanel,
-	hasEdgeTabs: boolean,
-) =>
-	cn(
-		"relative min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-4",
-		hasInputTags && mobilePanel === "preview" && "flex",
-		hasInputTags && mobilePanel !== "preview" && "hidden md:flex",
-		!hasInputTags && "flex",
-		hasInputTags ? "md:col-span-2 md:border-l" : "md:col-span-3",
-		hasEdgeTabs && "pr-14",
-	);
-
 export const InputPreviewSection = ({
 	activeInputFocusKey,
 	activeInputName,
 	activePreviewFocusKey,
 	contentType,
 	edgeTabs,
+	inlineInputs = false,
 	inputTags,
 	onInputBlur,
 	onInputSelect,
+	onReviewField,
 	onValuesChange,
 	preview,
 	previewToolbar,
 	resetKey,
 	templateExamples,
 	templateInformation,
+	toolbarActions,
 }: InputPreviewSectionProps) => {
-	const [values, setValues] = useState<Record<string, unknown>>({});
-	const [clearCount, setClearCount] = useState(0);
-	const [mobilePanel, setMobilePanel] = useState<MobilePanel>("preview");
 	const [previewPanelElement, setPreviewPanelElement] = useState<HTMLDivElement | null>(null);
 	const [usesPreviewPanelPortal, setUsesPreviewPanelPortal] = useState(false);
 	const [citationPreviews, setCitationPreviews] = useState<CitationPreview[] | null>(null);
@@ -224,17 +138,10 @@ export const InputPreviewSection = ({
 	const citationPrefetchRef = useRef<AbortController | null>(null);
 	const citationPreviewsRef = useRef<CitationPreview[] | null>(null);
 	const citationTextSourcesRef = useRef<ReadonlyMap<string, CitationTextSource>>(new Map());
-	const lastInputFocusKeyRef = useRef(activeInputFocusKey);
-	const lastPreviewFocusKeyRef = useRef(activePreviewFocusKey);
-	const mobileTabId = useId();
+	const lastReviewedFieldRef = useRef<string | null>(null);
 	const { data: session } = useSession();
 	const isLoggedIn = Boolean(session?.user?.id);
 	const hasInputTags = inputTags.length > 0;
-
-	useEffect(() => {
-		setValues({});
-		onValuesChange?.({});
-	}, [onValuesChange, resetKey]);
 
 	const inputContextControllerRef = useRef(inputContextController);
 	inputContextControllerRef.current = inputContextController;
@@ -260,57 +167,6 @@ export const InputPreviewSection = ({
 
 		void hydrateTransfer();
 	}, []);
-
-	useEffect(() => {
-		if (!hasInputTags) {
-			setMobilePanel("preview");
-		}
-	}, [hasInputTags]);
-
-	useEffect(() => {
-		if (
-			activeInputFocusKey !== undefined &&
-			!Object.is(lastInputFocusKeyRef.current, activeInputFocusKey)
-		) {
-			lastInputFocusKeyRef.current = activeInputFocusKey;
-			setMobilePanel("inputs");
-		}
-	}, [activeInputFocusKey]);
-
-	useEffect(() => {
-		if (
-			activePreviewFocusKey === undefined ||
-			Object.is(lastPreviewFocusKeyRef.current, activePreviewFocusKey)
-		) {
-			return;
-		}
-		if (mobilePanel !== "preview") {
-			return;
-		}
-		lastPreviewFocusKeyRef.current = activePreviewFocusKey;
-		if (!activeInputName || !previewPanelElement) {
-			return;
-		}
-		const activeTag = [
-			...previewPanelElement.querySelectorAll<HTMLElement>("[data-markdoc-input]"),
-		].find((element) => element.dataset.markdocInput === activeInputName);
-		activeTag?.scrollIntoView({ behavior: "smooth", block: "center" });
-	}, [activeInputName, activePreviewFocusKey, mobilePanel, previewPanelElement]);
-
-	const handleFormChange = useCallback(
-		(data: Record<string, unknown>) => {
-			setValues(data);
-			onValuesChange?.(data);
-		},
-		[onValuesChange],
-	);
-
-	// Remounting the inputs drops typed values and AI suggestions together.
-	const handleClearInputs = useCallback(() => {
-		setClearCount((count) => count + 1);
-		setValues({});
-		onValuesChange?.({});
-	}, [onValuesChange]);
 
 	const handlePreviewPanelRef = useCallback((node: HTMLDivElement | null) => {
 		setPreviewPanelElement(node);
@@ -496,6 +352,100 @@ export const InputPreviewSection = ({
 		(citation: CitationRequest) => handleCitationsSelect([citation]),
 		[handleCitationsSelect],
 	);
+	const fields = useTemplateFields(inputTags, {
+		onFillInputs: isLoggedIn ? handleFillInputs : undefined,
+	});
+	const { reset, setValue, clearHandlers, states, values, fieldSources, undo, redo } = fields;
+
+	// A new template or document starts empty, with nothing to undo.
+	useEffect(() => {
+		reset(true);
+	}, [reset, resetKey]);
+
+	// ⌘/Ctrl+Z undoes and ⇧⌘/Ctrl+Shift+Z or Ctrl+Y redoes field changes, also while
+	// typing in a field. Other text boxes, such as the context notes, keep their own undo.
+	useEffect(() => {
+		if (!inlineInputs) {
+			return;
+		}
+		const handleKeyDown = (event: KeyboardEvent) => {
+			const key = event.key.toLowerCase();
+			const isUndo = key === "z" && !event.shiftKey;
+			const isRedo = (key === "z" && event.shiftKey) || (key === "y" && !event.metaKey);
+			if (!(event.metaKey || event.ctrlKey) || event.altKey || !(isUndo || isRedo)) {
+				return;
+			}
+			const active = document.activeElement;
+			const isEditable =
+				active instanceof HTMLElement &&
+				(active.matches("input, textarea, select") || active.isContentEditable);
+			const isFieldEditor = Boolean(active?.closest(fieldEditorSelector));
+			if (isEditable && !isFieldEditor) {
+				return;
+			}
+			event.preventDefault();
+			// A field shows its own draft while focused; refocus it to show the restored value.
+			const field = isEditable && active instanceof HTMLElement ? active : null;
+			field?.blur();
+			if (isUndo) {
+				undo();
+			} else {
+				redo();
+			}
+			if (field) {
+				requestAnimationFrame(() => {
+					if (field.isConnected) {
+						field.focus({ preventScroll: true });
+					}
+				});
+			}
+		};
+		document.addEventListener("keydown", handleKeyDown);
+		return () => document.removeEventListener("keydown", handleKeyDown);
+	}, [inlineInputs, redo, undo]);
+
+	useEffect(() => {
+		onValuesChange?.(values);
+	}, [onValuesChange, values]);
+
+	const inlineFields = useMemo<InlineFields>(
+		() => ({
+			clearValue: (key) => clearHandlers[key]?.(),
+			setValue,
+			showSources: handleCitationsSelect,
+			states,
+		}),
+		[clearHandlers, handleCitationsSelect, setValue, states],
+	);
+
+	// Unconfirmed AI values in form order; each click shows the next one.
+	const aiFieldNames = useMemo(
+		() =>
+			collectFillInputFields(inputTags)
+				.fields.map(({ label }) => label)
+				.filter((name) => fieldSources[name] === "ai"),
+		[fieldSources, inputTags],
+	);
+	const handleReviewNext = useCallback(() => {
+		const last = lastReviewedFieldRef.current;
+		const next = aiFieldNames[(last ? aiFieldNames.indexOf(last) : -1) + 1] ?? aiFieldNames[0];
+		if (!next) {
+			return;
+		}
+		lastReviewedFieldRef.current = next;
+		if (onReviewField) {
+			onReviewField(next);
+			return;
+		}
+		const tag = [
+			...(previewPanelElement?.querySelectorAll<HTMLElement>("[data-markdoc-input]") ?? []),
+		].find((element) => element.dataset.markdocInput === next && element.getClientRects().length);
+		const control = tag?.matches("[data-tag-focus]")
+			? tag
+			: tag?.querySelector<HTMLElement>("[data-tag-focus]");
+		control?.scrollIntoView({ behavior: "smooth", block: "center" });
+		control?.focus({ preventScroll: true });
+	}, [aiFieldNames, onReviewField, previewPanelElement]);
 
 	const handleCitationDialogChange = useCallback((open: boolean) => {
 		if (open) {
@@ -521,91 +471,127 @@ export const InputPreviewSection = ({
 		[],
 	);
 
-	const inputPanelClassName = getInputPanelClassName(hasInputTags, mobilePanel);
-	const previewPanelClassName = getPreviewPanelClassName(
-		hasInputTags,
-		mobilePanel,
-		Boolean(edgeTabs),
+	const fillControls =
+		hasInputTags && fields.fill ? (
+			<InputContextControls
+				className={
+					inlineInputs
+						? "w-auto min-w-0 flex-1 lg:flex-none"
+						: "shrink-0 border-t border-t-solarized-blue/30 bg-solarized-blue/5 px-4 py-3"
+				}
+				closeOnSubmit={inlineInputs}
+				controller={inputContextController}
+				onSubmit={async ({ audioFiles, contextFiles, textContext }) => {
+					await fields.fill?.(audioFiles, textContext, contextFiles);
+				}}
+				panelPortalTarget={usesPreviewPanelPortal ? previewPanelElement : null}
+			/>
+		) : null;
+	const citationDialog = (
+		<CitationPreviewDialog onOpenChange={handleCitationDialogChange} previews={citationPreviews} />
 	);
+
+	if (!inlineInputs) {
+		return (
+			<>
+				<InputSidePanelCard
+					activeInputFocusKey={activeInputFocusKey}
+					activeInputName={activeInputName}
+					activePreviewFocusKey={activePreviewFocusKey}
+					contentType={contentType}
+					edgeTabs={edgeTabs}
+					fields={fields}
+					fillControls={fillControls}
+					inputTags={inputTags}
+					onCitationsSelect={handleCitationsSelect}
+					onInputBlur={onInputBlur}
+					onInputSelect={onInputSelect}
+					preview={preview(values, handleCitationSelect, inlineFields, fields)}
+					previewPanelElement={previewPanelElement}
+					previewPanelRef={handlePreviewPanelRef}
+					previewToolbar={previewToolbar}
+				/>
+				{citationDialog}
+			</>
+		);
+	}
 
 	return (
 		<>
-			<Card className="relative flex h-[calc(100vh-(--spacing(16))-(--spacing(10))-2rem)] overflow-hidden md:grid md:grid-cols-3">
-				{hasInputTags ? (
-					<MobilePanelTabs
-						mobilePanel={mobilePanel}
-						mobileTabId={mobileTabId}
-						onPanelChange={setMobilePanel}
-					/>
-				) : null}
-				<div
-					aria-labelledby={hasInputTags ? `${mobileTabId}-inputs-tab` : undefined}
-					className={inputPanelClassName}
-					id={`${mobileTabId}-inputs-panel`}
-					key="Inputs"
-					role={hasInputTags ? "tabpanel" : undefined}
-				>
-					{contentType === "template" ? (
-						<div className="flex shrink-0 items-center justify-between gap-2 border-b px-3 py-1.5">
-							<span className="font-medium text-muted-foreground text-xs">Eingaben</span>
-							<Button
-								className="h-7 gap-1.5 px-2 text-muted-foreground text-xs hover:text-foreground"
-								onClick={handleClearInputs}
-								size="sm"
-								type="button"
-								variant="ghost"
-							>
-								<Eraser aria-hidden className="h-3.5 w-3.5" />
-								Alle Eingaben leeren
-							</Button>
-						</div>
-					) : null}
-					<div className="min-h-0 flex-1">
-						<Inputs
-							activeInputFocusKey={mobilePanel === "inputs" ? activeInputFocusKey : undefined}
-							activeInputName={activeInputName}
-							key={`${resetKey ?? ""}:${clearCount}`}
-							inputTags={inputTags}
-							onChange={handleFormChange}
-							onCitationsSelect={handleCitationsSelect}
-							onFillInputs={isLoggedIn ? handleFillInputs : undefined}
-							onInputBlur={onInputBlur}
-							onInputSelect={onInputSelect}
-							renderFillControls={({ onSubmit }) => (
-								<InputContextControls
-									className="shrink-0 border-t border-t-solarized-blue/30 bg-solarized-blue/5 px-4 py-3"
-									controller={inputContextController}
-									onSubmit={async ({ audioFiles, contextFiles, textContext }) => {
-										await onSubmit(audioFiles, textContext, contextFiles);
-									}}
-									panelPortalTarget={usesPreviewPanelPortal ? previewPanelElement : null}
-								/>
-							)}
-							showFillInputs={isLoggedIn}
-						/>
-					</div>
-				</div>
+			<Card className="relative flex h-[calc(100vh-(--spacing(16))-(--spacing(10))-2rem)] flex-col gap-0 overflow-hidden py-0">
 				{edgeTabs}
 				<div
-					aria-labelledby={hasInputTags ? `${mobileTabId}-preview-tab` : undefined}
-					className={previewPanelClassName}
-					id={`${mobileTabId}-preview-panel`}
-					key="Preview"
+					className={cn(
+						"relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-4",
+						edgeTabs && "pr-14",
+					)}
 					ref={handlePreviewPanelRef}
-					role={hasInputTags ? "tabpanel" : undefined}
 				>
 					{previewToolbar ? (
-						<div className="mb-3 flex items-center gap-2">{previewToolbar}</div>
+						<div className="mb-3 flex flex-wrap items-center gap-2">{previewToolbar}</div>
 					) : null}
 					<div className="min-h-0 flex-1 overflow-y-auto overscroll-none">
-						{preview(values, handleCitationSelect)}
+						{preview(values, handleCitationSelect, inlineFields, fields)}
 					</div>
 				</div>
+				{hasInputTags ? (
+					// Context, fill and the actions that apply to every field.
+					<div className="flex shrink-0 flex-wrap items-end gap-2 border-t border-t-solarized-blue/30 bg-solarized-blue/5 px-3 py-2">
+						{fillControls}
+						<div className="ml-auto flex shrink-0 items-center gap-1.5">
+							{aiFieldNames.length ? (
+								<Button
+									className="border-solarized-orange/40 text-solarized-orange hover:text-solarized-orange"
+									onClick={handleReviewNext}
+									size="sm"
+									type="button"
+									variant="outline"
+								>
+									<Bot aria-hidden className="h-4 w-4" />
+									{aiFieldNames.length === 1
+										? "1 KI-Wert prüfen"
+										: `${aiFieldNames.length} KI-Werte prüfen`}
+								</Button>
+							) : null}
+							<Button
+								aria-label="Rückgängig"
+								disabled={!fields.canUndo}
+								onClick={undo}
+								size="sm"
+								title="Rückgängig (⌘Z / Strg+Z)"
+								type="button"
+								variant="outline"
+							>
+								<Undo2 aria-hidden className="h-4 w-4" />
+							</Button>
+							<Button
+								aria-label="Wiederholen"
+								disabled={!fields.canRedo}
+								onClick={redo}
+								size="sm"
+								title="Wiederholen (⇧⌘Z / Strg+Y)"
+								type="button"
+								variant="outline"
+							>
+								<Redo2 aria-hidden className="h-4 w-4" />
+							</Button>
+							<Button
+								aria-label="Alle Eingaben leeren"
+								onClick={() => reset()}
+								size="sm"
+								title="Alle Eingaben leeren"
+								type="button"
+								variant="outline"
+							>
+								<Eraser aria-hidden className="h-4 w-4" />
+								<span className="max-sm:sr-only">Alle leeren</span>
+							</Button>
+							{toolbarActions}
+						</div>
+					</div>
+				) : null}
 			</Card>
-			<CitationPreviewDialog
-				onOpenChange={handleCitationDialogChange}
-				previews={citationPreviews}
-			/>
+			{citationDialog}
 		</>
 	);
 };

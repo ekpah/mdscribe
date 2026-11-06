@@ -81,6 +81,14 @@ interface InputsProps {
 	onSuggestedValuesChange?: (values: Record<string, SuggestedValue>) => void;
 }
 
+export interface FieldState {
+	source?: InputSource;
+	suggestion?: SuggestedValue;
+	suggestionLabel?: string;
+	/** Sources of the value currently in use; only AI values have them. */
+	citations?: CitationRequest[];
+}
+
 export interface FillInputsInputField {
 	label: string;
 	calculation?: {
@@ -106,7 +114,7 @@ export interface FillInputsResult {
 
 type SuggestedValueSource = "ai" | "note" | "document" | "prefill";
 
-export interface SuggestedValue {
+interface SuggestedValue {
 	citations?: CitationRequest[];
 	value: string | number | boolean;
 	source?: SuggestedValueSource;
@@ -119,7 +127,7 @@ interface InputMeta {
 	type: "string" | "number" | "date" | "switch" | "boolean";
 }
 
-type InputSource = "ai" | "ai-confirmed" | "manual";
+export type InputSource = "ai" | "ai-confirmed" | "manual";
 
 export const collectFillInputFields = (inputTags: InputTagType[]) => {
 	const fields: FillInputsInputField[] = [];
@@ -326,9 +334,11 @@ const isInteractiveElement = (element: HTMLElement): boolean =>
 		),
 	);
 
-const focusFirstInputControl = (container: HTMLElement): void => {
+const focusFirstInputControl = (container: HTMLElement): boolean => {
 	const focusSelectors = [
-		'input:not([type="hidden"]):not([disabled])',
+		// Date fields carry a hidden form input; their segments are the controls.
+		'input:not([type="hidden"]):not([hidden]):not([tabindex="-1"]):not([disabled])',
+		'[role="spinbutton"]:not([aria-disabled="true"])',
 		"textarea:not([disabled])",
 		"select:not([disabled])",
 		'[role="combobox"]:not([aria-disabled="true"])',
@@ -341,9 +351,10 @@ const focusFirstInputControl = (container: HTMLElement): void => {
 		const control = container.querySelector<HTMLElement>(selector);
 		if (control) {
 			control.focus();
-			return;
+			return true;
 		}
 	}
+	return false;
 };
 
 const SourceIndicator = ({
@@ -1002,28 +1013,80 @@ const renderInputTag = (
 	return null;
 };
 
-export default function Inputs({
-	activeInputFocusKey,
-	activeInputName,
-	inputTags = [],
-	onChange,
-	onInputBlur,
-	onInputSelect,
-	onCitationsSelect,
-	showFillInputs = false,
-	onFillInputs,
-	renderFillControls,
-	suggestedValues: suggestedValuesProp,
-	onSuggestedValuesChange,
-}: InputsProps) {
-	const areCitationsHighlighted = useCitationModifier();
+interface FieldsSnapshot {
+	user: Record<string, unknown>;
+	suggested: Record<string, SuggestedValue>;
+}
+
+const MAX_HISTORY = 100;
+
+/** The shared field state of a template or document, and its write paths. */
+export interface TemplateFields {
+	/** Explicit values over calculations; what the text and the PDF show. */
+	values: Record<string, unknown>;
+	calculations: Map<string, CalcInputTagType>;
+	fieldSources: Record<string, InputSource>;
+	suggestedValues: Record<string, SuggestedValue>;
+	/** Provenance, AI suggestion and sources per field, for editors outside the side form. */
+	states: Record<string, FieldState>;
+	changeHandlers: Record<string, (value: unknown) => void>;
+	/**
+	 * Drops a field's manual value, revealing its AI suggestion. For a calculation
+	 * without a manual value, drops the AI suggestion, revealing the calculation.
+	 */
+	clearHandlers: Record<string, () => void>;
+	setValue: (key: string, value: unknown) => void;
+	/** Fills the fields with AI from the given context; undefined without a fill backend. */
+	fill?: (
+		audioFiles: FillInputsAudioFile[],
+		textContext: FillInputsTextContext,
+		contextFiles: FillInputsContextFile[],
+	) => Promise<void>;
+	/** Drops typed values and AI suggestions together; `forgetHistory` also drops undo. */
+	reset: (forgetHistory?: boolean) => void;
+	/** Steps back or forward through edits, AI fills and resets; one step per edited field. */
+	undo: () => void;
+	redo: () => void;
+	canUndo: boolean;
+	canRedo: boolean;
+}
+
+/**
+ * Owns typed values, AI suggestions and their provenance for one template or
+ * document, independent of which editor shows them.
+ */
+export const useTemplateFields = (
+	inputTags: InputTagType[],
+	{
+		onFillInputs,
+		onSuggestedValuesChange,
+		suggestedValues: suggestedValuesProp,
+	}: Pick<InputsProps, "onFillInputs" | "onSuggestedValuesChange" | "suggestedValues"> = {},
+): TemplateFields => {
 	const [userValues, setUserValues] = useState<Record<string, unknown>>({});
 	const [suggestedValues, setSuggestedValues] = useState<Record<string, SuggestedValue>>(
 		suggestedValuesProp ?? {},
 	);
 	const activeFillRef = useRef<{ edited: Set<string>; discarded: Set<string> } | null>(null);
-	const fieldRefs = useRef<FieldRefs>(new Map());
-	const scrollRanks = useMemo(() => collectScrollRanks(inputTags), [inputTags]);
+	// Undo history of whole states. Consecutive edits of one field form one step.
+	const [history, setHistory] = useState<{ past: FieldsSnapshot[]; future: FieldsSnapshot[] }>({
+		future: [],
+		past: [],
+	});
+	const currentRef = useRef<FieldsSnapshot>({ suggested: suggestedValues, user: userValues });
+	const lastEditedRef = useRef<string | null>(null);
+	useEffect(() => {
+		currentRef.current = { suggested: suggestedValues, user: userValues };
+	}, [suggestedValues, userValues]);
+	/** Remembers the current state as an undo step before a change; `key` merges a field's edits. */
+	const record = useCallback((key: string | null = null) => {
+		if (key !== null && lastEditedRef.current === key) {
+			return;
+		}
+		lastEditedRef.current = key;
+		const { current } = currentRef;
+		setHistory(({ past }) => ({ future: [], past: [...past, current].slice(-MAX_HISTORY) }));
+	}, []);
 	const calculations = useMemo(() => {
 		const found = new Map<string, CalcInputTagType>();
 		const visit = (input: InputTagType) => {
@@ -1043,8 +1106,6 @@ export default function Inputs({
 		}
 		return found;
 	}, [inputTags]);
-	const isFocusSelectionSuppressed = useRef(false);
-	const lastHandledFocusKeyRef = useRef(activeInputFocusKey);
 	const aiValues = useMemo(
 		() =>
 			Object.fromEntries(Object.entries(suggestedValues).map(([key, item]) => [key, item.value])),
@@ -1075,37 +1136,6 @@ export default function Inputs({
 	}, [calculations, suggestedValues, userValues]);
 
 	useEffect(() => {
-		onChange(resolvedValues);
-	}, [resolvedValues, onChange]);
-
-	useEffect(() => {
-		if (
-			activeInputFocusKey === undefined ||
-			Object.is(lastHandledFocusKeyRef.current, activeInputFocusKey)
-		) {
-			return;
-		}
-		lastHandledFocusKeyRef.current = activeInputFocusKey;
-		if (!activeInputName) {
-			return;
-		}
-		const activeField = findFieldTarget(fieldRefs.current, activeInputName);
-		if (!activeField) {
-			return;
-		}
-		activeField.scrollIntoView({
-			behavior: "smooth",
-			block: "center",
-		});
-		isFocusSelectionSuppressed.current = true;
-		try {
-			focusFirstInputControl(activeField);
-		} finally {
-			isFocusSelectionSuppressed.current = false;
-		}
-	}, [activeInputFocusKey, activeInputName]);
-
-	useEffect(() => {
 		if (!suggestedValuesProp) {
 			return;
 		}
@@ -1113,9 +1143,13 @@ export default function Inputs({
 	}, [suggestedValuesProp]);
 
 	// Dropping a manual value reveals the AI suggestion, or else the calculation.
-	const clearUserValue = useCallback((key: string) => {
-		setUserValues((previous) => withoutRecordKey(previous, key));
-	}, []);
+	const clearUserValue = useCallback(
+		(key: string) => {
+			record(key);
+			setUserValues((previous) => withoutRecordKey(previous, key));
+		},
+		[record],
+	);
 
 	// Emptying a calculated field resumes calculation; any other field keeps an
 	// explicit empty value instead of reviving its AI suggestion.
@@ -1126,9 +1160,10 @@ export default function Inputs({
 				clearUserValue(key);
 				return;
 			}
+			record(key);
 			setUserValues((previous) => ({ ...previous, [key]: value }));
 		},
-		[calculations, clearUserValue],
+		[calculations, clearUserValue, record],
 	);
 
 	const fieldKeys = useMemo(() => {
@@ -1170,6 +1205,7 @@ export default function Inputs({
 					return;
 				}
 				activeFillRef.current?.discarded.add(fieldKey);
+				record();
 				const nextSuggestions = withoutRecordKey(suggestedValues, fieldKey);
 				setSuggestedValues(nextSuggestions);
 				onSuggestedValuesChange?.(nextSuggestions);
@@ -1181,9 +1217,30 @@ export default function Inputs({
 		clearUserValue,
 		fieldKeys,
 		onSuggestedValuesChange,
+		record,
 		suggestedValues,
 		userValues,
 	]);
+
+	const states = useMemo(() => {
+		const keys = new Set([...Object.keys(fieldSources), ...Object.keys(suggestedValues)]);
+		return Object.fromEntries(
+			[...keys].map((key): [string, FieldState] => {
+				const suggestion = suggestedValues[key];
+				const source = fieldSources[key];
+				return [
+					key,
+					{
+						citations:
+							source === "ai" || source === "ai-confirmed" ? suggestion?.citations : undefined,
+						source,
+						suggestion,
+						suggestionLabel: suggestion ? getSuggestionLabel(suggestion) : undefined,
+					},
+				];
+			}),
+		);
+	}, [fieldSources, suggestedValues]);
 
 	const { fields: fillInputFields, meta: fillInputMeta } = useMemo(
 		() => collectFillInputFields(inputTags),
@@ -1211,6 +1268,8 @@ export default function Inputs({
 
 			const fill = { discarded: new Set<string>(), edited: new Set<string>() };
 			activeFillRef.current = fill;
+			// The whole fill is one undo step.
+			record();
 			let valueSuggestions: Record<string, SuggestedValue> = {};
 			// New stages may fill new fields, but cannot undo edits made during this request.
 			const applySuggestions = (result: FillInputsResult) => {
@@ -1309,43 +1368,215 @@ export default function Inputs({
 				activeFillRef.current = null;
 			}
 		},
-		[fillInputFields, fillInputMeta, onFillInputs, onSuggestedValuesChange],
+		[fillInputFields, fillInputMeta, onFillInputs, onSuggestedValuesChange, record],
 	);
 
-	if (inputTags.length === 0 || !inputTags) {
-		return null;
-	}
+	const reset = useCallback(
+		(forgetHistory = false) => {
+			activeFillRef.current = null;
+			if (forgetHistory) {
+				lastEditedRef.current = null;
+				setHistory({ future: [], past: [] });
+			} else {
+				record();
+			}
+			setUserValues({});
+			setSuggestedValues({});
+			onSuggestedValuesChange?.({});
+		},
+		[onSuggestedValuesChange, record],
+	);
 
-	const shouldShowFillInputs = Boolean(showFillInputs && onFillInputs && renderFillControls);
+	const restore = useCallback(
+		(snapshot: FieldsSnapshot) => {
+			lastEditedRef.current = null;
+			setUserValues(snapshot.user);
+			setSuggestedValues(snapshot.suggested);
+			onSuggestedValuesChange?.(snapshot.suggested);
+		},
+		[onSuggestedValuesChange],
+	);
+	const undo = useCallback(() => {
+		const previous = history.past.at(-1);
+		if (!previous) {
+			return;
+		}
+		setHistory(({ future, past }) => ({
+			future: [currentRef.current, ...future],
+			past: past.slice(0, -1),
+		}));
+		restore(previous);
+	}, [history.past, restore]);
+	const redo = useCallback(() => {
+		const [next] = history.future;
+		if (!next) {
+			return;
+		}
+		setHistory(({ future, past }) => ({
+			future: future.slice(1),
+			past: [...past, currentRef.current],
+		}));
+		restore(next);
+	}, [history.future, restore]);
+
+	return {
+		calculations,
+		canRedo: history.future.length > 0,
+		canUndo: history.past.length > 0,
+		changeHandlers,
+		clearHandlers,
+		fieldSources,
+		fill: onFillInputs ? handleFillInputs : undefined,
+		redo,
+		reset,
+		setValue: handleInputChange,
+		states,
+		suggestedValues,
+		undo,
+		values: resolvedValues,
+	};
+};
+
+interface InputsListProps extends Pick<
+	InputsProps,
+	| "activeInputFocusKey"
+	| "activeInputName"
+	| "inputTags"
+	| "onCitationsSelect"
+	| "onInputBlur"
+	| "onInputSelect"
+> {
+	className?: string;
+	fields: TemplateFields;
+}
+
+/** The side-form controls for the given inputs; the values live in `fields`. */
+export const InputsList = ({
+	activeInputFocusKey,
+	activeInputName,
+	className,
+	fields,
+	inputTags,
+	onCitationsSelect,
+	onInputBlur,
+	onInputSelect,
+}: InputsListProps) => {
+	const areCitationsHighlighted = useCitationModifier();
+	const fieldRefs = useRef<FieldRefs>(new Map());
+	const scrollRanks = useMemo(() => collectScrollRanks(inputTags), [inputTags]);
+	const isFocusSelectionSuppressed = useRef(false);
+	const lastHandledFocusKeyRef = useRef(activeInputFocusKey);
+
+	useEffect(() => {
+		if (
+			activeInputFocusKey === undefined ||
+			Object.is(lastHandledFocusKeyRef.current, activeInputFocusKey)
+		) {
+			return;
+		}
+		lastHandledFocusKeyRef.current = activeInputFocusKey;
+		if (!activeInputName) {
+			return;
+		}
+		const activeField = findFieldTarget(fieldRefs.current, activeInputName);
+		if (!activeField) {
+			return;
+		}
+		activeField.scrollIntoView({
+			behavior: "smooth",
+			block: "center",
+		});
+		const focusField = () => {
+			isFocusSelectionSuppressed.current = true;
+			try {
+				return focusFirstInputControl(activeField);
+			} finally {
+				isFocusSelectionSuppressed.current = false;
+			}
+		};
+		if (focusField()) {
+			return;
+		}
+		// Lazily loaded controls, such as the first date or number field, appear later.
+		const observer = new MutationObserver(() => {
+			if (focusField()) {
+				observer.disconnect();
+			}
+		});
+		observer.observe(activeField, { childList: true, subtree: true });
+		const timeout = window.setTimeout(() => observer.disconnect(), 3000);
+		return () => {
+			observer.disconnect();
+			window.clearTimeout(timeout);
+		};
+	}, [activeInputFocusKey, activeInputName]);
+
 	const renderContext: RenderContext = {
 		activeInputName,
 		areCitationsHighlighted,
-		calculations,
-		changeHandlers,
-		clearHandlers,
+		calculations: fields.calculations,
+		changeHandlers: fields.changeHandlers,
+		clearHandlers: fields.clearHandlers,
 		fieldRefs,
-		fieldSources,
+		fieldSources: fields.fieldSources,
 		isFocusSelectionSuppressed,
 		onCitationsSelect,
 		onInputBlur,
 		onInputSelect,
 		scrollRanks,
-		suggestedValues,
-		values: resolvedValues,
+		suggestedValues: fields.suggestedValues,
+		values: fields.values,
 	};
+
+	return <div className={className}>{renderInputList(inputTags, renderContext)}</div>;
+};
+
+export default function Inputs({
+	activeInputFocusKey,
+	activeInputName,
+	inputTags = [],
+	onChange,
+	onInputBlur,
+	onInputSelect,
+	onCitationsSelect,
+	showFillInputs = false,
+	onFillInputs,
+	renderFillControls,
+	suggestedValues,
+	onSuggestedValuesChange,
+}: InputsProps) {
+	const fields = useTemplateFields(inputTags, {
+		onFillInputs,
+		onSuggestedValuesChange,
+		suggestedValues,
+	});
+
+	useEffect(() => {
+		onChange(fields.values);
+	}, [fields.values, onChange]);
+
+	if (inputTags.length === 0 || !inputTags) {
+		return null;
+	}
+
+	const shouldShowFillInputs = Boolean(showFillInputs && fields.fill && renderFillControls);
 
 	return (
 		<form className="flex h-full w-full flex-col overflow-hidden">
 			{/* Scrollable inputs area */}
-			<div
+			<InputsList
+				activeInputFocusKey={activeInputFocusKey}
+				activeInputName={activeInputName}
 				className="flex-1 space-y-3 overflow-x-hidden overflow-y-auto overscroll-none p-3 pr-3"
-				key="inputs-list"
-			>
-				{renderInputList(inputTags, renderContext)}
-			</div>
+				fields={fields}
+				inputTags={inputTags}
+				onCitationsSelect={onCitationsSelect}
+				onInputBlur={onInputBlur}
+				onInputSelect={onInputSelect}
+			/>
 			{/* Fixed autofill footer */}
-			{shouldShowFillInputs && renderFillControls
-				? renderFillControls({ onSubmit: handleFillInputs })
+			{shouldShowFillInputs && renderFillControls && fields.fill
+				? renderFillControls({ onSubmit: fields.fill })
 				: null}
 		</form>
 	);

@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import { InputPreviewSection } from "@/app/_components/input-preview-section";
 import { PDFViewSection } from "@/app/_components/pdf-view-section-dynamic";
+import { DocumentFieldStepper } from "@/app/documents/_components/document-field-stepper";
 import { DocumentPreviewTabs } from "@/app/documents/_components/document-preview-tabs";
 import type { DocumentPreviewView } from "@/app/documents/_components/document-preview-tabs";
 import {
@@ -52,11 +53,14 @@ export default function ContentSection({
 	documentId,
 	definition,
 	information,
+	inlineInputs,
 }: {
 	downloadFileName?: string;
 	documentId: string;
 	definition: DocumentDefinition;
 	information: string;
+	/** Edit one field at a time in a step bar under the PDF instead of in the side column. */
+	inlineInputs: boolean;
 }) {
 	const normalizedDefinition = useMemo(() => {
 		try {
@@ -70,6 +74,33 @@ export default function ContentSection({
 		() => getEnabledDocumentInputs(normalizedDefinition),
 		[normalizedDefinition],
 	);
+	// Form field names in the PDF's reading order, so stepping follows the page.
+	const [pdfFieldOrder, setPdfFieldOrder] = useState<string[]>([]);
+	const handleFieldOrderChange = useCallback(
+		(fieldNames: string[]) =>
+			setPdfFieldOrder((current) =>
+				current.join("\u0000") === fieldNames.join("\u0000") ? current : fieldNames,
+			),
+		[],
+	);
+	const orderedInputs = useMemo(() => {
+		const rank = new Map(pdfFieldOrder.map((fieldName, index) => [fieldName, index]));
+		const inputRank = (inputId: string) =>
+			Math.min(
+				...normalizedDefinition.bindings
+					.filter(
+						(binding) =>
+							binding.isEnabled && binding.inputId.toLowerCase() === inputId.toLowerCase(),
+					)
+					.map((binding) => rank.get(binding.fieldName) ?? Infinity),
+			);
+		// A stable sort keeps the definition's order among fields without a widget.
+		return inputs.toSorted((a, b) => {
+			const rankA = inputRank(a.attributes.primary);
+			const rankB = inputRank(b.attributes.primary);
+			return rankA === rankB ? 0 : Math.sign(rankA - rankB);
+		});
+	}, [inputs, normalizedDefinition, pdfFieldOrder]);
 	const [values, setValues] = useState<Record<string, unknown>>({});
 	const [sourcePdfBytes, setSourcePdfBytes] = useState<Uint8Array | null>(null);
 	const [previewPdfBytes, setPreviewPdfBytes] = useState<Uint8Array | null>(null);
@@ -82,9 +113,27 @@ export default function ContentSection({
 	const [previewRefreshRequestKey, setPreviewRefreshRequestKey] = useState(0);
 	const previewRefreshIdRef = useRef(0);
 
+	const activeValue = activeInputName ? values[activeInputName] : undefined;
 	const activePdfFieldHighlights = useMemo(
-		() => getPdfFieldHighlightsForInput(normalizedDefinition, undefined, activeInputName),
-		[activeInputName, normalizedDefinition],
+		() =>
+			getPdfFieldHighlightsForInput(normalizedDefinition, undefined, activeInputName).map(
+				(highlight) => {
+					// The chosen option's widget, so it stands out among the field's options.
+					const binding = normalizedDefinition.bindings.find(
+						(candidate) =>
+							candidate.fieldName === highlight.fieldName &&
+							candidate.inputId.toLowerCase() === activeInputName?.toLowerCase(),
+					);
+					const selectedWidgetValue =
+						activeValue === undefined || activeValue === null || activeValue === ""
+							? undefined
+							: binding?.valueMap?.[String(activeValue)];
+					return highlight.widgetValues && selectedWidgetValue
+						? { ...highlight, selectedWidgetValue }
+						: highlight;
+				},
+			),
+		[activeInputName, activeValue, normalizedDefinition],
 	);
 
 	const { data: pdfData, isLoading: isLoadingPdf } = useQuery(
@@ -202,10 +251,14 @@ export default function ContentSection({
 		printPdfBlob(toPdfBlob(previewPdfBytes));
 	}, [hasPreviewError, previewPdfBytes]);
 
-	const handleInputSelect = useCallback((inputName: string) => {
+	// The step bar shows a field: highlight it on the PDF and, when asked, focus it.
+	const handleActiveChange = useCallback((inputName: string, focus: boolean) => {
 		setActiveInputName(inputName);
 		setActivePdfNavigationKey((currentKey) => currentKey + 1);
 		setContentView("document");
+		if (focus) {
+			setActiveInputFocusKey((currentKey) => (currentKey ?? 0) + 1);
+		}
 	}, []);
 
 	const handleInputBlur = useCallback(() => {
@@ -234,15 +287,17 @@ export default function ContentSection({
 			activeInputName={activeInputName}
 			contentType="document"
 			edgeTabs={<DocumentPreviewTabs activeView={contentView} onViewChange={setContentView} />}
+			inlineInputs={inlineInputs}
 			inputTags={inputs}
 			onInputBlur={handleInputBlur}
-			onInputSelect={handleInputSelect}
+			onInputSelect={(inputName) => handleActiveChange(inputName, false)}
+			onReviewField={(inputName) => handleActiveChange(inputName, true)}
 			onValuesChange={setValues}
-			preview={() => {
+			preview={(_values, _onCitationSelect, fields, form) => {
 				if (contentView === "information") {
 					return <DocumentInformationPreview information={information} />;
 				}
-				return isLoadingPdf ? (
+				const pdfView = isLoadingPdf ? (
 					<div className="flex min-h-40 items-center justify-center rounded-xl border border-input border-dashed px-4 py-6 text-sm text-muted-foreground">
 						PDF wird geladen...
 					</div>
@@ -251,10 +306,28 @@ export default function ContentSection({
 						activeFieldHighlights={activePdfFieldHighlights}
 						activeFieldNavigationKey={activePdfNavigationKey}
 						hasUploadedFile={Boolean(previewPdfBytes)}
+						onFieldOrderChange={inlineInputs ? handleFieldOrderChange : undefined}
 						onFieldSelect={handlePdfFieldSelect}
 						pdfFile={previewPdfBytes}
 						resetKey={documentId}
 					/>
+				);
+				if (!inlineInputs) {
+					return pdfView;
+				}
+				return (
+					<div className="flex h-full min-h-0 flex-col">
+						<div className="min-h-0 flex-1 overflow-y-auto">{pdfView}</div>
+						<DocumentFieldStepper
+							activeInputName={activeInputName}
+							focusKey={activeInputFocusKey}
+							form={form}
+							inputs={orderedInputs}
+							onActiveChange={handleActiveChange}
+							onCitationsSelect={fields.showSources}
+							onInputBlur={handleInputBlur}
+						/>
+					</div>
 				);
 			}}
 			previewToolbar={

@@ -14,6 +14,7 @@ import { notFound } from "next/navigation";
 import ContentSection from "@/app/documents/(library)/[id]/_components/content-section";
 import { NavActions } from "@/app/documents/(library)/[id]/_components/nav-actions";
 import { documentDefinitionSchema, normalizeDocumentDefinition } from "@/app/documents/_lib";
+import { inlineInputsFlag } from "@/flags";
 import { orpc } from "@/lib/orpc";
 import { getServerSession } from "@/lib/server-session";
 
@@ -38,9 +39,10 @@ const DocumentPage = async ({ params }: PageProps<"/documents/[id]">) => {
 	const session = await getServerSession();
 	const { id } = await params;
 
-	const document = await queryClient.fetchQuery(
-		orpc.documents.templates.get.queryOptions({ input: { id } }),
-	);
+	const [document, inlineInputs] = await Promise.all([
+		queryClient.fetchQuery(orpc.documents.templates.get.queryOptions({ input: { id } })),
+		inlineInputsFlag(),
+	]);
 
 	if (!document) {
 		notFound();
@@ -82,6 +84,7 @@ const DocumentPage = async ({ params }: PageProps<"/documents/[id]">) => {
 				documentId={document.id}
 				definition={definition}
 				information={document.information}
+				inlineInputs={inlineInputs}
 			/>
 		</div>
 	);

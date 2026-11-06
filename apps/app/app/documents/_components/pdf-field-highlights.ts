@@ -12,6 +12,8 @@ interface PdfFieldLookupOptions {
 export interface PdfFieldHighlight {
 	fieldName: string;
 	widgetValues?: string[];
+	/** The option chosen among `widgetValues`; it stands out from the other options. */
+	selectedWidgetValue?: string;
 }
 
 const getWidgetValues = (

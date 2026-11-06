@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@repo/design-system/components/ui/button";
+import { cn } from "@repo/design-system/lib/utils";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties, MutableRefObject } from "react";
@@ -34,6 +35,8 @@ interface PDFViewSectionProps {
 	activeFieldNavigationKey?: string | number;
 	hasUploadedFile?: boolean;
 	onFieldSelect?: (fieldName: string, widgetValue?: string) => void;
+	/** Receives the form field names in reading order once the PDF's fields are known. */
+	onFieldOrderChange?: (fieldNames: string[]) => void;
 	pdfFile: Uint8Array | null;
 	resetKey?: string;
 }
@@ -184,7 +187,10 @@ const getHighlightedTargets = (
 			typeof target.widgetValue === "string" &&
 			highlight.widgetValues?.includes(target.widgetValue),
 	);
-	if (matchingTargets.length > 0 || targets.length > 1) {
+	// Radio groups with an option list (/Opt) name their widgets by index, so
+	// option values cannot match; the whole group belongs to the input then.
+	const isIndexedGroup = targets.every((target, index) => target.widgetValue === String(index));
+	if (matchingTargets.length > 0 || (targets.length > 1 && !isIndexedGroup)) {
 		return matchingTargets;
 	}
 	return targets;
@@ -198,6 +204,21 @@ const findHighlightedTarget = (
 	getHighlightedTargets(fieldTargets, highlight).find(
 		(target) => pageNumber === undefined || target.pageNumber === pageNumber,
 	);
+
+/** Field names by their first widget: page, then top to bottom, then left to right. */
+const getFieldReadingOrder = (fieldTargets: Map<string, PdfFieldTarget[]>): string[] => {
+	const positions = [...fieldTargets].flatMap(([fieldName, targets]) =>
+		targets.map(({ pageNumber, rect }) => ({
+			fieldName,
+			left: Math.min(rect[0], rect[2]),
+			pageNumber,
+			// PDF y grows upwards; widgets within a few points share a line.
+			row: -Math.round(Math.max(rect[1], rect[3]) / 6),
+		})),
+	);
+	positions.sort((a, b) => a.pageNumber - b.pageNumber || a.row - b.row || a.left - b.left);
+	return [...new Set(positions.map((position) => position.fieldName))];
+};
 
 const getHighlightKey = (highlight: PdfFieldHighlight): string =>
 	`${highlight.fieldName}:${highlight.widgetValues?.join("\u0000") ?? "*"}`;
@@ -315,6 +336,10 @@ const HighlightOverlay = ({
 			.filter((target) => target.pageNumber === pageNumber)
 			.map((target, index) => ({
 				fieldName: highlight.fieldName,
+				// Once an option is chosen, the field's other options stay outlined only.
+				isMuted:
+					highlight.selectedWidgetValue !== undefined &&
+					target.widgetValue !== highlight.selectedWidgetValue,
 				key: `${getHighlightKey(highlight)}-${target.pageNumber}-${index}`,
 				rect: target.rect,
 			})),
@@ -329,7 +354,12 @@ const HighlightOverlay = ({
 		<div className="pointer-events-none absolute inset-0 z-10">
 			{targets.map((target) => (
 				<div
-					className="absolute rounded-[2px] border-2 border-solarized-orange bg-solarized-orange/20 shadow-[0_0_0_3px_rgba(203,75,22,0.18)]"
+					className={cn(
+						"absolute rounded-[2px] border-2",
+						target.isMuted
+							? "border-solarized-orange/45 border-dashed"
+							: "border-solarized-orange bg-solarized-orange/20 shadow-[0_0_0_3px_rgba(203,75,22,0.18)]",
+					)}
 					key={target.key}
 					style={getViewportStyle(target.rect, viewport)}
 				/>
@@ -778,6 +808,7 @@ export const PDFViewSection = ({
 	activeFieldNames,
 	activeFieldHighlights,
 	hasUploadedFile = false,
+	onFieldOrderChange,
 	onFieldSelect,
 	pdfFile,
 	resetKey,
@@ -811,6 +842,12 @@ export const PDFViewSection = ({
 		pdfFile,
 		resetKey,
 	});
+
+	useEffect(() => {
+		if (fieldTargets.size > 0) {
+			onFieldOrderChange?.(getFieldReadingOrder(fieldTargets));
+		}
+	}, [fieldTargets, onFieldOrderChange]);
 
 	if (!(visibleBuffer || pendingBuffer)) {
 		return (
