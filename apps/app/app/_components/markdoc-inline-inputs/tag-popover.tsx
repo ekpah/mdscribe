@@ -76,7 +76,8 @@ export const TagPopover = ({
 	const anchorRef = useRef<HTMLSpanElement>(null);
 	const panelRef = useRef<HTMLDivElement>(null);
 	const panelId = useId();
-	const focusPanelRef = useRef(false);
+	// What to focus in the details once they are placed: set by arrow down or Tab.
+	const focusPanelRef = useRef<(() => void) | null>(null);
 	// Returning focus to the tag on Esc must not reopen its details.
 	const suppressFocusOpenRef = useRef(false);
 	const { areCitationsHighlighted } = useMarkdocInteraction();
@@ -113,6 +114,14 @@ export const TagPopover = ({
 			panelRef.current?.querySelector<HTMLElement>("[aria-pressed=true]") ?? panelControls()[0]
 		)?.focus({ preventScroll: true });
 	};
+	// A condition has no value of its own; it is edited through its source fields.
+	// Calculations are typed inline. Phones move with the keyboard bar instead.
+	const entersFirstInput = kind === "condition" && !isPhoneLayout();
+	// Without a source field to type in, focus stays on the tag.
+	const focusFirstInput = () =>
+		panelControls()
+			.find((control) => control instanceof HTMLInputElement)
+			?.focus({ preventScroll: true });
 	const moveToTag = (step: 1 | -1) => {
 		const own = ownControl();
 		setIsOpen(false);
@@ -131,12 +140,26 @@ export const TagPopover = ({
 		) {
 			active.blur();
 		}
+		// A click on a focused condition also moves into its first source field.
+		if (entersFirstInput) {
+			if (panelRef.current) {
+				focusFirstInput();
+			} else {
+				focusPanelRef.current = focusFirstInput;
+			}
+		}
 		setIsOpen(true);
 	};
 	const handleFocus = () => {
-		if (openOnFocus && !suppressFocusOpenRef.current) {
-			setIsOpen(true);
+		if (!openOnFocus || suppressFocusOpenRef.current) {
+			return;
 		}
+		// Opening a condition, by Tab or click, starts in its first source field.
+		// Focus returning from its open details (arrow up) stays on the tag.
+		if (entersFirstInput && !panelRef.current) {
+			focusPanelRef.current = focusFirstInput;
+		}
+		setIsOpen(true);
 	};
 
 	useEffect(() => {
@@ -191,10 +214,9 @@ export const TagPopover = ({
 		place();
 		// The panel becomes visible during placement, before it can take focus.
 		const focusFrame = requestAnimationFrame(() => {
-			if (focusPanelRef.current) {
-				focusPanelRef.current = false;
-				focusPanel();
-			}
+			const pending = focusPanelRef.current;
+			focusPanelRef.current = null;
+			pending?.();
 		});
 		const observer = new ResizeObserver(place);
 		if (panelRef.current) {
@@ -281,7 +303,7 @@ export const TagPopover = ({
 					if (isOpen) {
 						focusPanel();
 					} else {
-						focusPanelRef.current = true;
+						focusPanelRef.current = focusPanel;
 						openPanel();
 					}
 				} else if (
