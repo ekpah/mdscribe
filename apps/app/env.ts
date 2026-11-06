@@ -24,6 +24,7 @@ export const env = createEnv({
 	},
 	runtimeEnv: {
 		ADMIN_EMAIL: process.env.ADMIN_EMAIL,
+		AMP_FEEDBACK_WIDGET_CLIENT_ID: process.env.AMP_FEEDBACK_WIDGET_CLIENT_ID,
 		ANALYZE: process.env.ANALYZE,
 		BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
 		CI: process.env.CI,
@@ -43,6 +44,7 @@ export const env = createEnv({
 	},
 	server: {
 		ADMIN_EMAIL: z.string().email(),
+		AMP_FEEDBACK_WIDGET_CLIENT_ID: optionalNonemptyStringSchema,
 		ANALYZE: z.string().optional(),
 		BETTER_AUTH_SECRET: z.string().min(1),
 		CI: z.string().optional(),

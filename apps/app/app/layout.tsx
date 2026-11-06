@@ -54,6 +54,10 @@ export default async function RootLayout({ children }: RootLayoutProperties) {
 					src="https://cloud.umami.is/script.js"
 					data-website-id="8cfcabe5-4485-4904-95ba-95a39e09e2dd"
 				/>
+				{/* Amp feedback widget (open any page with ?amp); loaded only for the admin. */}
+				{isAdmin && env.AMP_FEEDBACK_WIDGET_CLIENT_ID ? (
+					<script async src={`https://ampcode.com/w/${env.AMP_FEEDBACK_WIDGET_CLIENT_ID}.js`} />
+				) : null}
 			</head>
 			<body className="items-center bg-background font-sans text-foreground">
 				<NuqsAdapter>
