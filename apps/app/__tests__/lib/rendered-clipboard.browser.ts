@@ -92,6 +92,21 @@ try {
 	cited.remove();
 }
 
+// An AIScribe answer's blank lines between sections are copied in both formats.
+const sections = document.createElement("div");
+const sectionDraft = "Befund:\nCRP 112 mg/l.\n\n- Na 140\n- K 3,4\n\nBeurteilung: stabil";
+sections.innerHTML = renderToStaticMarkup(
+	renderMarkdocAsReact(addScribeCitations(sectionDraft, []), { layout: "template" }),
+);
+document.body.append(sections);
+try {
+	const { html, text } = getRenderedClipboardContent(sections);
+	equal(text, "Befund:\nCRP 112 mg/l.\n\n- Na 140\n- K 3,4\n\nBeurteilung: stabil");
+	equal(html.split("&nbsp;").length - 1, 2);
+} finally {
+	sections.remove();
+}
+
 for (const [draft, expected] of [
 	["Before. `CRP 112; Na 140.` After.", "Before. CRP 112; Na 140. After."],
 	["Before.\n```text\nCRP 112; Na 140.\n```\nAfter.", "Before.\nCRP 112; Na 140.\nAfter."],

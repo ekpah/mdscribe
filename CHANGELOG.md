@@ -84,6 +84,8 @@
 
 ### Fixed
 
+- Fill Inputs citations from an image that was rotated before filling open the rotated image again instead of reporting the cited file as not available.
+- AI-Scribe answers keep the blank lines between their sections on screen and when copied, as rich text and as plain text.
 - Selection and text fields show German placeholders with the field name, such as "AW_2 auswählen" and "AW_2 eingeben", instead of "Select AW_2" and "Enter AW_2".
 - PDF radio groups whose widgets are named by option index, such as forms created with pdf-lib, are highlighted when their field is active. Once a choice has a value, its chosen box stays highlighted on the PDF and the other options are only outlined.
 - Orb setup installs Roboto, so headless-browser screenshots no longer take spaces and digits from the emoji font and show wide gaps between words.

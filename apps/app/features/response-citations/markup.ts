@@ -114,11 +114,24 @@ const presentationDraft = (text: string): { offsets: number[]; text: string } =>
 	const removed = new Uint8Array(text.length);
 	removeBlockDelimiters(text, removed);
 	const literal = removeInlineDelimiters(text, removed);
+	// The template layout shows a blank line only as an explicit "&nbsp;" line, as
+	// the editor writes it. Keep the model's section breaks on screen and when copied.
+	const blankLines = new Map<number, string>();
+	for (const match of text.matchAll(/\S[^\n]*\n((?:[ \t]*\n)+)([ \t]*)(?=\S)/gu)) {
+		const [whole, gap, indent] = match;
+		const next = match.index + whole.length - indent.length;
+		// List continuations keep their indentation; flattened code indentation does not.
+		blankLines.set(next - gap.length - 1, removed[next] ? "" : indent);
+	}
 	const offsets = [0];
 	let normalized = "";
 	for (let index = 0; index < text.length; index += 1) {
 		if (!removed[index]) {
 			normalized += literal.has(index) ? `\\${text[index]}` : text[index];
+		}
+		const indent = blankLines.get(index);
+		if (indent !== undefined) {
+			normalized += `\n${indent}&nbsp;\n`;
 		}
 		offsets.push(normalized.length);
 	}

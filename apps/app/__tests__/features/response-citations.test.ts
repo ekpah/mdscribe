@@ -28,8 +28,10 @@ describe("AIScribe presentation code normalization", () => {
 		["``a`b``", "a\\`b"],
 		[
 			"# Befund\n**CRP** 112 mg/l.\n\n- Alpha\n    - Beta\n\n> Na 140",
-			"# Befund\n**CRP** 112 mg/l.\n\n- Alpha\n    - Beta\n\n> Na 140",
+			"# Befund\n**CRP** 112 mg/l.\n\n&nbsp;\n\n- Alpha\n    - Beta\n\n&nbsp;\n\n> Na 140",
 		],
+		// Blank lines stay visible; a list continuation keeps its indentation.
+		["A\n\n\n- B\n\n  C", "A\n\n&nbsp;\n\n\n- B\n\n  &nbsp;\n\n  C"],
 		["Text with \\`literal\\` ticks and 3.5 mg/l.", "Text with \\`literal\\` ticks and 3.5 mg/l."],
 	])("normalizes without citations: %j", (draft, expected) => {
 		expect(addScribeCitations(draft, [])).toBe(expected);

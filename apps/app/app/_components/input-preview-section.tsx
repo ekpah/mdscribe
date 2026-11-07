@@ -18,6 +18,7 @@ import {
 	InputContextControls,
 	useInputContextState,
 } from "@/app/_components/input-context/input-context-controls";
+import type { UploadedContextFile } from "@/app/_components/input-context/types";
 import { blobToBase64 } from "@/app/_components/inputs/audio-submission";
 import { useCitationPreview } from "@/app/_components/use-citation-preview";
 import { trackEvent } from "@/lib/analytics";
@@ -117,6 +118,8 @@ export const InputPreviewSection = ({
 	const [usesPreviewPanelPortal, setUsesPreviewPanelPortal] = useState(false);
 	const inputContextController = useInputContextState();
 	const citationFilesRef = useRef<ReadonlyMap<string, File>>(new Map());
+	// Submission rotates images into new files with new IDs; cite those, not stale state.
+	const submittedFilesRef = useRef<readonly UploadedContextFile[]>([]);
 	const citationOcrResultsRef = useRef<ReadonlyMap<File, OcrResult>>(new Map());
 	// Pending or settled quote locations per document; failed requests are dropped for a retry.
 	const citationLocationsRef = useRef(
@@ -226,7 +229,7 @@ export const InputPreviewSection = ({
 			const textSourceSnapshot = createTextSourceSnapshot(textContext);
 			const submittedFileIds = new Set(contextFiles.map(({ id }) => id));
 			const fileSourceSnapshot = new Map(
-				inputContextController.contextFiles
+				submittedFilesRef.current
 					.filter(({ id }) => submittedFileIds.has(id))
 					.map(({ file, id }) => [id, file]),
 			);
@@ -234,7 +237,7 @@ export const InputPreviewSection = ({
 			citationLocationsRef.current = new WeakMap();
 			// Citations of early decision-model answers must already be resolvable.
 			const rememberSources = ({ ocrResults }: FillInputsResult) => {
-				inputContextController.setContextFileOcrResults(
+				inputContextControllerRef.current.setContextFileOcrResults(
 					ocrResults,
 					contextFiles.map(({ id }) => id),
 				);
@@ -286,7 +289,7 @@ export const InputPreviewSection = ({
 			}
 			return complete;
 		},
-		[contentType, inputContextController, locateQuotes, templateExamples, templateInformation],
+		[contentType, locateQuotes, templateExamples, templateInformation],
 	);
 
 	const {
@@ -414,7 +417,8 @@ export const InputPreviewSection = ({
 				}
 				closeOnSubmit={inlineInputs}
 				controller={inputContextController}
-				onSubmit={async ({ audioFiles, contextFiles, textContext }) => {
+				onSubmit={async ({ audioFiles, contextFiles, preparedContextFiles, textContext }) => {
+					submittedFilesRef.current = preparedContextFiles;
 					await fields.fill?.(audioFiles, textContext, contextFiles);
 				}}
 				panelPortalTarget={usesPreviewPanelPortal ? previewPanelElement : null}
