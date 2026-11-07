@@ -476,7 +476,7 @@ export const InputPreviewSection = ({
 			<InputContextControls
 				className={
 					inlineInputs
-						? "w-auto min-w-0 flex-1 lg:flex-none"
+						? "w-auto shrink-0"
 						: "shrink-0 border-t border-t-solarized-blue/30 bg-solarized-blue/5 px-4 py-3"
 				}
 				closeOnSubmit={inlineInputs}
@@ -518,7 +518,8 @@ export const InputPreviewSection = ({
 
 	return (
 		<>
-			<Card className="relative flex h-[calc(100vh-(--spacing(16))-(--spacing(10))-2rem)] flex-col gap-0 overflow-hidden py-0">
+			{/* Inline-size containment keeps a wide PDF or step bar from widening the page on phones. */}
+			<Card className="relative flex h-[calc(100vh-(--spacing(16))-(--spacing(10))-2rem)] flex-col gap-0 overflow-hidden py-0 [contain:inline-size]">
 				{edgeTabs}
 				<div
 					className={cn(
@@ -536,9 +537,11 @@ export const InputPreviewSection = ({
 				</div>
 				{hasInputTags ? (
 					// Context, fill and the actions that apply to every field.
-					<div className="flex shrink-0 flex-wrap items-end gap-2 border-t border-t-solarized-blue/30 bg-solarized-blue/5 px-3 py-2">
+					// It covers the side tabs where a short screen runs them into it, and wraps
+					// the field actions onto a second row instead of squeezing the buttons.
+					<div className="relative z-30 flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1.5 border-t border-t-solarized-blue/30 bg-card bg-linear-to-b from-solarized-blue/5 to-solarized-blue/5 px-3 py-2">
 						{fillControls}
-						<div className="ml-auto flex shrink-0 items-center gap-1.5">
+						<div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-1.5">
 							{aiFieldNames.length ? (
 								<Button
 									className="border-solarized-orange/40 text-solarized-orange hover:text-solarized-orange"
@@ -548,16 +551,21 @@ export const InputPreviewSection = ({
 									variant="outline"
 								>
 									<Bot aria-hidden className="h-4 w-4" />
-									{aiFieldNames.length === 1
-										? "1 KI-Wert prüfen"
-										: `${aiFieldNames.length} KI-Werte prüfen`}
+									<span aria-hidden className="sm:hidden">
+										{aiFieldNames.length}
+									</span>
+									<span className="max-sm:sr-only">
+										{aiFieldNames.length === 1
+											? "1 KI-Wert prüfen"
+											: `${aiFieldNames.length} KI-Werte prüfen`}
+									</span>
 								</Button>
 							) : null}
 							<Button
 								aria-label="Rückgängig"
 								disabled={!fields.canUndo}
 								onClick={undo}
-								size="sm"
+								size="icon"
 								title="Rückgängig (⌘Z / Strg+Z)"
 								type="button"
 								variant="outline"
@@ -568,7 +576,7 @@ export const InputPreviewSection = ({
 								aria-label="Wiederholen"
 								disabled={!fields.canRedo}
 								onClick={redo}
-								size="sm"
+								size="icon"
 								title="Wiederholen (⇧⌘Z / Strg+Y)"
 								type="button"
 								variant="outline"
@@ -577,6 +585,7 @@ export const InputPreviewSection = ({
 							</Button>
 							<Button
 								aria-label="Alle Eingaben leeren"
+								className="h-8 max-sm:w-8 max-sm:px-0"
 								onClick={() => reset()}
 								size="sm"
 								title="Alle Eingaben leeren"

@@ -87,6 +87,8 @@ const CopyTextButton = ({ sourceRef }: { sourceRef: RefObject<HTMLDivElement | n
 	const [isCopied, setIsCopied] = useState(false);
 	return (
 		<Button
+			aria-label="Text kopieren"
+			className="h-8 max-sm:w-8 max-sm:px-0"
 			onClick={async () => {
 				if (!sourceRef.current) {
 					return;
@@ -107,6 +109,7 @@ const CopyTextButton = ({ sourceRef }: { sourceRef: RefObject<HTMLDivElement | n
 				}
 			}}
 			size="sm"
+			title="Text kopieren"
 			type="button"
 			variant="outline"
 		>
@@ -115,7 +118,7 @@ const CopyTextButton = ({ sourceRef }: { sourceRef: RefObject<HTMLDivElement | n
 			) : (
 				<Copy aria-hidden className="h-4 w-4" />
 			)}
-			Kopieren
+			<span className="max-sm:sr-only">Kopieren</span>
 		</Button>
 	);
 };
