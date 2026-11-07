@@ -228,4 +228,14 @@ if (!renderTipTapHTML(conditionTableSource).includes("<table>")) {
 }
 equal(htmlToMarkdoc(renderTipTapHTML(conditionTableSource)), conditionTableSource);
 
+// A multi-excerpt cite survives save/reopen as a native Markdoc array, with
+// quotes, line breaks and the single-excerpt form of older content intact.
+const multiCite = `{% cite citations=[{source: "mdscribe://input/befunde", quote: "Kalium \\"3,4\\"\\nmmol/l"}, {source: "mdscribe://file/lab"}] %}Kalium{% /cite %} und {% cite source="mdscribe://input/notes" quote="alt" %}alt{% /cite %}`;
+const savedCite = htmlToMarkdoc(renderTipTapHTML(multiCite)).trim();
+equal(savedCite, multiCite);
+equal(htmlToMarkdoc(renderTipTapHTML(savedCite)).trim(), multiCite);
+if (validateMarkdocTemplate(savedCite).length > 0) {
+	throw new Error(`Saved cite became invalid: ${savedCite}`);
+}
+
 document.body.textContent = `Editor roundtrips and ${tableFragments.length * 3} table save/reopen cycles passed`;

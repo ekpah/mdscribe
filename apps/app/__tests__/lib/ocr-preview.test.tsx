@@ -267,7 +267,7 @@ test("generation OCR replaces existing preview text and boxes without clearing u
 	expect(stdout).toContain("Generation OCR preview refresh: OK");
 });
 
-test("text context needs no document policy; file submissions wait until OCR completes", async () => {
+test("submission starts missing OCR, awaits running requests and reuses completed results", async () => {
 	const child = Bun.spawn(
 		[
 			execPath,
@@ -281,8 +281,8 @@ test("text context needs no document policy; file submissions wait until OCR com
 			let native = false;
 			let configured = true, documentModel = "document-v1", encodes = 0;
 			let policyAvailable = false;
-			let releaseOcr;
-			const pendingOcr = new Promise(resolve => { releaseOcr = resolve; });
+			let releaseOcr, failOcr = false;
+			let pendingOcr = new Promise(resolve => { releaseOcr = resolve; });
 			mock.module("react", () => ({
 				...React,
 				useCallback: fn => fn,
@@ -306,7 +306,9 @@ test("text context needs no document policy; file submissions wait until OCR com
 				}},
 				extractContextFile:{call:async({file})=>{
 					calls.push(file.name);
+					if (file.name === "scan.jpg") assert.equal(file.data,Buffer.from("rotated image").toString("base64"));
 					await pendingOcr;
+					if (failOcr) throw Error("OCR unavailable");
 					return {result:{backend:"llm",text:documentModel+" "+file.name,pages:[{pageNumber:1,width:600,height:800,blocks:[{text:"confirmed",bbox:{x:17,y:39,width:83,height:21}}]}]}};
 				}},
 			}}}));
@@ -320,7 +322,7 @@ test("text context needs no document policy; file submissions wait until OCR com
 			let controller = render();
 			// Public template pages mount this hook without a session or any uploaded files.
 			await new Promise(resolve => setTimeout(resolve,0));
-			assert.deepEqual(await controller.prepareSubmission(),{audioFiles:[],contextFiles:[],textContext:{}});
+			assert.deepEqual(await controller.prepareSubmission(),{audioFiles:[],contextFiles:[],preparedContextFiles:[],textContext:{}});
 			controller.setTextContext({notes:"Only text"});
 			controller = render();
 			await new Promise(resolve => setTimeout(resolve,0));
@@ -347,16 +349,18 @@ test("text context needs no document policy; file submissions wait until OCR com
 			// Submitting an image whose OCR was not started runs OCR first and waits for it.
 			// A selected document model takes precedence over native vision.
 			native = true;
-			let submitted = false;
-			const firstSubmission = controller.prepareSubmission().finally(() => { submitted = true; });
+			let settled = false;
+			const queued = controller.prepareSubmission().then(value => { settled = true; return value; });
 			await new Promise(resolve => setTimeout(resolve,0));
 			controller = render();
 			assert.deepEqual(calls,["scan.png"]);
 			assert.equal(controller.hasPendingOcr,true);
-			assert.equal(submitted,false);
-			await assert.rejects(controller.prepareSubmission(),/Dokumenterkennung läuft noch/);
+			assert.equal(settled,false);
+			const alsoQueued = controller.prepareSubmission();
 			releaseOcr();
-			assert.equal((await firstSubmission).contextFiles[0].ocrResult.text,"document-v1 scan.png");
+			await queued;
+			await alsoQueued;
+			await new Promise(resolve => setTimeout(resolve,0));
 			controller = render();
 			assert.equal(controller.hasPendingOcr,false);
 			const submission = await controller.prepareSubmission();
@@ -393,20 +397,32 @@ test("text context needs no document policy; file submissions wait until OCR com
 			assert.equal(encodes,2);
 			// The remaining checks reuse the original file object.
 			invalidated = false;
-			// Replacements without status are recognized before submission, too.
-			controller.setContextFiles([{id:"raw",file:image}]);
+			// Every missing document starts even while a PDF request is running.
+			pendingOcr = new Promise(resolve => { releaseOcr = resolve; });
+			controller.setContextFiles([{id:"raw",file:image},{id:"second",file:new File(["second"],"second.png",{type:"image/png"})}]);
 			controller = render();
-			assert.equal((await controller.prepareSubmission()).contextFiles[0].kind,"ocr");
-			assert.deepEqual(calls,["scan.png","scan.png","scan.png"]);
-			controller.setContextFiles([]);
 			controller.addContextFiles([new File(["pdf"],"letter.pdf",{type:"application/pdf"})]);
 			controller = render();
 			assert.equal(controller.hasPendingOcr,true);
-			await assert.rejects(controller.prepareSubmission(),/Dokumenterkennung läuft noch/);
+			const preparingMultiple = controller.prepareSubmission();
 			await new Promise(resolve => setTimeout(resolve,0));
+			assert.deepEqual(calls.slice(2).sort(),["letter.pdf","scan.png","second.png"]);
+			releaseOcr();
+			const multiple = await preparingMultiple;
+			assert.equal(multiple.contextFiles.length,3);
+			assert.deepEqual(calls.slice(2).sort(),["letter.pdf","scan.png","second.png"]);
+			failOcr = true;
+			controller.setContextFiles([{id:"failure",file:image}]);
+			controller = render();
+			await assert.rejects(controller.prepareSubmission(),/scan.png.*erneut versuchen/);
+			assert.equal(render().contextFiles[0].ocrStatus,"error");
+			await assert.rejects(controller.prepareSubmission(),/erneut versuchen/);
+			assert.equal(calls.length,6);
+			failOcr = false;
+			controller.retryContextFileOcr("failure");
 			controller = render();
 			await controller.prepareSubmission();
-			assert.deepEqual(calls,["scan.png","scan.png","scan.png","letter.pdf"]);
+			assert.equal(calls.length,7);
 			// Without a document model, no OCR occurs and native vision gets original bytes.
 			configured = false;
 			controller.setContextFiles([{id:"no-ocr",file:image}]);
@@ -426,10 +442,61 @@ test("text context needs no document policy; file submissions wait until OCR com
 			controller.setContextFileOcrResults([{backend:"llm",text:"stale"}],[raw.id]);
 			controller = render();
 			assert.ok(!("ocrResult" in (await controller.prepareSubmission()).contextFiles[0]));
-			assert.equal(calls.length,4);
+			assert.equal(calls.length,7);
 			native = false;
 			await assert.rejects(controller.prepareSubmission(),/Vision-fähiges/);
-			console.log("Image OCR on submit and automatic PDF OCR: OK");
+			// Preview-only alignment must materialize through the existing canvas
+			// conversion, and citations must retain those exact bytes and new ID.
+			const transforms = [];
+			globalThis.createImageBitmap = async (file, options) => {
+				assert.equal(await file.text(),"image");
+				assert.equal(options.imageOrientation,"from-image");
+				return {width:600,height:800,close(){}};
+			};
+			globalThis.OffscreenCanvas = class {
+				constructor(width,height) { this.width=width; this.height=height; }
+				getContext() { return {
+					translate:(...args)=>transforms.push(args),
+					rotate:angle=>transforms.push(angle),
+					drawImage:(bitmap,...args)=>transforms.push(args),
+				}; }
+				async convertToBlob(options) {
+					assert.equal(this.width,800); assert.equal(this.height,600);
+					assert.equal(options.type,"image/jpeg");
+					return new Blob(["rotated image"],{type:options.type});
+				}
+			};
+			configured = true;
+			pendingOcr = new Promise(resolve => { releaseOcr = resolve; });
+			controller.setContextFiles([{id:"preview",file:image,viewRotation:90,ocrStatus:"complete",ocrResult:submission.contextFiles[0].ocrResult}]);
+			controller = render();
+			const captured = controller.contextFiles;
+			const alignedPromise = controller.prepareSubmission();
+			// A file added even before the policy await resolves is excluded.
+			controller.addContextFiles([new File(["later"],"later.png",{type:"image/png"})]);
+			await new Promise(resolve => setTimeout(resolve,0));
+			assert.equal(calls.at(-1),"scan.jpg");
+			controller.addContextFiles([new File(["during"],"during-ocr.png",{type:"image/png"})]);
+			releaseOcr();
+			const aligned = await alignedPromise;
+			assert.equal(aligned.contextFiles.length,1);
+			assert.equal(captured[0].id,"preview");
+			assert.notEqual(aligned.contextFiles[0].id,"preview");
+			const citationFiles = new Map(aligned.preparedContextFiles.map(({id,file})=>[id,file]));
+			const citationFile = citationFiles.get(aligned.contextFiles[0].id);
+			assert.equal(await citationFile.text(),"rotated image");
+			assert.equal(citationFile,render().contextFiles[0].file);
+			assert.equal(citationFile.type,"image/jpeg");
+			assert.deepEqual(transforms,[[800,0],Math.PI/2,[0,0,600,800]]);
+			assert.equal(render().contextFiles[1].ocrStatus,"awaiting-alignment");
+			assert.equal(aligned.contextFiles[0].ocrResult.text,"document-v2 scan.jpg");
+			// Native-document submission also uses materialized preview orientation.
+			configured = false; native = true;
+			controller.setContextFiles([{id:"native-preview",file:image,viewRotation:90}]);
+			const nativeAligned = await controller.prepareSubmission();
+			assert.equal(nativeAligned.contextFiles[0].data,Buffer.from("rotated image").toString("base64"));
+			assert.equal(nativeAligned.preparedContextFiles[0].id,nativeAligned.contextFiles[0].id);
+			console.log("Automatic submission OCR: OK");
 			`,
 		],
 		{ cwd: `${import.meta.dir}/../..`, stderr: "pipe", stdout: "pipe" },
@@ -440,5 +507,5 @@ test("text context needs no document policy; file submissions wait until OCR com
 		child.exited,
 	]);
 	expect({ exitCode, stderr }).toMatchObject({ exitCode: 0 });
-	expect(stdout).toContain("Image OCR on submit and automatic PDF OCR: OK");
+	expect(stdout).toContain("Automatic submission OCR: OK");
 });

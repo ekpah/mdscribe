@@ -4,6 +4,10 @@ import type { Database } from "@repo/database";
 import { createUIMessageStream, streamText } from "ai";
 import type { ModelMessage, UIMessage } from "ai";
 
+import {
+	createResponseCitationSources,
+	writeResponseCitations,
+} from "@/features/response-citations/server";
 import type { Session } from "@/lib/auth-types";
 import {
 	FILL_INPUT_PAYLOAD_LIMITS,
@@ -12,6 +16,7 @@ import {
 	getContextDocumentPayloadByteLength,
 } from "@/lib/input-fill-limits";
 import type { OcrResult, OcrUIMessage } from "@/lib/ocr-types";
+import { AI_SCRIBE_GENERATION_EVENT_NAME } from "@/lib/usage-event-names";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
 import { scribeEntitlementsMiddleware } from "@/orpc/middlewares/entitlements";
@@ -27,6 +32,7 @@ import {
 	extractContextFiles,
 	formatContextFileMetadataForPrompt,
 } from "@/orpc/scribe/handlers/context-file-input";
+import { logMediaPreprocessingUsage } from "@/orpc/scribe/handlers/preprocessing-usage";
 import { enforceScribeUsageLimit } from "@/orpc/scribe/handlers/usage-limit";
 import { scheduleScribeUsageLogging } from "@/orpc/scribe/handlers/usage-logging";
 import {
@@ -39,6 +45,7 @@ import {
 import {
 	buildProviderOptions,
 	isGenerationStrategyFullyByok,
+	resolveDecisionModel,
 	modelAllowsReasoningOptions,
 	resolveGenerationStrategy,
 } from "@/orpc/scribe/providers";
@@ -726,12 +733,14 @@ export const runScribeGeneration = async ({
 	context,
 	input,
 	preparedAttachmentText,
+	signal,
 	traceContext,
 }: {
 	context: ScribeGenerationContext;
 	input: ScribeStreamInput;
 	/** Trusted server-side text from an already completed agent preprocessing step. */
 	preparedAttachmentText?: string;
+	signal?: AbortSignal;
 	traceContext?: ScribeGenerationTraceContext;
 }) => {
 	const inputMessages = input.messages;
@@ -847,6 +856,7 @@ export const runScribeGeneration = async ({
 	let firstTokenAt: number | undefined;
 
 	const result = streamText({
+		abortSignal: signal,
 		maxOutputTokens: resolvedRequest.config.modelConfig.maxTokens ?? 20_000,
 		messages,
 		model: generationSelection.model.model,
@@ -900,16 +910,103 @@ export const runScribeGeneration = async ({
 		temperature: effectiveTemperature,
 	});
 
-	return { generation: result, ocrResults: attachmentsResult.ocrResults };
+	const citationSources = createResponseCitationSources({
+		audioTranscripts: attachmentsResult.audioTranscripts,
+		contextFiles,
+		formData: rawPrompt,
+		ocrResults: attachmentsResult.ocrResults,
+	});
+
+	return {
+		citationSources,
+		generation: result,
+		ocrResults: attachmentsResult.ocrResults,
+		async writeCitations(
+			writer: Parameters<typeof writeResponseCitations>[0]["writer"],
+			draft: string,
+		) {
+			const decisionModel = await resolveDecisionModel(context.db, context.session.user.id).catch(
+				() => null,
+			);
+			// As in autofill, fully BYOK requests never send data to an operator-paid model.
+			const decisionTarget =
+				decisionModel &&
+				(decisionModel.credentialSource === "user_byok" ||
+					!isGenerationStrategyFullyByok(generationStrategy))
+					? decisionModel
+					: null;
+			await writeResponseCitations({
+				decision: decisionTarget && {
+					onUsage: ({ model, usage }, durationMs) =>
+						logMediaPreprocessingUsage({
+							db: context.db,
+							isOpenRouter: true,
+							metadata: {
+								credentialSource: decisionTarget.credentialSource,
+								promptName: "citation:match-response",
+								providerId: decisionTarget.providerId,
+								providerProtocol: decisionTarget.protocol,
+							},
+							modelName: model,
+							name: AI_SCRIBE_GENERATION_EVENT_NAME,
+							providerMetadata: {
+								openrouter: {
+									usage: {
+										completionTokens: usage.output_tokens,
+										cost: usage.cost,
+										promptTokens: usage.input_tokens,
+										totalTokens: usage.input_tokens + usage.output_tokens,
+									},
+								},
+							},
+							timing: { timeToCompletionMs: durationMs },
+							userId: context.session.user.id,
+							zdr: entitlements.hasActiveSubscription,
+						}),
+					target: decisionTarget,
+				},
+				draft,
+				llm: {
+					model: generationSelection.model.model,
+					onFinish: (event, durationMs) =>
+						scheduleScribeUsageLogging({
+							activeSubscription: entitlements.hasActiveSubscription,
+							db: context.db,
+							endpoint: `${resolvedRequest.endpoint}:citations`,
+							event,
+							inputData: {},
+							isOpenRouter: generationSelection.model.isOpenRouter,
+							modelConfig: { maxTokens: 4000, temperature: 0.3 },
+							modelName: generationSelection.model.modelName,
+							promptName: "citation:annotate-response",
+							timing: { timeToCompletionMs: durationMs },
+							usageMetadata: {
+								credentialSource: generationSelection.model.credentialSource,
+								providerProtocol: generationSelection.model.providerProtocol,
+							},
+							userId: context.session.user.id,
+						}),
+					providerOptions,
+				},
+				signal,
+				sources: citationSources,
+				writer,
+			});
+		},
+	};
 };
 
 export const scribeStreamHandler = authed
 	.use(scribeEntitlementsMiddleware)
 	.input(type<ScribeStreamInput>())
-	.handler(async ({ input, context }) => {
-		const { generation, ocrResults } = await runScribeGeneration({ context, input });
+	.handler(async ({ input, context, signal }) => {
+		const { citationSources, generation, ocrResults, writeCitations } = await runScribeGeneration({
+			context,
+			input,
+			signal,
+		});
 		const stream = createUIMessageStream<OcrUIMessage>({
-			execute: ({ writer }) => {
+			execute: async ({ writer }) => {
 				if (ocrResults.length > 0) {
 					writer.write({
 						data: ocrResults,
@@ -917,7 +1014,18 @@ export const scribeStreamHandler = authed
 						type: "data-ocr-results",
 					});
 				}
-				writer.merge(generation.toUIMessageStream<OcrUIMessage>());
+				// Forward the original text immediately, but keep the transport open
+				// after text-end so citations can arrive individually on the same message.
+				for await (const chunk of generation.toUIMessageStream<OcrUIMessage>({
+					sendFinish: false,
+				})) {
+					writer.write(chunk);
+				}
+				const finishReason = await generation.finishReason;
+				if (finishReason === "stop" && citationSources.length && !signal?.aborted) {
+					await writeCitations(writer, await generation.text);
+				}
+				writer.write({ finishReason, type: "finish" });
 			},
 		});
 		return streamToEventIterator(stream);

@@ -31,6 +31,10 @@ coverage
 .amp/portals/
 .amp/portal-proxy.mjs
 
+# Agent handoff archives, benchmark results and review artifacts
+.amp/in/
+/*handoff*.tar.gz
+
 # Vercel
 .vercel
 

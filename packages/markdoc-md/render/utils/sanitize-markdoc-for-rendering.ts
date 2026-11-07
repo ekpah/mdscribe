@@ -1,4 +1,5 @@
-const CITE_TAG_PATTERN = /\{%\s*(\/?)cite\b[\s\S]*?%\}/giu;
+const CITE_TAG_PATTERN =
+	/\{%\s*(\/?)cite\b(?:[^"'%]|%(?!\})|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')*%\}/giu;
 const BLOCK_BOUNDARY_PATTERN = /\n[ \t]*\n|\n[ \t]*(?:#{1,6}\s|[-+*]\s|\d+[.)]\s|>|```|~~~)/u;
 
 interface CiteToken {
@@ -38,6 +39,7 @@ const codeRanges = (content: string): CiteToken[] => {
 
 	const inlineRanges: CiteToken[] = [];
 	const inlineOpenings = new Map<number, number>();
+	const citeTag = new RegExp(CITE_TAG_PATTERN.source, "iyu");
 	let fenceIndex = 0;
 	for (let index = 0; index < content.length; index++) {
 		while (fencedRanges[fenceIndex]?.end <= index) {
@@ -47,6 +49,14 @@ const codeRanges = (content: string): CiteToken[] => {
 		if (currentFence && index >= currentFence.start) {
 			inlineOpenings.clear();
 			index = currentFence.end - 1;
+			continue;
+		}
+		// Quoted attributes are data, not Markdown code. Keep code-like citation
+		// examples protected, but do not pair backticks across real cite tags.
+		citeTag.lastIndex = index;
+		const token = inlineOpenings.size ? null : citeTag.exec(content);
+		if (token) {
+			index += token[0].length - 1;
 			continue;
 		}
 		if (content[index] !== "`") {

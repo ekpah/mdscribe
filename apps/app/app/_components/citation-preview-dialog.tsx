@@ -58,7 +58,7 @@ const LocatedDocument = ({
 		? location.imageBase64
 		: `data:image/png;base64,${location.imageBase64}`;
 	// Presentation-only padding keeps the border off the glyphs; OCR coordinates stay exact.
-	const padding = Math.max(4, location.bounds.height * 0.25);
+	const padding = 2;
 	const left = Math.max(0, location.bounds.x - padding);
 	const top = Math.max(0, location.bounds.y - padding);
 	const right = Math.min(location.pageWidth, location.bounds.x + location.bounds.width + padding);

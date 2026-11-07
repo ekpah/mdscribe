@@ -33,6 +33,8 @@ export type InputContextTextContextKey = keyof InputContextTextContext;
 export interface InputContextSubmission {
 	audioFiles: InputContextAudioFile[];
 	contextFiles: InputContextFile[];
+	/** Local file snapshots matching the submitted IDs and materialized orientation. */
+	preparedContextFiles: UploadedContextFile[];
 	textContext: InputContextTextContext;
 }
 

@@ -104,6 +104,9 @@ export const formatMarkdocTagDiagnostic = (diagnostic: MarkdocTemplateDiagnostic
 		case "citation-source-invalid": {
 			return `Die Zitatquelle „${diagnostic.source}“ ist ungültig.`;
 		}
+		case "citation-malformed": {
+			return "Ein Zitat benötigt eine Quelle oder eine Liste von Quellen mit Zitaten.";
+		}
 		case "citation-quote-too-long": {
 			// The limit is part of the message, so this module never loads markdoc-md.
 			const limit = /\d+/u.exec(diagnostic.message)?.[0];

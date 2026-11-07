@@ -4,7 +4,7 @@ import { Button } from "@repo/design-system/components/ui/button";
 import { Card } from "@repo/design-system/components/ui/card";
 import { cn } from "@repo/design-system/lib/utils";
 import { Bot, Eraser, Redo2, Undo2 } from "lucide-react";
-import { createMdscribeSource, resolveCitation } from "markdoc-md/citations";
+import { createMdscribeSource } from "markdoc-md/citations";
 import type { CitationRequest, CitationTextSource } from "markdoc-md/citations";
 import type { InputTagType } from "markdoc-md/parse";
 import type { ReactNode } from "react";
@@ -12,7 +12,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { CitationPreviewDialog } from "@/app/_components/citation-preview-dialog";
-import type { CitationPreview } from "@/app/_components/citation-preview-dialog";
 import { consumeContextTransferFromFragment } from "@/app/_components/context-transfer/client";
 import { hydrateInputContextController } from "@/app/_components/context-transfer/hydrate";
 import {
@@ -20,13 +19,11 @@ import {
 	useInputContextState,
 } from "@/app/_components/input-context/input-context-controls";
 import { blobToBase64 } from "@/app/_components/inputs/audio-submission";
+import { useCitationPreview } from "@/app/_components/use-citation-preview";
 import { trackEvent } from "@/lib/analytics";
 import { useSession } from "@/lib/auth-client";
 import type { OcrQuoteMatch } from "@/lib/citations/ocr-quote-matcher";
-import {
-	hasOcrBoxes,
-	resolveOcrDocumentCitation,
-} from "@/lib/citations/resolve-ocr-document-citation";
+import { hasOcrBoxes } from "@/lib/citations/resolve-ocr-document-citation";
 import type { OcrResult } from "@/lib/ocr-types";
 import { orpc } from "@/lib/orpc";
 
@@ -63,7 +60,7 @@ interface InputPreviewSectionProps extends SideInputsSelection {
 	onValuesChange?: (values: Record<string, unknown>) => void;
 	preview: (
 		values: Record<string, unknown>,
-		onCitationSelect: (citation: CitationRequest) => void,
+		onCitationSelect: (citations: CitationRequest[]) => void,
 		/** Field states and writes for editing inside the preview. */
 		fields: InlineFields,
 		/** The complete field state, for editors that reuse the side-form controls. */
@@ -97,14 +94,6 @@ const createTextSourceSnapshot = (
 			]),
 	);
 
-const revokePreviewUrls = (previews: CitationPreview[] | null) => {
-	for (const preview of previews ?? []) {
-		if (preview.kind === "document" && preview.url.startsWith("blob:")) {
-			URL.revokeObjectURL(preview.url);
-		}
-	}
-};
-
 export const InputPreviewSection = ({
 	activeInputFocusKey,
 	activeInputName,
@@ -126,9 +115,7 @@ export const InputPreviewSection = ({
 }: InputPreviewSectionProps) => {
 	const [previewPanelElement, setPreviewPanelElement] = useState<HTMLDivElement | null>(null);
 	const [usesPreviewPanelPortal, setUsesPreviewPanelPortal] = useState(false);
-	const [citationPreviews, setCitationPreviews] = useState<CitationPreview[] | null>(null);
 	const inputContextController = useInputContextState();
-	const citationAbortControllerRef = useRef<AbortController | null>(null);
 	const citationFilesRef = useRef<ReadonlyMap<string, File>>(new Map());
 	const citationOcrResultsRef = useRef<ReadonlyMap<File, OcrResult>>(new Map());
 	// Pending or settled quote locations per document; failed requests are dropped for a retry.
@@ -136,7 +123,6 @@ export const InputPreviewSection = ({
 		new WeakMap<File, Map<string, Promise<OcrQuoteMatch | null>>>(),
 	);
 	const citationPrefetchRef = useRef<AbortController | null>(null);
-	const citationPreviewsRef = useRef<CitationPreview[] | null>(null);
 	const citationTextSourcesRef = useRef<ReadonlyMap<string, CitationTextSource>>(new Map());
 	const lastReviewedFieldRef = useRef<string | null>(null);
 	const { data: session } = useSession();
@@ -303,55 +289,26 @@ export const InputPreviewSection = ({
 		[contentType, inputContextController, locateQuotes, templateExamples, templateInformation],
 	);
 
-	const handleCitationsSelect = useCallback(
-		(citations: CitationRequest[]) => {
-			if (citations.length === 0) {
-				return;
-			}
-			citationAbortControllerRef.current?.abort();
-			const abortController = new AbortController();
-			citationAbortControllerRef.current = abortController;
-			setCitationPreviews((current) => {
-				revokePreviewUrls(current);
-				return citations.map(({ source }) => ({ kind: "loading", source }));
-			});
-
-			void (async () => {
-				const resolutions = await Promise.all(
-					citations.map((citation) =>
-						resolveCitation(citation, {
-							documentResolver: (file, quote, signal) =>
-								resolveOcrDocumentCitation(file, quote, {
-									locateQuote: async (document, exactQuote, requestSignal) => {
-										const [location] = locateQuotes(document, [exactQuote], requestSignal);
-										const match = await location;
-										requestSignal?.throwIfAborted();
-										return match;
-									},
-									ocrResult: citationOcrResultsRef.current.get(file),
-									signal,
-								}),
-							files: citationFilesRef.current,
-							signal: abortController.signal,
-							texts: citationTextSourcesRef.current,
-						}),
-					),
-				);
-				if (abortController.signal.aborted) {
-					return;
-				}
-				setCitationPreviews((current) => {
-					revokePreviewUrls(current);
-					return resolutions;
-				});
-			})();
+	const {
+		previews: citationPreviews,
+		onOpenChange: handleCitationDialogChange,
+		selectCitations: handleCitationsSelect,
+	} = useCitationPreview({
+		getSources: () => {
+			const ocrResults = citationOcrResultsRef.current;
+			return {
+				files: citationFilesRef.current,
+				getOcrResult: (file) => ocrResults.get(file),
+				texts: citationTextSourcesRef.current,
+			};
 		},
-		[locateQuotes],
-	);
-	const handleCitationSelect = useCallback(
-		(citation: CitationRequest) => handleCitationsSelect([citation]),
-		[handleCitationsSelect],
-	);
+		locateQuote: async (document, exactQuote, signal) => {
+			const [location] = locateQuotes(document, [exactQuote], signal);
+			const match = await location;
+			signal?.throwIfAborted();
+			return match;
+		},
+	});
 	const fields = useTemplateFields(inputTags, {
 		onFillInputs: isLoggedIn ? handleFillInputs : undefined,
 	});
@@ -447,30 +404,6 @@ export const InputPreviewSection = ({
 		control?.focus({ preventScroll: true });
 	}, [aiFieldNames, onReviewField, previewPanelElement]);
 
-	const handleCitationDialogChange = useCallback((open: boolean) => {
-		if (open) {
-			return;
-		}
-		citationAbortControllerRef.current?.abort();
-		citationAbortControllerRef.current = null;
-		setCitationPreviews((current) => {
-			revokePreviewUrls(current);
-			return null;
-		});
-	}, []);
-
-	useEffect(() => {
-		citationPreviewsRef.current = citationPreviews;
-	}, [citationPreviews]);
-
-	useEffect(
-		() => () => {
-			citationAbortControllerRef.current?.abort();
-			revokePreviewUrls(citationPreviewsRef.current);
-		},
-		[],
-	);
-
 	const fillControls =
 		hasInputTags && fields.fill ? (
 			<InputContextControls
@@ -506,7 +439,7 @@ export const InputPreviewSection = ({
 					onCitationsSelect={handleCitationsSelect}
 					onInputBlur={onInputBlur}
 					onInputSelect={onInputSelect}
-					preview={preview(values, handleCitationSelect, inlineFields, fields)}
+					preview={preview(values, handleCitationsSelect, inlineFields, fields)}
 					previewPanelElement={previewPanelElement}
 					previewPanelRef={handlePreviewPanelRef}
 					previewToolbar={previewToolbar}
@@ -532,7 +465,7 @@ export const InputPreviewSection = ({
 						<div className="mb-3 flex flex-wrap items-center gap-2">{previewToolbar}</div>
 					) : null}
 					<div className="min-h-0 flex-1 overflow-y-auto overscroll-none">
-						{preview(values, handleCitationSelect, inlineFields, fields)}
+						{preview(values, handleCitationsSelect, inlineFields, fields)}
 					</div>
 				</div>
 				{hasInputTags ? (

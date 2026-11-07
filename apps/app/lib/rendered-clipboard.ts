@@ -2,8 +2,12 @@
 export const getRenderedClipboardContent = (
 	element: HTMLElement,
 ): { html: string; text: string } => {
-	const html = element.innerHTML;
 	const clone = element.cloneNode(true) as HTMLElement;
+	// Provenance is interactive UI, not part of the clinical text being pasted.
+	for (const citation of clone.querySelectorAll("mark[data-citation-source]")) {
+		citation.replaceWith(...citation.childNodes);
+	}
+	const html = clone.innerHTML;
 	for (const section of clone.querySelectorAll<HTMLDetailsElement>("details")) {
 		section.open = true;
 	}

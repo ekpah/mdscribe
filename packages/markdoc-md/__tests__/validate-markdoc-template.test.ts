@@ -24,7 +24,7 @@ describe("complete Markdoc template validation", () => {
 	});
 
 	test("reports missing and semantically invalid sources", () => {
-		expect(codes("{% cite %}missing{% /cite %}")).toContain("markdoc-schema");
+		expect(codes("{% cite %}missing{% /cite %}")).toContain("citation-malformed");
 		expect(codes(`{% cite source="" %}empty{% /cite %}`)).toContain("citation-source-invalid");
 		expect(codes(`{% cite source="http://example.test" %}unsafe{% /cite %}`)).toContain(
 			"citation-source-invalid",

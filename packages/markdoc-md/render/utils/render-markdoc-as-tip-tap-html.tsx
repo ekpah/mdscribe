@@ -10,6 +10,7 @@ const CASE_LITERAL_ATTRIBUTES = new Set(["eq", "gt", "gte", "lt", "lte", "value"
 /**
  * HTML attributes are strings, so literals that strings cannot express are
  * JSON-encoded: case values and comparisons always (to tell `"1"` from `1`),
+ * a cite's `citations` list,
  * and non-string primaries (condition arrays) behind `data-primary-json`. Even
  * invalid literals then survive an editor roundtrip for validation to report.
  */
@@ -24,7 +25,10 @@ const encodeLiteralAttributes = (node: RenderableTreeNode): void => {
 		return;
 	}
 	for (const [key, value] of Object.entries(node.attributes)) {
-		if (node.name === "Case" && CASE_LITERAL_ATTRIBUTES.has(key)) {
+		if (
+			(node.name === "Case" && CASE_LITERAL_ATTRIBUTES.has(key)) ||
+			(node.name === "Cite" && key === "citations" && value !== undefined)
+		) {
 			node.attributes[key] = JSON.stringify(value);
 		} else if (
 			key === "primary" &&

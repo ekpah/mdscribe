@@ -16,6 +16,8 @@ import {
 	createTestUser,
 	startTestServer,
 } from "@/__tests__/setup";
+import { addScribeCitations } from "@/features/response-citations/markup";
+import type { ScribeCitation } from "@/features/response-citations/markup";
 import { encrypt } from "@/lib/encryption";
 import { FILL_INPUT_PAYLOAD_LIMITS } from "@/lib/input-fill-limits";
 import {
@@ -47,6 +49,9 @@ import {
 import type { ResolvedModel } from "@/orpc/scribe/providers";
 import type { DocumentType } from "@/orpc/scribe/types";
 import { personalContextHandler } from "@/orpc/user/personal-context";
+
+/** Lower-case words of five or more letters, for matching mocked decision evidence. */
+const longWords = (text: string) => new Set(text.toLowerCase().match(/[a-zäöüß]{5,}/gu));
 
 /**
  * Comprehensive tests for scribe oRPC handlers
@@ -2474,6 +2479,441 @@ describe("Scribe Stream Handler", () => {
 	});
 
 	describe("Streaming Response", () => {
+		test("streams the unchanged answer before individual validated citations and finishes last", async () => {
+			const { user } = await createTestUser(server.db);
+			const context = createTestContext({ db: server.db, session: createMockSession(user) });
+			const draft = "# Befund\nFieber seit gestern.\nCRP 112 mg/l.";
+			const notes = "Fieber seit gestern. CRP 112 mg/l.";
+			const gate = Promise.withResolvers<null>();
+			aiMockState.nextStreamTextText = draft;
+			aiMockState.nextCitationElements = (async function* nextCitationElements() {
+				yield {
+					passageId: "invented",
+					quote: "Fieber seit gestern.",
+					text: "Fieber seit gestern.",
+					unitId: "u2",
+				};
+				yield {
+					passageId: "p1",
+					quote: "Fieber seit gestern.",
+					text: "Fieber seit gestern.",
+					unitId: "u2",
+				};
+				// Overlapping and rewritten spans must not be delivered.
+				yield { passageId: "p1", quote: "Fieber seit gestern.", text: "Fieber", unitId: "u2" };
+				yield { passageId: "p1", quote: "CRP 112 mg/l.", text: "CRP 42 mg/l.", unitId: "u3" };
+				await gate.promise;
+				yield { passageId: "p1", quote: "CRP 112 mg/l.", text: "CRP 112 mg/l.", unitId: "u3" };
+			})();
+			try {
+				const events = await call(
+					scribeStreamHandler,
+					{
+						documentType: "befunde",
+						messages: [
+							{ id: "1", parts: [{ text: JSON.stringify({ notes }), type: "text" }], role: "user" },
+						],
+					},
+					{ context },
+				);
+				const iterator = events[Symbol.asyncIterator]();
+				const seen: { type: string; data?: unknown; delta?: string }[] = [];
+				while (true) {
+					const next = await iterator.next();
+					if (next.done) {
+						throw new Error("Stream ended before its first citation");
+					}
+					seen.push(next.value);
+					if (next.value.type === "data-citation") {
+						break;
+					}
+				}
+				expect(
+					seen
+						.filter((e) => e.type === "text-delta")
+						.map((e) => e.delta)
+						.join(""),
+				).toBe(draft);
+				expect(seen.some((e) => e.type === "text-end")).toBe(true);
+				expect(seen.some((e) => e.type === "finish")).toBe(false);
+				const first = seen.at(-1)?.data as ScribeCitation;
+				expect(draft.slice(first.start, first.end)).toBe("Fieber seit gestern.");
+				expect(first.citations).toEqual([
+					{ quote: "Fieber seit gestern.", source: "mdscribe://input/notes" },
+				]);
+				// A later element is deliberately blocked: the first citation must
+				// already be delivered rather than waiting for the complete array.
+				let settled = false;
+				const pending = iterator.next().then((value) => {
+					settled = true;
+					return value;
+				});
+				await Bun.sleep(10);
+				expect(settled).toBe(false);
+				gate.resolve(null);
+				const second = await pending;
+				if (second.done) {
+					throw new Error("Stream ended before its second citation");
+				}
+				expect(second.value.type).toBe("data-citation");
+				seen.push(second.value);
+				for await (const event of { [Symbol.asyncIterator]: () => iterator }) {
+					seen.push(event);
+				}
+				const citations = seen
+					.filter((e) => e.type === "data-citation")
+					.map((e) => e.data as ScribeCitation);
+				expect(citations).toHaveLength(2);
+				expect(citations[1].citations.map(({ quote }) => quote)).toEqual(["CRP 112 mg/l."]);
+				expect(addScribeCitations(draft, citations).replaceAll(/{%.*?%}/g, "")).toBe(draft);
+				expect(seen.at(-1)?.type).toBe("finish");
+				expect(seen.filter((e) => e.type === "data-citation-status").map((e) => e.data)).toEqual([
+					"adding",
+					"complete",
+				]);
+			} finally {
+				gate.resolve(null);
+				delete aiMockState.nextCitationElements;
+				delete aiMockState.nextStreamTextText;
+			}
+		});
+
+		test("cites with one decision-model request, keeping multi-source evidence and skipping unsupported claims", async () => {
+			const { providerId } = await createTestAiDefaults(server.db);
+			await server.db
+				.update(aiProvider)
+				.set({ apiKey: await encrypt("synthetic-key") })
+				.where(eq(aiProvider.id, providerId));
+			await createTestDecisionModel(server.db, providerId);
+			const { user } = await createTestUser(server.db);
+			const context = createTestContext({ db: server.db, session: createMockSession(user) });
+			const draft =
+				"Fieber seit gestern, kein Husten. Kalium 3,4 mmol/l. Eine Lungenembolie ist gesichert.";
+			aiMockState.nextStreamTextText = draft;
+			// The LLM annotation pass must not run when the decision model answers.
+			aiMockState.nextCitationElements = (async function* elements() {
+				yield {
+					passageId: "p1",
+					quote: "Kein Husten.",
+					text: draft,
+					unitId: "u1",
+				};
+			})();
+			const originalFetch = globalThis.fetch;
+			let decisionCalls = 0;
+			const fetchSpy = spyOn(globalThis, "fetch").mockImplementation(
+				Object.assign(
+					(url: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+						if (String(url) !== "https://openrouter.ai/api/alpha/decisions") {
+							return originalFetch(url, init);
+						}
+						decisionCalls += 1;
+						const request = JSON.parse(String(init?.body)) as {
+							questions: Record<string, { instructions: string }>;
+							state: string;
+						};
+						const units = new Map<string, string>(
+							(
+								JSON.parse(request.state) as {
+									sources: { units: { id: string; text: string }[] }[];
+								}
+							).sources.flatMap((source) => source.units.map((unit) => [unit.id, unit.text])),
+						);
+						const answers = Object.fromEntries(
+							Object.entries(request.questions).map(([id, question]) => {
+								const item = /item: «([^»]+)»/iu.exec(question.instructions)?.[1] ?? "";
+								if (id.startsWith("sep_")) {
+									return [
+										id,
+										{ choice: "separate", probabilities: { attribute: 0.1, separate: 0.9 } },
+									];
+								}
+								if (id.startsWith("g_")) {
+									// Below the 0.6 gate: a noisy pass on a contradicted claim.
+									return [id, { noul: item.includes("gesichert") ? 0.55 : 0.93 }];
+								}
+								const unit = units.get(id.split("_").at(-1) ?? "") ?? "";
+								const shared = [...longWords(item)].some((word) => longWords(unit).has(word));
+								return [id, { noul: shared ? 0.9 : 0.05 }];
+							}),
+						);
+						return Promise.resolve(
+							Response.json({
+								answers,
+								model: "typesafe/jev-1.14",
+								usage: { cost: 0.0001, input_tokens: 100, output_tokens: 20 },
+							}),
+						);
+					},
+					{ preconnect: originalFetch.preconnect },
+				),
+			);
+			try {
+				const events = await call(
+					scribeStreamHandler,
+					{
+						documentType: "befunde",
+						messages: [
+							{
+								id: "1",
+								parts: [
+									{
+										text: JSON.stringify({
+											befunde: "Kalium 3,4 mmol/l",
+											notes:
+												"Fieber seit gestern. Kein Husten. Lungenembolie nicht ausgeschlossen. Kalium 3,4 mmol/l.",
+										}),
+										type: "text",
+									},
+								],
+								role: "user",
+							},
+						],
+					},
+					{ context },
+				);
+				const citations: ScribeCitation[] = [];
+				for await (const event of events) {
+					if (event.type === "data-citation") {
+						citations.push(event.data as ScribeCitation);
+					}
+				}
+				expect(decisionCalls).toBe(1);
+				expect(
+					citations.map((citation) => [
+						draft.slice(citation.start, citation.end),
+						citation.citations.map(({ quote, source }) => `${source} ${quote}`),
+					]),
+				).toEqual([
+					["Fieber seit gestern", ["mdscribe://input/notes Fieber seit gestern."]],
+					["kein Husten", ["mdscribe://input/notes Kein Husten."]],
+					[
+						"Kalium 3,4 mmol/l",
+						[
+							"mdscribe://input/befunde Kalium 3,4 mmol/l",
+							"mdscribe://input/notes Kalium 3,4 mmol/l.",
+						],
+					],
+				]);
+				expect(addScribeCitations(draft, citations).replaceAll(/\{%.*?%\}/g, "")).toBe(draft);
+			} finally {
+				fetchSpy.mockRestore();
+				delete aiMockState.nextCitationElements;
+				delete aiMockState.nextStreamTextText;
+			}
+		});
+
+		test("falls back to the LLM annotation pass when the decision model fails", async () => {
+			const { providerId } = await createTestAiDefaults(server.db);
+			await server.db
+				.update(aiProvider)
+				.set({ apiKey: await encrypt("synthetic-key") })
+				.where(eq(aiProvider.id, providerId));
+			await createTestDecisionModel(server.db, providerId);
+			const { user } = await createTestUser(server.db);
+			const context = createTestContext({ db: server.db, session: createMockSession(user) });
+			const draft = "Fieber seit gestern.";
+			aiMockState.nextStreamTextText = draft;
+			aiMockState.nextCitationElements = (async function* elements() {
+				yield { passageId: "p1", quote: draft, text: draft, unitId: "u1" };
+			})();
+			const originalFetch = globalThis.fetch;
+			const fetchSpy = spyOn(globalThis, "fetch").mockImplementation(
+				Object.assign(
+					(url: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) =>
+						String(url) === "https://openrouter.ai/api/alpha/decisions"
+							? Promise.resolve(Response.json({ error: "private provider error" }, { status: 503 }))
+							: originalFetch(url, init),
+					{ preconnect: originalFetch.preconnect },
+				),
+			);
+			try {
+				const events = await call(
+					scribeStreamHandler,
+					{
+						documentType: "anamnese",
+						messages: [
+							{
+								id: "1",
+								parts: [{ text: JSON.stringify({ notes: draft }), type: "text" }],
+								role: "user",
+							},
+						],
+					},
+					{ context },
+				);
+				const seen = [];
+				for await (const event of events) {
+					seen.push(event);
+				}
+				expect(seen.filter((e) => e.type === "data-citation").map((e) => e.data)).toEqual([
+					{
+						citations: [{ quote: draft, source: "mdscribe://input/notes" }],
+						end: draft.length,
+						start: 0,
+					},
+				]);
+				expect(seen.filter((e) => e.type === "data-citation-status").map((e) => e.data)).toEqual([
+					"adding",
+					"complete",
+				]);
+				expect(JSON.stringify(seen)).not.toContain("private provider error");
+			} finally {
+				fetchSpy.mockRestore();
+				delete aiMockState.nextCitationElements;
+				delete aiMockState.nextStreamTextText;
+			}
+		});
+
+		test.each(["throw", "provider", "length", "abort", "invalid-output", "timeout"])(
+			"a %s citation failure preserves the answer and previously streamed citations",
+			async (mode) => {
+				const { user } = await createTestUser(server.db);
+				const context = createTestContext({ db: server.db, session: createMockSession(user) });
+				aiMockState.nextStreamTextText = "Fieber seit gestern.";
+				const failure = new Error("provider failure with sensitive details");
+				const budget = new AbortController();
+				const timeoutSpy =
+					mode === "timeout"
+						? spyOn(AbortSignal, "timeout").mockReturnValue(budget.signal)
+						: undefined;
+				let finishReason = "stop";
+				if (mode === "length") {
+					finishReason = "length";
+				} else if (mode === "abort") {
+					finishReason = "unknown";
+				}
+				aiMockState.nextCitationCompletion = {
+					error: mode === "provider" ? failure : undefined,
+					finishReason,
+					outputError: mode === "invalid-output" ? failure : undefined,
+				};
+				aiMockState.nextCitationElements = (async function* nextCitationElements() {
+					yield {
+						passageId: "p1",
+						quote: "Fieber seit gestern.",
+						text: "Fieber seit gestern.",
+						unitId: "u1",
+					};
+					if (mode === "throw") {
+						throw failure;
+					}
+					if (mode === "timeout") {
+						budget.abort(new DOMException("sensitive details", "TimeoutError"));
+					}
+				})();
+				try {
+					const events = await call(
+						scribeStreamHandler,
+						{
+							documentType: "anamnese",
+							messages: [
+								{
+									id: "1",
+									parts: [
+										{ text: JSON.stringify({ notes: "Fieber seit gestern." }), type: "text" },
+									],
+									role: "user",
+								},
+							],
+						},
+						{ context },
+					);
+					const seen = [];
+					for await (const event of events) {
+						seen.push(event);
+					}
+					expect(
+						seen
+							.filter((e) => e.type === "text-delta")
+							.map((e) => e.delta)
+							.join(""),
+					).toBe("Fieber seit gestern.");
+					expect(seen.filter((e) => e.type === "data-citation")).toHaveLength(1);
+					expect(seen.filter((e) => e.type === "data-citation-status").map((e) => e.data)).toEqual([
+						"adding",
+						"failed",
+					]);
+					expect(seen.some((e) => e.type === "error")).toBe(false);
+					expect(seen.at(-1)).toEqual({ finishReason: "stop", type: "finish" });
+					expect(JSON.stringify(seen)).not.toContain("sensitive details");
+				} finally {
+					timeoutSpy?.mockRestore();
+					delete aiMockState.nextCitationCompletion;
+					delete aiMockState.nextCitationElements;
+					delete aiMockState.nextStreamTextText;
+				}
+			},
+		);
+
+		test.each([
+			{
+				quote: "Diabetes mellitus Typ 2",
+				source:
+					"<table><tr><td>Diabetes mellitus Typ 2</td><td>Kontrolle geplant</td></tr></table>",
+			},
+			{
+				quote: "8</td></tr><tr><td>PAWP</td><td>12",
+				source: "<table><tr><td>PAWP</td><td>8</td></tr><tr><td>PAWP</td><td>12</td></tr></table>",
+			},
+			{
+				quote: "kein Hinweis auf eine Pneumonie",
+				source: "Im Verlauf kein Hinweis auf eine Pneumonie, jedoch persistierender Husten.",
+			},
+			{
+				passageId: "p2",
+				quote: "Nikotinabusus mit 35 Packyears, seit 2023 abstinent",
+				source: `${"Befund. ".repeat(497)}<table><tr><td>Nikotinabusus mit 35 Packyears, seit 2023 abstinent</td></tr></table>`,
+			},
+		])(
+			"keeps literal evidence without layout expansion: $quote",
+			async ({ quote, source, passageId }) => {
+				const { user } = await createTestUser(server.db);
+				const context = createTestContext({ db: server.db, session: createMockSession(user) });
+				const draft = "Ein belegter klinischer Fakt.";
+				aiMockState.nextStreamTextText = draft;
+				aiMockState.nextCitationElements = (async function* elements() {
+					// A mismatched quote must not be silently replaced by its passage.
+					yield {
+						passageId: passageId ?? "p1",
+						quote: "Nicht im Dokument",
+						text: draft,
+						unitId: "u1",
+					};
+					yield { passageId: passageId ?? "p1", quote, text: draft, unitId: "u1" };
+				})();
+				const events = await call(
+					scribeStreamHandler,
+					{
+						contextFiles: [
+							{
+								id: "Befund Müller #1%?/",
+								kind: "ocr",
+								name: "Befund Müller #1%?.png",
+								ocrResult: { backend: "llm", text: source },
+							},
+						],
+						documentType: "anamnese",
+						messages: [{ id: "1", parts: [{ text: "{}", type: "text" }], role: "user" }],
+					},
+					{ context },
+				);
+				const citations: ScribeCitation[] = [];
+				for await (const event of events) {
+					if (event.type === "data-citation") {
+						citations.push(event.data as ScribeCitation);
+					}
+				}
+				expect(citations).toEqual([
+					{
+						citations: [{ quote, source: "mdscribe://file/Befund%20M%C3%BCller%20%231%25%3F%2F" }],
+						end: draft.length,
+						start: 0,
+					},
+				]);
+			},
+		);
+
 		test("returns async iterator for valid request", async () => {
 			const { user } = await createTestUser(server.db);
 			const session = createMockSession(user);

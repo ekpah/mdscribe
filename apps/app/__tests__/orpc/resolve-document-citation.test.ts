@@ -37,12 +37,21 @@ test("authenticated quote localization returns page-frame bounds, rejects change
 				expect(request.provider).toEqual({ data_collection: "deny" });
 				// All quotes of a page are located in one request.
 				const answers = Object.fromEntries(
-					Object.entries(request.questions).map(([key, question]) => [
-						key,
-						key.startsWith("present")
-							? { noul: question.instructions.includes('"PAWP 18"') ? 0.01 : 0.95 }
-							: { box: { bottom: 0.5, left: malformed ? -0.1 : 0.2, right: 0.6, top: 0.3 } },
-					]),
+					Object.entries(request.questions).map(([key, question]) => {
+						if (key.startsWith("present")) {
+							return [key, { noul: question.instructions.includes('"PAWP 18"') ? 0.01 : 0.95 }];
+						}
+						if (question.instructions.includes('"CRP 112 24"')) {
+							return [key, { box: { bottom: 0.7, left: 0.6, right: 0.7, top: 0.1 } }];
+						}
+						if (question.instructions.includes('"Fieber seit gestern"')) {
+							return [key, { box: { bottom: 0.75, left: 0.1, right: 0.8, top: 0.7 } }];
+						}
+						return [
+							key,
+							{ box: { bottom: 0.5, left: malformed ? -0.1 : 0.2, right: 0.6, top: 0.3 } },
+						];
+					}),
 				);
 				return Promise.resolve(
 					Response.json({
@@ -80,9 +89,10 @@ test("authenticated quote localization returns page-frame bounds, rejects change
 		).toEqual([null]);
 		await createTestDecisionModel(server.db, providerId, "typesafe/jev-1.14-20261014");
 		await createTestSubscription(server.db, user.id);
+		const tableQuote = '<tr><td>**PAWP**</td><td colspan="2">8</td></tr>';
 		const [result, changed] = await call(
 			resolveDocumentCitationsHandler,
-			{ file, quotes: ["PAWP 8", "PAWP 18"] },
+			{ file, quotes: [tableQuote, "PAWP 18"] },
 			{ context },
 		);
 		expect(decisionCalls).toBe(1);
@@ -92,12 +102,49 @@ test("authenticated quote localization returns page-frame bounds, rejects change
 			pageHeight: 900,
 			pageNumber: 1,
 			pageWidth: 600,
-			quote: "PAWP 8",
+			quote: tableQuote,
 		});
-		expect(result?.bounds.x).toBeCloseTo(84);
-		expect(result?.bounds.y).toBeCloseTo(261);
-		expect(result?.bounds.width).toBeCloseTo(312);
-		expect(result?.bounds.height).toBeCloseTo(198);
+		expect(result?.bounds.x).toBeCloseTo(120);
+		expect(result?.bounds.y).toBeCloseTo(270);
+		expect(result?.bounds.width).toBeCloseTo(240);
+		expect(result?.bounds.height).toBeCloseTo(180);
+		// Nearby rules must not override the model's evidence-driven bounds.
+		const ruledImage = await sharp(image)
+			.composite([
+				{
+					input: Buffer.from(
+						'<svg width="600" height="900"><path d="M70 220H520 M70 300H520 M70 410H520 M70 520H520" stroke="black" stroke-width="2"/></svg>',
+					),
+				},
+			])
+			.png()
+			.toBuffer();
+		const spanningQuote = tableQuote.replace("<td>", '<td rowspan="2">');
+		const [row, spanning, column, prose] = await call(
+			resolveDocumentCitationsHandler,
+			{
+				file: { ...file, data: ruledImage.toString("base64"), size: ruledImage.length },
+				quotes: [tableQuote, spanningQuote, "CRP 112 24", "Fieber seit gestern"],
+			},
+			{ context },
+		);
+		if (!row) {
+			throw new Error("Expected a highlighted table row");
+		}
+		expect(row.bounds.x).toBeCloseTo(120);
+		expect(row.bounds.y).toBeCloseTo(270);
+		expect(row.bounds.width).toBeCloseTo(240);
+		expect(row.bounds.height).toBeCloseTo(180);
+		expect(spanning?.bounds.y).toBeCloseTo(270);
+		expect(spanning?.bounds.height).toBeCloseTo(180);
+		expect(column?.bounds.x).toBeCloseTo(360);
+		expect(column?.bounds.y).toBeCloseTo(90);
+		expect(column?.bounds.width).toBeCloseTo(60);
+		expect(column?.bounds.height).toBeCloseTo(540);
+		expect(prose?.bounds.x).toBeCloseTo(60);
+		expect(prose?.bounds.y).toBeCloseTo(630);
+		expect(prose?.bounds.width).toBeCloseTo(420);
+		expect(prose?.bounds.height).toBeCloseTo(45);
 		malformed = true;
 		await expect(
 			call(resolveDocumentCitationsHandler, { file, quotes: ["PAWP 8"] }, { context }),
@@ -120,12 +167,12 @@ test("authenticated quote localization returns page-frame bounds, rejects change
 		let events: (typeof usageEvent.$inferSelect)[] = [];
 		for (let i = 0; i < 20; i += 1) {
 			events = await server.db.select().from(usageEvent).where(eq(usageEvent.userId, user.id));
-			if (events.length >= 2) {
+			if (events.length >= 3) {
 				break;
 			}
 			await Bun.sleep(10);
 		}
-		expect(events).toHaveLength(2);
+		expect(events).toHaveLength(3);
 		expect(JSON.stringify(events)).not.toContain("PAWP");
 		expect(JSON.stringify(events)).not.toContain(file.data);
 		expect(Number(events[0].cost)).toBeCloseTo(0.000123, 6);

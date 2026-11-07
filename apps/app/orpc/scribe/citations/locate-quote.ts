@@ -1,6 +1,7 @@
 import sharp from "sharp";
 import { z } from "zod";
 
+import { getVisibleCitationQuote } from "@/lib/citations/ocr-quote-matcher";
 import type { OcrQuoteMatch } from "@/lib/citations/ocr-quote-matcher";
 import { requestDecision } from "@/orpc/scribe/decisions/client";
 import type { DecisionTarget } from "@/orpc/scribe/decisions/client";
@@ -22,10 +23,10 @@ const responseSchema = z.object({
 });
 
 const quoteQuestions = (quote: string) => {
-	const quoted = JSON.stringify(quote);
+	const quoted = JSON.stringify(getVisibleCitationQuote(quote));
 	return {
 		location: {
-			instructions: `Locate the complete exact quote ${quoted} in image page. Include all its digits, punctuation and parentheses. For a table entry, include the associated row label and the entire value cell, bounded by its surrounding table lines. Some surrounding context is preferable to clipping the value. Do not select an unrelated row or infer a missing value.`,
+			instructions: `Locate the complete exact quote ${quoted} in image page. Return the smallest bounding rectangle containing all of its visible evidence, including digits, punctuation, parentheses and wrapped lines. Determine all four edges from the quoted content wherever it appears on the page; do not automatically extend to any surrounding sentence, paragraph, row, column, ruled area or section. Exclude unrelated content wherever a single rectangle allows. Do not infer missing text or values.`,
 			type: "box" as const,
 		},
 		present: {
@@ -115,12 +116,11 @@ export const locateDocumentQuotes = async ({
 			if (present.data.noul < 0.5 || box.right <= box.left || box.bottom <= box.top) {
 				continue;
 			}
-			// Undo image padding and retain horizontal context: a loose table-row
-			// location must not clip a value or its parenthesized mean pressure.
-			const left = Math.max(0, (box.left * width) / resized.info.width - 0.06);
-			const top = Math.max(0, (box.top * height) / resized.info.height - 0.01);
-			const right = Math.min(1, (box.right * width) / resized.info.width + 0.06);
-			const bottom = Math.min(1, (box.bottom * height) / resized.info.height + 0.01);
+			// Undo image padding without adding layout-specific margins or snapping.
+			const left = Math.max(0, (box.left * width) / resized.info.width);
+			const top = Math.max(0, (box.top * height) / resized.info.height);
+			const right = Math.min(1, (box.right * width) / resized.info.width);
+			const bottom = Math.min(1, (box.bottom * height) / resized.info.height);
 			if (left >= right || top >= bottom) {
 				continue;
 			}

@@ -59,10 +59,17 @@ export const unionOcrCitationBounds = (
 	return { height: bottom - top, width: right - left, x: left, y: top };
 };
 
+/** OCR formatting is not visible evidence; preserve all clinical wording and numbers. */
+export const getVisibleCitationQuote = (text: string): string =>
+	text
+		.replaceAll(/<\/?(?:table|thead|tbody|tfoot|tr|td|th|br)\b[^>]*>/gi, " ")
+		.replaceAll(/\*\*([^*]+)\*\*/g, "$1")
+		.replaceAll(/\s+/g, " ")
+		.trim();
+
 const normalizeOcrText = (text: string): string =>
 	normalizeCitationSearchText(
-		text
-			.replaceAll(/<\/?(?:table|thead|tbody|tfoot|tr|td|th|br)\b[^>]*>/gi, " ")
+		getVisibleCitationQuote(text)
 			.replaceAll(/(?<=\p{L})(?=\d)|(?<=\d)(?=\p{L})/gu, " ")
 			.replaceAll(/(?<=[)%])(?=\d)/g, " ")
 			.replaceAll(/(?<!\d):|:(?!\d)/g, " ")

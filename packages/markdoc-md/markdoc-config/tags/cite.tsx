@@ -3,9 +3,9 @@
 import { Children, isValidElement } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
 
-import { MAX_CITATION_QUOTE_LENGTH } from "../../citations/resolvers/types";
+import { readCiteCitations } from "../../citations/cite-attributes";
+import type { CitationRequest } from "../../citations/resolvers/types";
 import { useMarkdocInteraction } from "../../render/context/markdoc-interaction-context";
-import { parseCitationSource } from "../../render/utils/citation-source";
 
 const getCitationClassName = (isHighlighted: boolean, canSelect: boolean): string =>
 	[
@@ -30,22 +30,21 @@ const hasUnsupportedCitationChild = (children: ReactNode): boolean =>
 
 export interface CiteProps {
 	children: ReactNode;
+	/** Every `{ source, quote }` excerpt supporting the marked text. */
+	citations?: CitationRequest[];
+	/** Single-excerpt form of older content; use `citations` for new content. */
 	quote?: string;
-	source: string;
+	source?: string;
 }
 
-export const Cite = ({ children, quote, source }: CiteProps) => {
+export const Cite = ({ children, citations, quote, source }: CiteProps) => {
 	const { areCitationsHighlighted, onCitationSelect } = useMarkdocInteraction();
-	const reference = parseCitationSource(source);
-	const normalizedQuote = typeof quote === "string" && quote.trim() ? quote.trim() : undefined;
-	const hasUnsupportedChild = hasUnsupportedCitationChild(children);
-	const isValidQuote =
-		quote === undefined || (typeof quote === "string" && quote.length <= MAX_CITATION_QUOTE_LENGTH);
-	const isValid = reference.kind !== "invalid" && !hasUnsupportedChild && isValidQuote;
+	const { citations: valid, problems } = readCiteCitations({ citations, quote, source });
+	const isValid = !problems.length && !hasUnsupportedCitationChild(children);
 	const canSelect = isValid && Boolean(onCitationSelect);
 	const selectCitation = () => {
-		if (reference.kind !== "invalid") {
-			onCitationSelect?.({ quote: normalizedQuote, source: reference.source });
+		if (isValid) {
+			onCitationSelect?.(valid);
 		}
 	};
 	const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
@@ -60,8 +59,8 @@ export const Cite = ({ children, quote, source }: CiteProps) => {
 		<mark
 			aria-invalid={isValid ? undefined : true}
 			className={getCitationClassName(areCitationsHighlighted, canSelect)}
-			data-citation-quote={normalizedQuote}
-			data-citation-source={reference.kind === "invalid" ? undefined : reference.source}
+			data-citation-quote={valid[0]?.quote}
+			data-citation-source={valid[0]?.source}
 			data-invalid-citation={isValid ? undefined : "true"}
 			onClick={canSelect ? selectCitation : undefined}
 			onKeyDown={canSelect ? handleKeyDown : undefined}

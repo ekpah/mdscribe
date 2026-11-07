@@ -9,7 +9,7 @@
 		"lint": "oxlint .",
 		"analyze": "bun --bun next analyze",
 		"db:seed": "bun run scripts/seed.ts",
-		"test": "bun test --max-concurrency=1 __tests__/orpc __tests__/lib",
+		"test": "bun test --max-concurrency=1 __tests__/features __tests__/orpc __tests__/lib",
 		"typecheck": "bun --bun next typegen && tsc --noEmit"
 	},
 	"dependencies": {

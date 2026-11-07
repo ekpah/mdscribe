@@ -3,6 +3,8 @@
  * Supports cite, details, info, switch, and case tags.
  */
 
+import { serializeCiteCitations } from "../citations/cite-attributes";
+import type { CitationRequest } from "../citations/resolvers/types";
 import { serializeMarkdocTable } from "./serialize-markdoc-table";
 
 const headingPrefixes: Record<string, string> = {
@@ -42,6 +44,27 @@ const readAttribute = (element: Element, name: string): string | null =>
 
 const serializeStringAttribute = (name: string, value: string | null): string =>
 	value ? ` ${name}=${quoteMarkdocValue(value)}` : "";
+
+/**
+ * A cite's JSON-encoded `citations` list becomes a native Markdoc array again.
+ * Anything else stays a string attribute, so validation still reports it.
+ */
+const serializeCitationsAttribute = (value: string): string => {
+	let entries: unknown;
+	try {
+		entries = JSON.parse(value);
+	} catch {
+		return `citations=${quoteMarkdocValue(value)}`;
+	}
+	const isEntry = (entry: unknown): entry is CitationRequest =>
+		typeof entry === "object" &&
+		entry !== null &&
+		typeof (entry as CitationRequest).source === "string" &&
+		["string", "undefined"].includes(typeof (entry as CitationRequest).quote);
+	return Array.isArray(entries) && entries.every(isEntry)
+		? serializeCiteCitations(entries)
+		: `citations=${quoteMarkdocValue(value)}`;
+};
 
 /** Invalid stored values are kept as strings, so validation still reports them. */
 const serializeBooleanAttribute = (name: string, value: string | null): string => {
@@ -161,6 +184,10 @@ const customMarkdocRenderers: Partial<
 		return `{% condition ${primary}${attributes} %}${caseListContent(innerContent)}{% /condition %}`;
 	},
 	cite: (element, innerContent) => {
+		const citations = readAttribute(element, "citations");
+		if (citations !== null) {
+			return `{% cite ${serializeCitationsAttribute(citations)} %}${innerContent}{% /cite %}`;
+		}
 		const source = readAttribute(element, "source") || "";
 		const quoteAttribute = serializeStringAttribute("quote", readAttribute(element, "quote"));
 		return `{% cite source=${quoteMarkdocValue(source)}${quoteAttribute} %}${innerContent}{% /cite %}`;

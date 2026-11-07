@@ -73,6 +73,7 @@ ${slots.exclusionCriteria}
 - Medizinische Fachterminologie korrekt verwenden.
 - Abkürzungen nur wenn etabliert (COPD, NSTEMI etc.).
 - Einheitliche Formulierung innerhalb des Dokuments.
+- Das Dokument direkt als Text mit der vorgesehenen Formatierung ausgeben, ohne Inline-Code oder Codeblöcke.
 </language_tone>
 </style_guidelines>${workflowBlock}
 

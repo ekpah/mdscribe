@@ -7,8 +7,9 @@ import { Card, CardContent, CardFooter, CardHeader } from "@repo/design-system/c
 import { Kbd } from "@repo/design-system/components/ui/kbd";
 import { ScrollArea } from "@repo/design-system/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
-import { FileText, Loader2 } from "lucide-react";
+import { FileText } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { createMdscribeSource } from "markdoc-md/citations";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -20,11 +21,12 @@ import {
 	createUploadedFilesFromTransferPayload,
 } from "@/app/_components/context-transfer/hydrate";
 import { useInputContextState } from "@/app/_components/input-context/input-context-controls";
+import { CitedResponse } from "@/features/response-citations/cited-response";
 import { useTextSnippets } from "@/hooks/use-text-snippets";
 import { getAiscribeErrorMessage } from "@/lib/aiscribe-errors";
 import { hasLessThanTenPercentUsageRemaining, isSuccessfulChatFinish } from "@/lib/aiscribe-toasts";
 import { trackEvent } from "@/lib/analytics";
-import type { OcrUIMessage } from "@/lib/ocr-types";
+import type { OcrResult, OcrUIMessage } from "@/lib/ocr-types";
 import { orpc } from "@/lib/orpc";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { getPromptHarnessTargetField } from "@/orpc/scribe/prompts";
@@ -33,7 +35,6 @@ import type { AudioFile, DocumentType, FillInputsContextFile } from "@/orpc/scri
 import { AiscribeTemplateInputSection } from "./aiscribe-template-input-section";
 import { ContextTemplateCard } from "./context-template-card";
 import { ContextTransferCard } from "./context-transfer-card";
-import { MemoizedCopySection } from "./memoized-copy-section";
 
 export interface AdditionalInputField {
 	name: string;
@@ -111,9 +112,14 @@ interface AiscribeTemplateProps {
 export const AiscribeTemplate = ({ config, isAdmin = false }: AiscribeTemplateProps) => {
 	const router = useRouter();
 	const [activeTab, setActiveTab] = useState("input");
+	const [isPreparing, setIsPreparing] = useState(false);
+	const submissionBusyRef = useRef(false);
 	const [inputData, setInputData] = useState("");
 	const [additionalInputData, setAdditionalInputData] = useState<Record<string, string>>({});
-	const values = useMemo<Record<string, unknown>>(() => ({}), []);
+	const [citationFiles, setCitationFiles] = useState<ReadonlyMap<string, File>>(new Map());
+	const [citationOcrResults, setCitationOcrResults] = useState<ReadonlyMap<string, OcrResult>>(
+		new Map(),
+	);
 	const inputContextController = useInputContextState();
 	// Use ref for audio files to avoid race condition between setState and sendMessage
 	const preparedAudioFilesRef = useRef<AudioFile[]>([]);
@@ -162,6 +168,16 @@ export const AiscribeTemplate = ({ config, isAdmin = false }: AiscribeTemplatePr
 		onData: (part) => {
 			if (part.type === "data-ocr-results" && Array.isArray(part.data)) {
 				inputContextController.setContextFileOcrResults(part.data);
+				setCitationOcrResults(
+					new Map(
+						preparedContextFilesRef.current.flatMap((file, index) => {
+							const result = part.data[index];
+							return file.id && result
+								? [[createMdscribeSource("file", file.id), result] as const]
+								: [];
+						}),
+					),
+				);
 			}
 		},
 		onError: (error) => {
@@ -230,7 +246,8 @@ export const AiscribeTemplate = ({ config, isAdmin = false }: AiscribeTemplatePr
 	}, [messages]);
 
 	// Loading state from useChat status
-	const isLoading = status === "streaming" || status === "submitted";
+	const isLoading = isPreparing || status === "streaming" || status === "submitted";
+	const responseMessage = messages.findLast((m) => m.role === "assistant");
 
 	// PERF: Use useCallback with functional setState for stable callback reference
 	const handleAdditionalInputChange = useCallback((name: string, value: string) => {
@@ -303,6 +320,9 @@ export const AiscribeTemplate = ({ config, isAdmin = false }: AiscribeTemplatePr
 	]);
 
 	const handleGenerate = useCallback(async () => {
+		if (submissionBusyRef.current || isLoading) {
+			return;
+		}
 		if (hasMissingRequiredFields) {
 			toast.error(requiredFieldsMessage);
 			return;
@@ -313,22 +333,23 @@ export const AiscribeTemplate = ({ config, isAdmin = false }: AiscribeTemplatePr
 			return;
 		}
 
-		// Documents are recognized before anything is sent; their errors are user-facing.
-		let inputContextPayload: Awaited<ReturnType<typeof inputContextController.prepareSubmission>>;
-		try {
-			inputContextPayload = await inputContextController.prepareSubmission();
-		} catch (error) {
-			toast.error(
-				error instanceof Error && error.message ? error.message : USER_MESSAGES.unknownError,
-			);
-			return;
-		}
-
-		// Clear previous messages before starting a new request
-		setMessages([]);
-		setActiveTab("output");
+		submissionBusyRef.current = true;
+		setIsPreparing(true);
 
 		try {
+			// Prepare documents before clearing the previous answer or switching tabs.
+			let inputContextPayload: Awaited<ReturnType<typeof inputContextController.prepareSubmission>>;
+			try {
+				inputContextPayload = await inputContextController.prepareSubmission();
+			} catch (error) {
+				toast.error(
+					error instanceof Error && error.message ? error.message : USER_MESSAGES.unknownError,
+				);
+				return;
+			}
+			setMessages([]);
+			setActiveTab("output");
+
 			// Handle custom API call if provided
 			if (customApiCall) {
 				await customApiCall(inputData, additionalInputData);
@@ -345,6 +366,19 @@ export const AiscribeTemplate = ({ config, isAdmin = false }: AiscribeTemplatePr
 			// Use refs to avoid race condition - ref updates are synchronous.
 			preparedAudioFilesRef.current = inputContextPayload.audioFiles;
 			preparedContextFilesRef.current = inputContextPayload.contextFiles;
+			setIsPreparing(false);
+			setCitationFiles(
+				new Map(inputContextPayload.preparedContextFiles.map(({ file, id }) => [id, file])),
+			);
+			setCitationOcrResults(
+				new Map(
+					inputContextPayload.contextFiles.flatMap((file) =>
+						file.id && file.kind === "ocr"
+							? [[createMdscribeSource("file", file.id), file.ocrResult] as const]
+							: [],
+					),
+				),
+			);
 
 			// Send message using AI SDK useChat
 			const promptText = typeof prompt === "string" ? prompt : JSON.stringify(prompt);
@@ -355,8 +389,12 @@ export const AiscribeTemplate = ({ config, isAdmin = false }: AiscribeTemplatePr
 			if (message) {
 				toast.error(message);
 			}
+		} finally {
+			submissionBusyRef.current = false;
+			setIsPreparing(false);
 		}
 	}, [
+		isLoading,
 		inputData,
 		additionalInputData,
 		areRequiredFieldsFilled,
@@ -543,10 +581,12 @@ export const AiscribeTemplate = ({ config, isAdmin = false }: AiscribeTemplatePr
 														</div>
 														<div className="space-y-2">
 															<h3 className="font-semibold text-foreground text-lg">
-																Wird generiert...
+																{isPreparing ? "Eingaben werden vorbereitet…" : "Wird generiert..."}
 															</h3>
 															<p className="text-muted-foreground text-sm">
-																Bitte warten Sie, während der KI-Assistent Ihren Inhalt erstellt
+																{isPreparing
+																	? "Bitte warten Sie, während Dokumente erkannt und Anhänge vorbereitet werden."
+																	: "Bitte warten Sie, während der KI-Assistent Ihren Inhalt erstellt"}
 															</p>
 														</div>
 													</div>
@@ -562,19 +602,16 @@ export const AiscribeTemplate = ({ config, isAdmin = false }: AiscribeTemplatePr
 																{config.outputTabTitle}
 															</h4>
 															<ScrollArea className="h-[calc(100vh-400px)] rounded-lg border border-solarized-green/20 bg-background/50 p-6">
-																<MemoizedCopySection
+																<CitedResponse
 																	content={completion || "Keine Inhalte verfügbar"}
-																	values={values}
+																	files={citationFiles}
+																	isStreaming={isLoading}
+																	key={responseMessage?.id}
+																	message={responseMessage}
+																	ocrResults={citationOcrResults}
 																/>
 															</ScrollArea>
 														</div>
-
-														{isLoading && (
-															<div className="flex items-center justify-center gap-2 text-sm text-solarized-blue">
-																<Loader2 className="h-4 w-4 animate-spin" />
-																<span>Wird weiter generiert...</span>
-															</div>
-														)}
 													</div>
 												);
 											}

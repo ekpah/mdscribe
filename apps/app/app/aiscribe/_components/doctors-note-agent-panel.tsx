@@ -481,6 +481,8 @@ export const DoctorsNoteAgentPanel = ({
 	disabled = false,
 }: DoctorsNoteAgentPanelProps) => {
 	const [instruction, setInstruction] = useState("");
+	const [isPreparing, setIsPreparing] = useState(false);
+	const preparingRef = useRef(false);
 	const [isDraggingFiles, setIsDraggingFiles] = useState(false);
 	const inputContext = useInputContextState({ agent: true });
 	const hydratedInitialContextRef = useRef(false);
@@ -546,7 +548,7 @@ export const DoctorsNoteAgentPanel = ({
 		},
 	});
 
-	const isLoading = status === "streaming" || status === "submitted";
+	const isLoading = isPreparing || status === "streaming" || status === "submitted";
 
 	useEffect(() => {
 		if (hydratedInitialContextRef.current || !initialContext) {
@@ -594,13 +596,11 @@ export const DoctorsNoteAgentPanel = ({
 	}, [messages]);
 
 	const hasAttachments = inputContext.hasAudioRecordings || inputContext.hasContextFiles;
-	const canSend =
-		!(isLoading || disabled || inputContext.hasPendingOcr) &&
-		(instruction.trim().length > 0 || hasAttachments);
+	const canSend = !(isLoading || disabled) && (instruction.trim().length > 0 || hasAttachments);
 
 	const handleSend = useCallback(async () => {
 		const trimmed = instruction.trim();
-		if (isLoading || disabled || inputContext.hasPendingOcr) {
+		if (isLoading || disabled || preparingRef.current) {
 			return;
 		}
 		if (!trimmed && !hasAttachments) {
@@ -608,12 +608,16 @@ export const DoctorsNoteAgentPanel = ({
 		}
 
 		let submission: Awaited<ReturnType<typeof inputContext.prepareSubmission>>;
+		preparingRef.current = true;
+		setIsPreparing(true);
 		try {
 			submission = await inputContext.prepareSubmission();
 		} catch (error) {
 			if (error instanceof Error && error.message) {
 				toast.error(error.message);
 			}
+			preparingRef.current = false;
+			setIsPreparing(false);
 			return;
 		}
 
@@ -647,7 +651,12 @@ export const DoctorsNoteAgentPanel = ({
 		const attachmentNote = attachmentNotes.length > 0 ? `\n\n📎 ${attachmentNotes.join(", ")}` : "";
 		const text = `${trimmed || "Bitte berücksichtige die Anhänge."}${attachmentNote}`;
 
-		void sendMessage({ text });
+		try {
+			await sendMessage({ text });
+		} finally {
+			preparingRef.current = false;
+			setIsPreparing(false);
+		}
 	}, [disabled, hasAttachments, inputContext, instruction, isLoading, sendMessage]);
 
 	// Files dropped anywhere on the agent card are added as context and the file

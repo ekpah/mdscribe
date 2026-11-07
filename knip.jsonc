@@ -9,7 +9,7 @@
 				// Keep Next.js auto-detected entrypoints from plugins.
 				// These entries only cover Bun test discovery that Knip cannot infer.
 				"__tests__/setup.ts",
-				"__tests__/{lib,orpc}/**/*.test.ts",
+				"__tests__/{features,lib,orpc}/**/*.test.ts",
 				// Chromium harnesses bundled with `bun build` and run in a browser.
 				"__tests__/**/*.browser.{ts,tsx}",
 			],

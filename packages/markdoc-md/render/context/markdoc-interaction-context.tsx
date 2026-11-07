@@ -8,7 +8,8 @@ import type { VariableValue } from "./variable-context";
 export interface MarkdocInteractionContextType {
 	activeTagName?: string | null;
 	areCitationsHighlighted: boolean;
-	onCitationSelect?: (citation: CitationRequest) => void;
+	/** Receives every excerpt of the selected cite mark. */
+	onCitationSelect?: (citations: CitationRequest[]) => void;
 	onTagSelect?: (tagName: string) => void;
 	/**
 	 * Writes a variable from inside the rendered document, e.g. an inline input.

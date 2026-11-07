@@ -66,8 +66,7 @@ export const AiscribeTemplateInputSection = ({
 }: AiscribeTemplateInputSectionProps) => {
 	const fallbackInputContextController = useInputContextState();
 	const resolvedInputContextController = inputContextController ?? fallbackInputContextController;
-	const isSubmitDisabled =
-		isLoading || submitDisabled || resolvedInputContextController.hasPendingOcr;
+	const isSubmitDisabled = isLoading || submitDisabled;
 	const handleInputPaste = useInputContextClipboardPaste({
 		controller: resolvedInputContextController,
 		disabled: isLoading,

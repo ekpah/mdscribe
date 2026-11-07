@@ -165,8 +165,11 @@ const tags: NonNullable<Config["tags"]> = {
 	},
 	cite: {
 		attributes: {
+			// `[{ source, quote }, …]`: every excerpt supporting the marked text.
+			citations: { required: false, type: Array },
+			// Single-excerpt form of older content.
 			quote: { required: false, type: String },
-			source: { required: true, type: String },
+			source: { required: false, type: String },
 		},
 		children: ["text", "strong", "em", "code", "inline"],
 		render: "Cite",

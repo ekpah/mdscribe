@@ -1,6 +1,7 @@
 import type { UIMessage } from "ai";
 import { z } from "zod";
 
+import type { ScribeCitation, ScribeCitationSource } from "@/features/response-citations/markup";
 import { OCR_MODEL_IDS } from "@/lib/ocr-protocol";
 import type { OcrProviderProtocol } from "@/lib/ocr-protocol";
 
@@ -92,4 +93,12 @@ export interface OcrContextDocument {
 
 export type ContextDocument = RawContextDocument | OcrContextDocument;
 
-export type OcrUIMessage = UIMessage<unknown, { "ocr-results": OcrResult[] }>;
+export type OcrUIMessage = UIMessage<
+	unknown,
+	{
+		citation: ScribeCitation;
+		"citation-sources": ScribeCitationSource[];
+		"citation-status": "adding" | "complete" | "failed";
+		"ocr-results": OcrResult[];
+	}
+>;

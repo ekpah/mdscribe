@@ -1,9 +1,9 @@
 import type { Config, Location, Node } from "@markdoc/markdoc";
 import Markdoc from "@markdoc/markdoc";
 
+import { readCiteCitations } from "../citations/cite-attributes";
 import { MAX_CITATION_QUOTE_LENGTH } from "../citations/resolvers/types";
 import { markdocConfig } from "../markdoc-config";
-import { parseCitationSource } from "../render/utils/citation-source";
 import {
 	type MarkdocTagDiagnostic,
 	validateMarkdocTagContractsInAst,
@@ -24,6 +24,12 @@ export type MarkdocTemplateDiagnostic =
 			message: string;
 			severity: "error";
 			source: string;
+	  }
+	| {
+			code: "citation-malformed";
+			location?: Location;
+			message: string;
+			severity: "error";
 	  }
 	| {
 			code: "citation-quote-too-long";
@@ -66,29 +72,34 @@ export const validateMarkdocTemplateAst = (
 
 	diagnostics.push(...validateMarkdocTagContractsInAst(ast));
 	for (const node of ast.walk()) {
-		if (!isCiteTag(node) || typeof node.attributes.source !== "string") {
+		if (!isCiteTag(node)) {
 			continue;
 		}
-		const source = node.attributes.source;
-		if (parseCitationSource(source).kind === "invalid") {
-			diagnostics.push({
-				code: "citation-source-invalid",
-				location: node.location,
-				message: `Invalid citation source: "${source}".`,
-				severity: "error",
-				source,
-			});
-		}
-		if (
-			typeof node.attributes.quote === "string" &&
-			node.attributes.quote.length > MAX_CITATION_QUOTE_LENGTH
-		) {
-			diagnostics.push({
-				code: "citation-quote-too-long",
-				location: node.location,
-				message: `Citation quotes may contain at most ${MAX_CITATION_QUOTE_LENGTH} characters.`,
-				severity: "error",
-			});
+		for (const problem of readCiteCitations(node.attributes).problems) {
+			if (problem.kind === "source-invalid") {
+				diagnostics.push({
+					code: "citation-source-invalid",
+					location: node.location,
+					message: `Invalid citation source: "${problem.source}".`,
+					severity: "error",
+					source: problem.source,
+				});
+			} else if (problem.kind === "quote-too-long") {
+				diagnostics.push({
+					code: "citation-quote-too-long",
+					location: node.location,
+					message: `Citation quotes may contain at most ${MAX_CITATION_QUOTE_LENGTH} characters.`,
+					severity: "error",
+				});
+			} else {
+				diagnostics.push({
+					code: "citation-malformed",
+					location: node.location,
+					message:
+						"A citation needs either source/quote or a citations list of { source, quote } entries.",
+					severity: "error",
+				});
+			}
 		}
 	}
 

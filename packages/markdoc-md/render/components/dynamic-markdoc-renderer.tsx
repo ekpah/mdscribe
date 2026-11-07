@@ -38,8 +38,8 @@ export interface DynamicMarkdocRendererProps {
 	/** A complete Markdoc config. */
 	config?: Config;
 	activeTagName?: string | null;
-	/** Called with the cited source URI when a cite mark is clicked or keyboard-activated. */
-	onCitationSelect?: (citation: CitationRequest) => void;
+	/** Called with every excerpt of a cite mark when it is clicked or keyboard-activated. */
+	onCitationSelect?: (citations: CitationRequest[]) => void;
 	onTagSelect?: (tagName: string) => void;
 	/** Lets custom tag components edit variables; omit for a read-only document. */
 	onVariableChange?: (name: string, value: VariableValue) => void;

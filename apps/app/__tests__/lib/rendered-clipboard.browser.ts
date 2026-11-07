@@ -3,6 +3,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 
 import renderMarkdocAsReact from "../../../../packages/markdoc-md/render/utils/render-markdoc-as-react";
+import { addScribeCitations } from "../../features/response-citations/markup";
 import { getRenderedClipboardContent } from "../../lib/rendered-clipboard";
 
 const equal = (actual: unknown, expected: unknown) => {
@@ -65,5 +66,76 @@ for (const fixture of fixtures) {
 	}
 }
 
+const cited = document.createElement("div");
+const citedDraft = "Befund: `**CRP 112 mg/l.**`";
+cited.innerHTML = renderToStaticMarkup(
+	renderMarkdocAsReact(
+		addScribeCitations(citedDraft, [
+			{
+				citations: [{ quote: 'CRP `112` "mg/l".', source: "mdscribe://input/notes" }],
+				end: citedDraft.lastIndexOf("**") + 2,
+				start: citedDraft.indexOf("**"),
+			},
+		]),
+		{ layout: "template" },
+	),
+);
+document.body.append(cited);
+try {
+	const { html, text } = getRenderedClipboardContent(cited);
+	equal(text, "Befund: CRP 112 mg/l.");
+	equal(html.includes("data-citation-source"), false);
+	equal(html.includes("<mark"), false);
+	equal(html.includes("<strong"), true);
+	equal(cited.querySelectorAll("mark[data-citation-source]").length, 1);
+} finally {
+	cited.remove();
+}
+
+for (const [draft, expected] of [
+	["Before. `CRP 112; Na 140.` After.", "Before. CRP 112; Na 140. After."],
+	["Before.\n```text\nCRP 112; Na 140.\n```\nAfter.", "Before.\nCRP 112; Na 140.\nAfter."],
+	["Before.\n~~~text\nCRP 112; Na 140.\n~~", "Before.\nCRP 112; Na 140."],
+	["    CRP 112; Na 140.", "CRP 112; Na 140."],
+	["`CRP 112; Na 140.", "CRP 112; Na 140."],
+]) {
+	const facts = ["Before.", "CRP 112", "Na 140.", "After."].filter((fact) => draft.includes(fact));
+	const element = document.createElement("div");
+	const source = 'mdscribe://input/notes`"\\special';
+	const quote = 'CRP `112` "mg/l".\\\nNa 140.';
+	element.innerHTML = renderToStaticMarkup(
+		renderMarkdocAsReact(
+			addScribeCitations(
+				draft,
+				facts.map((fact) => ({
+					citations: [{ quote, source }],
+					end: draft.indexOf(fact) + fact.length,
+					start: draft.indexOf(fact),
+				})),
+			),
+			{ layout: "template" },
+		),
+	);
+	document.body.append(element);
+	try {
+		const marks = element.querySelectorAll<HTMLElement>("mark[data-citation-source]");
+		equal(marks.length, facts.length);
+		for (const [index, mark] of [...marks].entries()) {
+			equal(mark.textContent, facts[index]);
+			equal(mark.dataset.citationSource, source);
+			equal(mark.dataset.citationQuote, quote);
+		}
+		equal(element.querySelectorAll("pre, code").length, 0);
+		const { html, text } = getRenderedClipboardContent(element);
+		equal(text.trim(), expected);
+		equal(html.includes("data-citation-"), false);
+		equal(html.includes("<mark"), false);
+		equal(text.includes("{%"), false);
+		equal(text.includes("`"), false);
+	} finally {
+		element.remove();
+	}
+}
+
 document.documentElement.dataset.clipboardTest =
-	"PASS: four clipboard fixtures and stylesheet-free paste";
+	"PASS: four clipboard fixtures, stylesheet-free paste, and helper-generated code/citation copying";

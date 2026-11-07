@@ -291,40 +291,46 @@ export const useInputContextState = ({
 	);
 
 	const prepareSubmission = useCallback(async (): Promise<InputContextSubmission> => {
-		if (contextFilesRef.current.some((file) => file.ocrStatus === "pending")) {
-			throw new Error("Dokumenterkennung läuft noch. Bitte warten.");
-		}
+		// Freeze membership before any await. Files added during preparation belong
+		// to the next submission, not to this submission's OCR or citation snapshot.
+		let submissionFiles = [...contextFilesRef.current];
 		let policy: DocumentInputPolicy | undefined;
-		if (contextFilesRef.current.length > 0) {
+		if (submissionFiles.length > 0) {
 			policy = await loadPolicy(true);
-			if (policy.ocrConfigured) {
-				// Submitting confirms images whose OCR was not started yet, with any
-				// alignment saved in the preview, like the file row's "OCR starten".
-				for (const file of contextFilesRef.current) {
-					if (
-						file.ocrStatus === "awaiting-alignment" &&
-						file.viewRotation &&
-						!(await rotateContextFile(file.id, file.viewRotation))
-					) {
-						throw new Error(`„${file.file.name}“ konnte nicht ausgerichtet werden.`);
+			submissionFiles = await Promise.all(
+				submissionFiles.map(async (file) => {
+					if (!file.viewRotation) {
+						return file;
 					}
-				}
-				await Promise.all(ocrPromisesRef.current.values());
-				// A submit can happen before the upload effect has started its requests.
-				for (const file of contextFilesRef.current) {
+					// Use the same byte conversion and fresh identity as explicit OCR.
+					const rotated = await rotateContextFile(file.id, file.viewRotation);
+					if (!rotated) {
+						throw new Error(`Das Bild „${file.file.name}“ konnte nicht gedreht werden.`);
+					}
+					return rotated;
+				}),
+			);
+			if (policy.ocrConfigured) {
+				// Submission accepts the current image orientation. Start every missing
+				// result before waiting; runOcr reuses requests already in flight.
+				for (const snapshot of submissionFiles) {
+					const file =
+						contextFilesRef.current.find((current) => current.id === snapshot.id) ?? snapshot;
 					if (file.ocrStatus !== "error" && (file.ocrStatus !== "complete" || !file.ocrResult)) {
 						updateContextFile(file.id, { ocrStatus: "pending" });
 						runOcr(file);
 					}
 				}
-				await Promise.all(ocrPromisesRef.current.values());
+				await Promise.all(submissionFiles.map((file) => ocrPromisesRef.current.get(file.id)));
 			} else if (!(agent ? policy.agentSupportsDocuments : policy.supportsDocuments)) {
 				throw new Error(
 					"Bitte ein Dokumenten-Modell oder ein Vision-fähiges Modell konfigurieren.",
 				);
 			}
 		}
-		const latestContextFiles = contextFilesRef.current;
+		const latestContextFiles = submissionFiles.map(
+			(file) => contextFilesRef.current.find((current) => current.id === file.id) ?? file,
+		);
 		const audioFiles = await Promise.all(
 			audioRecordings.map((recording) => createAudioSubmissionFile(recording.blob)),
 		);
@@ -363,6 +369,7 @@ export const useInputContextState = ({
 		return {
 			audioFiles,
 			contextFiles: submittedContextFiles,
+			preparedContextFiles: latestContextFiles,
 			textContext: toSubmittedTextContext(textContext),
 		};
 	}, [

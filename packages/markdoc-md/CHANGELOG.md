@@ -6,6 +6,7 @@
 
 - Headless tag hooks `useInfoTag`, `useCalcTag`, and `useBranchTag` (from `markdoc-md/react`) expose each built-in tag's resolved value, display formatting, and case selection, so custom components can change only the markup. The default components use the same hooks. A custom `Switch` or `Condition` renders its selected case, including nested tags, through `selected`.
 - `DynamicMarkdocRenderer` accepts `onVariableChange(name, value)`, available to tag components via `useMarkdocInteraction()`, so custom components such as inline inputs can edit variables.
+- `cite` accepts `citations=[{source: "…", quote: "…"}, …]`, a list of excerpts that support the same marked text. The old `source`/`quote` pair stays readable as a single citation. `onCitationSelect` now receives the list. A malformed list, or one mixed with `source`/`quote`, renders the mark inert and reports the new `citation-malformed` diagnostic. The rich editor round-trips the list unchanged. `readCiteCitations` and `serializeCiteCitations` are exported from `markdoc-md/citations`.
 - Tag prop types (`InfoProps`, `CalcProps`, `SwitchProps`, `CaseProps`, `CiteProps`, `DetailsProps`) are exported from `markdoc-md/react`.
 
 ### Changed

@@ -59,3 +59,17 @@ test("literal code and nonbreaking spaces inside text are not rewritten", () => 
 	expect(html).toContain("Alpha Beta");
 	expect(html).toContain("<pre>A:\nB\n</pre>");
 });
+
+test.each(['CRP `112` "mg/l".', "Literal %} und {% /cite %} im Dokument."])(
+	"citation attribute text stays opaque across paragraph boundaries: %s",
+	(quote) => {
+		const source = 'mdscribe://input/notes`"\\special';
+		const cite = (text: string) =>
+			`{% cite source=${JSON.stringify(source)} quote=${JSON.stringify(quote)} %}${text}{% /cite %}`;
+		const html = render(`${cite("CRP 112 mg/l.")}\n\n${cite("Natrium 140 mmol/l.")}`);
+		expect(html.match(/<mark\b/gu)).toHaveLength(2);
+		expect(html).toContain(">CRP 112 mg/l.</mark>");
+		expect(html).toContain(">Natrium 140 mmol/l.</mark>");
+		expect(html).not.toContain("data-invalid-citation");
+	},
+);

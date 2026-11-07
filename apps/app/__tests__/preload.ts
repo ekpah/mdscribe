@@ -22,7 +22,7 @@ const MOCK_GENERATED_TEXT = "Generated text response";
 const createUIMessageStream = (options?: {
 	execute: (input: {
 		writer: { merge: (stream: ReadableStream<unknown>) => void; write: (part: unknown) => void };
-	}) => void;
+	}) => void | Promise<void>;
 }) => {
 	const encoder = new TextEncoder();
 
@@ -30,7 +30,7 @@ const createUIMessageStream = (options?: {
 		async start(controller) {
 			if (options) {
 				let mergedStream: ReadableStream<unknown> | undefined;
-				options.execute({
+				await options.execute({
 					writer: {
 						merge: (stream) => {
 							mergedStream = stream;
@@ -52,8 +52,10 @@ const createUIMessageStream = (options?: {
 	});
 };
 
-const createMockStreamResult = (options?: { onFinish?: (event: unknown) => void }) => {
-	const fullText = MOCK_GENERATED_TEXT;
+const createMockStreamResult = (
+	options?: { onFinish?: (event: unknown) => void },
+	fullText = MOCK_GENERATED_TEXT,
+) => {
 	const onFinish = options?.onFinish;
 
 	if (onFinish) {
@@ -88,7 +90,19 @@ const createMockStreamResult = (options?: { onFinish?: (event: unknown) => void 
 		text: resolveAsync(fullText),
 		textStream: createUIMessageStream(),
 		toDataStream: () => createUIMessageStream(),
-		toUIMessageStream: () => createUIMessageStream(),
+		toUIMessageStream: ({ sendFinish = true } = {}) =>
+			new ReadableStream({
+				start(controller) {
+					controller.enqueue({ type: "start" });
+					controller.enqueue({ id: "text-1", type: "text-start" });
+					controller.enqueue({ delta: fullText, id: "text-1", type: "text-delta" });
+					controller.enqueue({ id: "text-1", type: "text-end" });
+					if (sendFinish) {
+						controller.enqueue({ finishReason: "stop", type: "finish" });
+					}
+					controller.close();
+				},
+			}),
 		usage: resolveAsync({
 			completionTokens: 50,
 			promptTokens: 100,
@@ -266,11 +280,15 @@ export const aiMockState: {
 	nextOcrOutput?: unknown;
 	nextOcrOutputs?: unknown[];
 	nextGenerateTextText?: string;
+	nextStreamTextText?: string;
+	nextCitationElements?: AsyncIterable<unknown>;
+	nextCitationCompletion?: { error?: Error; finishReason?: string; outputError?: Error };
 	streamTextCallCount: number;
 } = { generateTextCallCount: 0, streamTextCallCount: 0 };
 
 mock.module("ai", () => ({
 	Output: {
+		array: (options: unknown) => options,
 		object: (options: unknown) => options,
 	},
 	createGateway,
@@ -422,10 +440,39 @@ mock.module("ai", () => ({
 			},
 		});
 	},
-	streamText: (options: { onFinish?: (event: unknown) => void }) => {
+	streamText: (options: {
+		onError?: (event: { error: unknown }) => void;
+		onFinish?: (event: unknown) => void;
+		output?: unknown;
+	}) => {
 		aiMockState.streamTextCallCount += 1;
+		if (options.output) {
+			const elements =
+				aiMockState.nextCitationElements ??
+				new ReadableStream({ start: (controller) => controller.close() });
+			const completion = aiMockState.nextCitationCompletion;
+			delete aiMockState.nextCitationElements;
+			delete aiMockState.nextCitationCompletion;
+			return {
+				...createMockStreamResult(options),
+				elementStream: (async function* citationElements() {
+					yield* elements;
+					if (completion?.error) {
+						options.onError?.({ error: completion.error });
+					}
+				})(),
+				finishReason: resolveAsync(completion?.finishReason ?? "stop"),
+				get output() {
+					return completion?.outputError
+						? Promise.reject(completion.outputError)
+						: resolveAsync([]);
+				},
+			};
+		}
 		aiMockState.lastStreamTextOptions = options;
-		return createMockStreamResult(options);
+		const text = aiMockState.nextStreamTextText;
+		delete aiMockState.nextStreamTextText;
+		return createMockStreamResult(options, text);
 	},
 	tool: <T>(definition: T): T => definition,
 	wrapLanguageModel: (options: unknown) => ({ wrappedLanguageModel: options }),

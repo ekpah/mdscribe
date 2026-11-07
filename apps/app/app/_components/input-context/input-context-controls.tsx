@@ -491,11 +491,11 @@ const InputContextToolbar = ({
 		) : null}
 		<SubmitButton
 			canShow={showSubmit}
-			disabled={!controller.hasAnyContext || isSubmitting || controller.hasPendingOcr}
+			disabled={!controller.hasAnyContext || isSubmitting}
 			hasTrailingAction={Boolean(trailingAction)}
 			isSubmitting={isSubmitting}
 			onClick={handleSubmit}
-			pendingLabel={pendingLabel}
+			pendingLabel={controller.hasPendingOcr ? "Dokumenterkennung…" : pendingLabel}
 			submitLabel={controller.hasPendingOcr ? "Dokumenterkennung…" : submitLabel}
 		/>
 	</div>
@@ -531,6 +531,7 @@ export const InputContextControls = ({
 	const [recordingShortcutRequest, setRecordingShortcutRequest] = useState(0);
 	const [isRecordingAudio, setIsRecordingAudio] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const submittingRef = useRef(false);
 	const audioInputRef = useRef<AudioInputHandle>(null);
 	const rootRef = useRef<HTMLDivElement>(null);
 	const isTabVariant = variant === "tabs";
@@ -572,7 +573,7 @@ export const InputContextControls = ({
 	}, []);
 
 	const handleSubmit = useCallback(async () => {
-		if (!onSubmit || disabled || isSubmitting || controller.hasPendingOcr) {
+		if (!onSubmit || disabled || isSubmitting || submittingRef.current) {
 			return;
 		}
 
@@ -581,6 +582,7 @@ export const InputContextControls = ({
 			return;
 		}
 
+		submittingRef.current = true;
 		setIsSubmitting(true);
 		if (closeOnSubmit) {
 			setOpenPanel(null);
@@ -594,6 +596,7 @@ export const InputContextControls = ({
 			}
 			// Keep captured context visible so the user can inspect or retry.
 		} finally {
+			submittingRef.current = false;
 			setIsSubmitting(false);
 		}
 	}, [closeOnSubmit, controller, disabled, isSubmitting, onSubmit]);
@@ -624,7 +627,7 @@ export const InputContextControls = ({
 	}, [focusFirstTextField, onFocusShortcut, openContextPanel]);
 
 	const handleSubmitShortcut = useCallback(() => {
-		if (disabled || isSubmitting || submitShortcutDisabled || controller.hasPendingOcr) {
+		if (disabled || isSubmitting || submittingRef.current || submitShortcutDisabled) {
 			return;
 		}
 
@@ -636,15 +639,7 @@ export const InputContextControls = ({
 		if (onSubmit) {
 			void handleSubmit();
 		}
-	}, [
-		controller.hasPendingOcr,
-		disabled,
-		handleSubmit,
-		isSubmitting,
-		onSubmit,
-		onSubmitShortcut,
-		submitShortcutDisabled,
-	]);
+	}, [disabled, handleSubmit, isSubmitting, onSubmit, onSubmitShortcut, submitShortcutDisabled]);
 
 	const requestRecordingToggle = useCallback(() => {
 		if (disabled) {
@@ -657,7 +652,7 @@ export const InputContextControls = ({
 	const { handleRootDragEnter, handleRootDragLeave, handleRootDragOver, handleRootDrop } =
 		useInputContextFileDrop({
 			controller,
-			disabled,
+			disabled: isPanelDisabled,
 			openContextPanel,
 			setDragDepth,
 		});
