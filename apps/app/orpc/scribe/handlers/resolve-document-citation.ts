@@ -10,6 +10,7 @@ import { AI_SCRIBE_OCR_EVENT_NAME } from "@/lib/usage-event-names";
 import { authed } from "@/orpc";
 import { scribeEntitlementsMiddleware } from "@/orpc/middlewares/entitlements";
 import { locateDocumentQuotes } from "@/orpc/scribe/citations/locate-quote";
+import { DecisionHttpError } from "@/orpc/scribe/decisions/client";
 import { contextFileUploadSchema } from "@/orpc/scribe/handlers/extract-context-file";
 import { logMediaPreprocessingUsage } from "@/orpc/scribe/handlers/preprocessing-usage";
 import { enforceScribeUsageLimit } from "@/orpc/scribe/handlers/usage-limit";
@@ -98,7 +99,22 @@ export const resolveDocumentCitationsHandler = authed
 				signal: signal ? AbortSignal.any([signal, budget]) : budget,
 				target: provider,
 			});
-		} catch {
+		} catch (error) {
+			// A model without box questions (e.g. Mammoth-1) rejects every retry the same way;
+			// the page is then shown without a highlight. Rate limits and outages stay retryable.
+			if (
+				error instanceof DecisionHttpError &&
+				error.status >= 400 &&
+				error.status < 500 &&
+				error.status !== 408 &&
+				error.status !== 429
+			) {
+				console.warn("Citation location rejected", {
+					model: provider.modelId,
+					status: error.status,
+				});
+				return input.quotes.map(() => null);
+			}
 			// File decoders and network errors may embed patient data or credentials.
 			console.warn("Citation location failed", { model: provider.modelId });
 			throw new ORPCError("BAD_REQUEST", {

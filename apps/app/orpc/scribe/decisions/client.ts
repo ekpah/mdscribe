@@ -72,6 +72,17 @@ const openAiSchema = z.object({
 /** Clef accepts at most 64 questions per request. */
 const CLEF_MAX_QUESTIONS = 64;
 
+/** Keeps only the HTTP status: provider error bodies may echo patient data. */
+export class DecisionHttpError extends Error {
+	readonly status: number;
+
+	constructor(status: number) {
+		super("Die Entscheidung ist derzeit nicht verfügbar.");
+		this.name = "DecisionHttpError";
+		this.status = status;
+	}
+}
+
 // Neither provider errors nor validation errors may expose patient data or keys.
 const post = async (
 	url: string,
@@ -87,7 +98,7 @@ const post = async (
 		signal,
 	});
 	if (!response.ok) {
-		throw new Error("Die Entscheidung ist derzeit nicht verfügbar.");
+		throw new DecisionHttpError(response.status);
 	}
 	return (await response.json()) as unknown;
 };

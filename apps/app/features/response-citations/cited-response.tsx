@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 
 import { CitationPreviewDialog } from "@/app/_components/citation-preview-dialog";
 import { useCitationPreview } from "@/app/_components/use-citation-preview";
@@ -23,8 +23,10 @@ export const CitedResponse = ({
 	message?: OcrUIMessage;
 	ocrResults: ReadonlyMap<string, OcrResult>;
 }) => {
-	const citations =
-		message?.parts.flatMap((p) => (p.type === "data-citation" ? [p.data] : [])) ?? [];
+	const citations = useMemo(
+		() => message?.parts.flatMap((p) => (p.type === "data-citation" ? [p.data] : [])) ?? [],
+		[message],
+	);
 	const citationStatus = message?.parts.findLast((p) => p.type === "data-citation-status");
 	const phase = citationStatus?.type === "data-citation-status" ? citationStatus.data : undefined;
 	const decoratedContent = addScribeCitations(content, citations);
@@ -40,14 +42,25 @@ export const CitedResponse = ({
 	const {
 		previews,
 		onOpenChange: closePreview,
+		prefetch,
 		selectCitations,
 	} = useCitationPreview({
-		getSources: () => ({
-			files,
-			getOcrResult: (_file, citation) => ocrResults.get(citation.source),
-			texts,
-		}),
+		getSources: useCallback(
+			() => ({
+				files,
+				getOcrResult: (_file: File, citation: { source: string }) =>
+					ocrResults.get(citation.source),
+				texts,
+			}),
+			[files, ocrResults, texts],
+		),
 	});
+	// Locate document quotes once all citations have arrived, so opening one does not wait.
+	useEffect(() => {
+		if (phase === "complete") {
+			prefetch(citations.flatMap((span) => span.citations));
+		}
+	}, [citations, phase, prefetch]);
 	let statusText = "";
 	if (phase === "failed") {
 		statusText =

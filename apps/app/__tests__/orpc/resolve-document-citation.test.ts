@@ -20,6 +20,7 @@ test("authenticated quote localization returns page-frame bounds, rejects change
 	const server = await startTestServer("citation-location");
 	const originalFetch = globalThis.fetch;
 	let malformed = false;
+	let providerStatus = 200;
 	let decisionCalls = 0;
 	const fetchSpy = spyOn(globalThis, "fetch").mockImplementation(
 		Object.assign(
@@ -33,6 +34,14 @@ test("authenticated quote localization returns page-frame bounds, rejects change
 					questions: Record<string, { instructions: string }>;
 				};
 				decisionCalls += 1;
+				if (providerStatus !== 200) {
+					return Promise.resolve(
+						Response.json(
+							{ error: { message: "BaseTen does not accept box questions" } },
+							{ status: providerStatus },
+						),
+					);
+				}
 				expect(request.model).toBe("typesafe/jev-1.14-20261014");
 				expect(request.provider).toEqual({ data_collection: "deny" });
 				// All quotes of a page are located in one request.
@@ -149,6 +158,18 @@ test("authenticated quote localization returns page-frame bounds, rejects change
 		await expect(
 			call(resolveDocumentCitationsHandler, { file, quotes: ["PAWP 8"] }, { context }),
 		).rejects.toThrow("Quellenmarkierung ist derzeit nicht verfügbar");
+		malformed = false;
+		// A model that rejects box questions shows the page without a highlight, instead of failing every retry.
+		providerStatus = 400;
+		expect(
+			await call(resolveDocumentCitationsHandler, { file, quotes: ["PAWP 8"] }, { context }),
+		).toEqual([null]);
+		// Outages stay errors, so the client retries when the citation is opened.
+		providerStatus = 503;
+		await expect(
+			call(resolveDocumentCitationsHandler, { file, quotes: ["PAWP 8"] }, { context }),
+		).rejects.toThrow("Quellenmarkierung ist derzeit nicht verfügbar");
+		providerStatus = 200;
 		await expect(
 			call(
 				resolveDocumentCitationsHandler,
