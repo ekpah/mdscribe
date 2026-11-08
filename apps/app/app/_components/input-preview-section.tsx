@@ -385,7 +385,7 @@ export const InputPreviewSection = ({
 	return (
 		<>
 			{/* Inline-size containment keeps a wide PDF or step bar from widening the page on phones. */}
-			<Card className="relative flex h-[calc(100vh-(--spacing(16))-(--spacing(10))-2rem)] flex-col gap-0 overflow-hidden py-0 [contain:inline-size]">
+			<Card className="relative flex h-[calc(100dvh-(--spacing(16))-(--spacing(10))-2rem)] flex-col gap-0 overflow-hidden py-0 [contain:inline-size]">
 				{edgeTabs}
 				<div
 					className={cn(

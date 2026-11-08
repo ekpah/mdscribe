@@ -236,7 +236,7 @@ const FilePreviewDialog = ({
 	};
 	return (
 		<Dialog onOpenChange={onOpenChange} open>
-			<DialogContent className="flex h-[min(52rem,calc(100vh-2rem))] max-w-5xl flex-col overflow-hidden p-4 sm:max-w-5xl">
+			<DialogContent className="flex h-[min(52rem,calc(100dvh-2rem))] max-w-5xl flex-col overflow-hidden p-4 sm:max-w-5xl">
 				<DialogHeader className="pr-8">
 					<DialogTitle className="truncate">{file.file.name}</DialogTitle>
 					<DialogDescription>

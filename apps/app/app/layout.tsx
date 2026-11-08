@@ -64,15 +64,15 @@ export default async function RootLayout({ children }: RootLayoutProperties) {
 					<QueryProvider>
 						<HydrationBoundary state={dehydrate(queryClient)}>
 							<DesignSystemProvider>
-								<div className="flex h-screen w-full" key="Body">
-									<nav className="fixed top-0 right-0 bottom-[calc(100vh-(--spacing(16)))] left-0 z-30 h-16">
+								<div className="flex h-dvh w-full" key="Body">
+									<nav className="fixed top-0 right-0 bottom-[calc(100dvh-(--spacing(16)))] left-0 z-30 h-16">
 										{/*ModeWatcher track="true" />*/}
 										<Suspense fallback={<MenubarSkeleton />}>
 											<Menubar initialIsAdmin={isAdmin} initialSession={session} />
 										</Suspense>
 									</nav>
 									<div
-										className="sticky top-16 flex h-[calc(100vh-(--spacing(16)))] w-full items-center justify-center"
+										className="sticky top-16 flex h-[calc(100dvh-(--spacing(16)))] w-full items-center justify-center"
 										key="Content"
 									>
 										{children}

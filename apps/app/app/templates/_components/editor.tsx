@@ -676,7 +676,7 @@ export default function Editor({
 	);
 
 	return (
-		<div className="flex h-[calc(100vh-(--spacing(16))-(--spacing(6)))] gap-4">
+		<div className="flex h-[calc(100dvh-(--spacing(16))-(--spacing(6)))] gap-4">
 			{/* Main Editor Card */}
 			<Card className="flex flex-1 flex-col gap-4 overflow-hidden p-4">
 				<form onSubmit={handleSubmit} className="flex min-h-0 grow flex-col gap-2">

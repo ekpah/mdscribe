@@ -8,7 +8,7 @@ import {
 } from "@repo/design-system/components/ui/sheet";
 import { cn } from "@repo/design-system/lib/utils";
 import type { Editor } from "@tiptap/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { TAG_PANEL_META, TagPanelBody } from "./tag-inspector";
 import { useSelectedMarkdocTag } from "./use-selected-markdoc-tag";
@@ -57,6 +57,7 @@ export const TagInspectorSheet = ({
 }) => {
 	const { clearSelectedTag, selectedTag } = useSelectedMarkdocTag(editor);
 	const isSheetViewport = useIsBelowViewportWidth(maxViewportWidth);
+	const popupRef = useRef<HTMLDivElement>(null);
 
 	// Only chip clicks open the sheet; a text cursor inside case content must
 	// not cover the editor while the user types inline.
@@ -76,10 +77,19 @@ export const TagInspectorSheet = ({
 	}
 
 	const meta = TAG_PANEL_META[selectedTag.kind];
+	// A chip tap on a phone shows the settings without opening the keyboard over them;
+	// a newly inserted tag still starts in its name field.
+	const focusesFirstField =
+		selectedTag.selectPrimary || !window.matchMedia("(pointer: coarse)").matches;
 
 	return (
 		<Sheet onOpenChange={handleOpenChange} open={open}>
-			<SheetContent className="max-h-[85dvh] overflow-y-auto rounded-t-xl p-4" side="bottom">
+			<SheetContent
+				className="max-h-[85dvh] overflow-y-auto rounded-t-xl p-4"
+				initialFocus={focusesFirstField ? true : popupRef}
+				ref={popupRef}
+				side="bottom"
+			>
 				<SheetHeader className="pb-3 text-left">
 					<SheetTitle className="flex items-center gap-2.5 text-base">
 						<span

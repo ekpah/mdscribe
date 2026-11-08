@@ -66,7 +66,7 @@ export default function DocumentsSidebar({
 
 	return (
 		<NavigationSidebar
-			className="top-16 h-[calc(100vh-(--spacing(16)))]"
+			className="top-16 h-[calc(100dvh-(--spacing(16)))]"
 			controls={
 				<>
 					<SidebarMenu>

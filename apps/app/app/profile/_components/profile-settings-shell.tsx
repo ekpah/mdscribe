@@ -47,7 +47,7 @@ export const ProfileSettingsShell = ({ children }: ProfileSettingsShellProps) =>
 	<div className="flex h-full min-h-0 w-full bg-solarized-base3">
 		<SidebarProvider className="h-full min-h-0">
 			<NavigationSidebar
-				className="top-16 h-[calc(100vh-(--spacing(16)))]"
+				className="top-16 h-[calc(100dvh-(--spacing(16)))]"
 				header={
 					<NavigationSidebarBrand
 						href="/profile/account"

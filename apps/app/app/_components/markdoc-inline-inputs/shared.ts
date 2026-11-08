@@ -19,7 +19,8 @@ export const isPhoneLayout = () =>
 	window.matchMedia("(pointer: coarse) and (max-width: 767px)").matches;
 export const fieldClassName = (kind: TagKind, isOpen: boolean, isActive: boolean) =>
 	cn(
-		"rounded border border-transparent px-1 [box-decoration-break:clone] [-webkit-box-decoration-break:clone]",
+		// Tags are tapped in quick succession; Safari would read two taps as a double-tap zoom.
+		"touch-manipulation rounded border border-transparent px-1 [box-decoration-break:clone] [-webkit-box-decoration-break:clone]",
 		kind === "info" &&
 			"whitespace-nowrap border-b-solarized-blue/40 bg-solarized-blue/10 text-solarized-blue",
 		kind === "select" &&

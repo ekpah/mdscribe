@@ -32,6 +32,9 @@ import { sessionQueryKey } from "@/lib/session-query";
 import DarkLogo from "@/public/logo/dark";
 import LightLogo from "@/public/logo/light";
 
+// Left-aligned and full width, so the links line up with the account links below them.
+const mobileNavLinkClassName = cn(navigationMenuTriggerStyle(), "w-full justify-start px-2");
+
 interface TopMenuBarProperties {
 	initialIsAdmin?: boolean;
 	initialSession: Session | null;
@@ -236,23 +239,23 @@ export default function TopMenuBar({
 				)}
 			>
 				<div className="flex flex-col space-y-3 p-4">
-					<NavigationMenu>
-						<NavigationMenuList className="flex flex-col space-y-2">
+					<NavigationMenu className="max-w-none">
+						<NavigationMenuList className="flex flex-col items-stretch space-y-2">
 							<NavigationMenuItem>
-								<NavigationMenuLink className={navigationMenuTriggerStyle()} href="/templates">
+								<NavigationMenuLink className={mobileNavLinkClassName} href="/templates">
 									Textbausteine
 								</NavigationMenuLink>
 							</NavigationMenuItem>
 							{showAiLink && (
 								<NavigationMenuItem>
-									<NavigationMenuLink className={navigationMenuTriggerStyle()} href="/aiscribe">
+									<NavigationMenuLink className={mobileNavLinkClassName} href="/aiscribe">
 										AI Scribe
 									</NavigationMenuLink>
 								</NavigationMenuItem>
 							)}
 							<NavigationMenuItem>
 								<NavigationMenuLink
-									className={navigationMenuTriggerStyle()}
+									className={mobileNavLinkClassName}
 									href="/documents"
 									onClick={closeMobileMenu}
 								>

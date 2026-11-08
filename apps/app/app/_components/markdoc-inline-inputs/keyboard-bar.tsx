@@ -78,7 +78,7 @@ export const InlineKeyboardBar = () => {
 
 	return createPortal(
 		<div
-			className="fixed inset-x-0 z-50 flex items-center gap-1 border-t bg-muted/95 px-2 py-1 text-sm shadow-[0_-2px_8px_rgba(0,0,0,0.08)] backdrop-blur"
+			className="fixed inset-x-0 z-50 flex touch-manipulation items-center gap-1 border-t bg-muted/95 px-2 py-1 text-sm shadow-[0_-2px_8px_rgba(0,0,0,0.08)] backdrop-blur"
 			data-inline-keyboard-bar
 			style={{ bottom }}
 		>

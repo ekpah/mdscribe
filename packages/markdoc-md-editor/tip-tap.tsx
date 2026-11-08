@@ -80,7 +80,7 @@ export default function TipTap({
 		editorProps: {
 			attributes: {
 				class: cn(
-					"prose prose-sm w-full max-w-none cursor-text whitespace-pre-wrap text-sm leading-[1.45] focus:outline-none",
+					"prose prose-sm w-full max-w-none cursor-text whitespace-pre-wrap text-sm leading-[1.45] focus:outline-none pointer-coarse:text-base",
 					onInspectEditor ? "min-h-20" : "min-h-full",
 					"[&_p]:my-0 [&_p]:leading-[1.45]",
 					// injectCSS is disabled: restore ProseMirror's hidden native selection

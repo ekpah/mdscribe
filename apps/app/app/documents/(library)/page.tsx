@@ -27,7 +27,7 @@ export default function DocumentsPage() {
 				</Breadcrumb>
 				<div />
 			</div>
-			<Card className="h-[calc(100vh-(--spacing(16))-(--spacing(10))-2rem)] overflow-y-auto p-4">
+			<Card className="h-[calc(100dvh-(--spacing(16))-(--spacing(10))-2rem)] overflow-y-auto p-4">
 				<div className="space-y-2">
 					<h1 className="font-semibold text-lg">Dokumentbibliothek</h1>
 					<p className="text-muted-foreground text-sm">

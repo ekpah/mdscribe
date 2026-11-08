@@ -1669,7 +1669,7 @@ export default function DocumentEditor({
 
 	return (
 		<div
-			className="flex h-[calc(100vh-(--spacing(16))-(--spacing(6)))] min-h-0 w-full flex-col overflow-hidden"
+			className="flex h-[calc(100dvh-(--spacing(16))-(--spacing(6)))] min-h-0 w-full flex-col overflow-hidden"
 			data-documents-editor-root
 		>
 			<div className="mb-3 shrink-0 flex items-center justify-between gap-2">

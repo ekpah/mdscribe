@@ -147,7 +147,7 @@ export const DetailsTagView = ({
 				</button>
 				<textarea
 					aria-label="Beschriftung des Details-Abschnitts"
-					className="block min-w-0 flex-1 field-sizing-content resize-none overflow-hidden rounded-sm border-0 bg-transparent p-0 px-0.5 text-sm leading-[1.45] text-foreground outline-none placeholder:text-muted-foreground placeholder:italic focus:bg-solarized-violet/5"
+					className="block min-w-0 flex-1 field-sizing-content resize-none overflow-hidden rounded-sm border-0 bg-transparent p-0 px-0.5 text-sm leading-[1.45] text-foreground pointer-coarse:text-base outline-none placeholder:text-muted-foreground placeholder:italic focus:bg-solarized-violet/5"
 					data-details-summary=""
 					onChange={handleSummaryChange}
 					onKeyDown={handleSummaryKeyDown}

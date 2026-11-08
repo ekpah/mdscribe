@@ -345,7 +345,7 @@ export const TagPopover = ({
 					<div
 						aria-label={title}
 						className={cn(
-							"fixed z-50 w-[min(20rem,calc(100vw-1.5rem))] overflow-y-auto rounded-md border bg-popover text-popover-foreground text-sm shadow-md outline-none",
+							"fixed z-50 w-[min(20rem,calc(100vw-1.5rem))] touch-manipulation overflow-y-auto rounded-md border bg-popover text-popover-foreground text-sm shadow-md outline-none",
 							kind === "info" ? "p-2.5" : "p-3",
 							// A plain information tooltip must not catch taps meant for the next tag.
 							!interactive && "pointer-events-none",

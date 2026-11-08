@@ -601,7 +601,7 @@ export const AiscribeTemplate = ({ config, isAdmin = false }: AiscribeTemplatePr
 																<div className="h-1.5 w-1.5 rounded-full bg-solarized-green" />
 																{config.outputTabTitle}
 															</h4>
-															<ScrollArea className="h-[calc(100vh-400px)] rounded-lg border border-solarized-green/20 bg-background/50 p-6">
+															<ScrollArea className="h-[calc(100dvh-400px)] rounded-lg border border-solarized-green/20 bg-background/50 p-6">
 																<CitedResponse
 																	content={completion || "Keine Inhalte verfügbar"}
 																	files={citationFiles}

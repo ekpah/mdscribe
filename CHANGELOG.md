@@ -86,6 +86,7 @@
 ### Fixed
 
 - Template text uses the full available preview width in both inline and side-input modes instead of being capped at a narrow reading column.
+- On iOS Safari, app pages size to the visible viewport (`100dvh` instead of `100vh`), so their bottom toolbars, inputs and buttons no longer hide behind Safari's address bar. Text fields, date fields and the template editor use 16px text on touch devices, so focusing them no longer zooms the page, including when tapping a template tag focuses its input. Inline template tags, their details and the keyboard bar no longer double-tap-zoom when tapped in quick succession. On phones, tapping a tag in the template editor opens its settings sheet without opening the keyboard (a newly inserted tag still starts in its name field), and the Textbaustein/Beispiele/Informationen tabs no longer cover the Eingaben panel. Also on phones, the landing page's call-to-action buttons have their full height again, and the menu's navigation links line up with the account links below them.
 - Fill Inputs citations from an image that was rotated before filling open the rotated image again instead of reporting the cited file as not available.
 - AI-Scribe answers keep the blank lines between their sections on screen and when copied, as rich text and as plain text.
 - Selection and text fields show German placeholders with the field name, such as "AW_2 auswählen" and "AW_2 eingeben", instead of "Select AW_2" and "Enter AW_2".

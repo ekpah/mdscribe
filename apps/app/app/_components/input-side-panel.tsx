@@ -164,7 +164,7 @@ export const InputSidePanelCard = ({
 	}, [activeInputName, activePreviewFocusKey, mobilePanel, previewPanelElement]);
 
 	return (
-		<Card className="relative flex h-[calc(100vh-(--spacing(16))-(--spacing(10))-2rem)] overflow-hidden md:grid md:grid-cols-3">
+		<Card className="relative flex h-[calc(100dvh-(--spacing(16))-(--spacing(10))-2rem)] overflow-hidden md:grid md:grid-cols-3">
 			{hasInputTags ? (
 				<div
 					aria-label="Mobile Ansicht"
@@ -228,7 +228,14 @@ export const InputSidePanelCard = ({
 					) : null}
 				</div>
 			</div>
-			{edgeTabs}
+			{/* The edge tabs switch the preview's content, so phones hide them over the inputs. */}
+			{edgeTabs ? (
+				<div
+					className={cn("contents", hasInputTags && mobilePanel === "inputs" && "max-md:hidden")}
+				>
+					{edgeTabs}
+				</div>
+			) : null}
 			<div
 				aria-labelledby={hasInputTags ? `${mobileTabId}-preview-tab` : undefined}
 				className={getPreviewPanelClassName(hasInputTags, mobilePanel, Boolean(edgeTabs))}

@@ -55,7 +55,7 @@ export const Hero = ({ isLoggedIn }: HeroProps) => {
 						<Link
 							className={cn(
 								buttonVariants({ size: "lg" }),
-								"h-11 flex-1 px-5 shadow-lg shadow-solarized-blue/15",
+								"h-11 px-5 shadow-lg shadow-solarized-blue/15 sm:flex-1",
 							)}
 							href={isLoggedIn ? "/aiscribe" : "/sign-up"}
 							id="primary-cta"
@@ -64,7 +64,10 @@ export const Hero = ({ isLoggedIn }: HeroProps) => {
 							<ArrowRight data-icon="inline-end" />
 						</Link>
 						<Link
-							className={cn(buttonVariants({ size: "lg", variant: "outline" }), "h-11 flex-1 px-5")}
+							className={cn(
+								buttonVariants({ size: "lg", variant: "outline" }),
+								"h-11 px-5 sm:flex-1",
+							)}
 							href="https://github.com/ekpah/mdscribe"
 							rel="noopener noreferrer"
 							target="_blank"
