@@ -2,6 +2,46 @@ import { devices, expect, test } from "@playwright/test";
 
 test.use({ viewport: { height: 1000, width: 1600 } });
 
+for (const inlineInputs of [false, true]) {
+	test(`template text fills the available width with inline inputs ${inlineInputs}`, async ({
+		page,
+	}) => {
+		test.slow();
+		if (inlineInputs) {
+			await page.goto("/sign-in");
+			await page.getByLabel("E-Mail oder Benutzername").fill("test@test.com");
+			await page.getByLabel("Passwort", { exact: true }).fill("password123");
+			await page.getByTestId("sign-in-card").getByRole("button", { name: "Anmelden" }).click();
+			await page.waitForURL(/\/dashboard/);
+		}
+		await page.goto("/templates");
+		await page.getByRole("link", { exact: true, name: "Rechtsherzkatheter" }).click();
+		await page.waitForURL(/\/templates\/[^/?]+/);
+		const text = page.locator("main .prose:visible").first();
+		await expect(text).toContainText("Aufklärung liegt vor", { timeout: 30_000 });
+		for (const width of [1366, 1920, 390]) {
+			await page.setViewportSize({ height: 892, width });
+			await expect
+				.poll(() =>
+					text.evaluate((element) => {
+						let panel = element.parentElement;
+						while (panel && getComputedStyle(panel).display === "contents") {
+							panel = panel.parentElement;
+						}
+						return panel
+							? Math.abs(element.getBoundingClientRect().width - panel.clientWidth)
+							: Number.POSITIVE_INFINITY;
+					}),
+				)
+				.toBeLessThanOrEqual(1);
+			const overflows = await page.evaluate(
+				() => document.documentElement.scrollWidth > window.innerWidth,
+			);
+			expect(overflows).toBe(false);
+		}
+	});
+}
+
 test("inserting details remains responsive on mobile", async ({ browser }, testInfo) => {
 	const context = await browser.newContext({
 		...devices["Pixel 7"],

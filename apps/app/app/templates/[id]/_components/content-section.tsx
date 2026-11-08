@@ -254,7 +254,7 @@ export default function ContentSection({
 					return (
 						<DynamicMarkdocRenderer
 							activeTagName={activeInputName}
-							className="prose prose-slate grow"
+							className="prose prose-slate max-w-none grow"
 							layout="template"
 							markdocContent={note as string}
 							onCitationSelect={onCitationSelect}
@@ -275,7 +275,7 @@ export default function ContentSection({
 							>
 								<DynamicMarkdocRenderer
 									activeTagName={activeInputName}
-									className="prose prose-slate grow"
+									className="prose prose-slate max-w-none grow"
 									components={inlineInputComponents}
 									layout="template"
 									markdocContent={note as string}

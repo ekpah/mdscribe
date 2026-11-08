@@ -85,6 +85,7 @@
 
 ### Fixed
 
+- Template text uses the full available preview width in both inline and side-input modes instead of being capped at a narrow reading column.
 - Fill Inputs citations from an image that was rotated before filling open the rotated image again instead of reporting the cited file as not available.
 - AI-Scribe answers keep the blank lines between their sections on screen and when copied, as rich text and as plain text.
 - Selection and text fields show German placeholders with the field name, such as "AW_2 auswählen" and "AW_2 eingeben", instead of "Select AW_2" and "Enter AW_2".
