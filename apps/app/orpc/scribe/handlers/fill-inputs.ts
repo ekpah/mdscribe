@@ -759,7 +759,7 @@ const addFillInputCitations = async ({
 				userId,
 				zdr,
 			}),
-			signal: AbortSignal.any([evidenceSignal, AbortSignal.timeout(8000)]),
+			signal: AbortSignal.any([evidenceSignal, AbortSignal.timeout(20_000)]),
 			sources: citationSources,
 			suggestions: result.suggestions,
 		});

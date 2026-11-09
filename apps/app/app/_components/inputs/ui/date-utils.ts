@@ -1,4 +1,4 @@
-import { parseDate } from "@internationalized/date";
+import { getLocalTimeZone, parseDate, today } from "@internationalized/date";
 import type { DateValue } from "@internationalized/date";
 
 const pad = (value: number, length: number) => String(value).padStart(length, "0");
@@ -61,4 +61,21 @@ export const formatDateGerman = ({ day, month, year }: DateValue) =>
 export const normalizeDateValue = (value: string) => {
 	const parsed = parseDateInput(value);
 	return parsed ? formatDateGerman(parsed) : undefined;
+};
+
+/** Letters that type a relative date: heute, gestern, morgen. */
+const DATE_SHORTCUT_DAYS: Record<string, number> = { g: -1, h: 0, m: 1 };
+
+/** The date a key such as "h" (heute) stands for, or null for any other key. */
+export const getDateShortcut = (event: {
+	altKey: boolean;
+	ctrlKey: boolean;
+	key: string;
+	metaKey: boolean;
+}): DateValue | null => {
+	const days = DATE_SHORTCUT_DAYS[event.key.toLowerCase()];
+	if (days === undefined || event.altKey || event.ctrlKey || event.metaKey) {
+		return null;
+	}
+	return today(getLocalTimeZone()).add({ days });
 };

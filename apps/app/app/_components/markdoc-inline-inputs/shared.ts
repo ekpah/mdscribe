@@ -1,6 +1,6 @@
 import { cn } from "@repo/design-system/lib/utils";
 import type { VariableValue } from "markdoc-md/react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, MouseEvent } from "react";
 import { useState } from "react";
 
 export type TagKind = "calc" | "condition" | "info" | "select";
@@ -63,4 +63,24 @@ export const useFrozenWidth = () => {
 		release: () => setWidth(null),
 		style: width === null ? {} : ({ fieldSizing: "fixed", width } as CSSProperties),
 	};
+};
+/**
+ * A press anywhere on a field's chip, such as its unit or padding, edits the
+ * field: the caret goes to the end. Spread onto the chip around the input.
+ */
+export const chipFieldPress = {
+	onClick: (event: MouseEvent<HTMLElement>) => {
+		const field = event.currentTarget.querySelector<HTMLInputElement>("input[data-tag-focus]");
+		if (!field || event.target === field || document.activeElement === field) {
+			return;
+		}
+		field.focus();
+		field.setSelectionRange(field.value.length, field.value.length);
+	},
+	// Keep focus where it is until the click, so an edited field does not blur and refocus.
+	onMouseDown: (event: MouseEvent<HTMLElement>) => {
+		if (!(event.target instanceof HTMLInputElement)) {
+			event.preventDefault();
+		}
+	},
 };

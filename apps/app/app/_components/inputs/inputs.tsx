@@ -1349,9 +1349,17 @@ export const useTemplateFields = (
 					applySuggestions(result);
 				}
 				if (result.citationError) {
-					toast.error("Felder ausgefüllt; Quellen konnten nicht ergänzt werden.", {
-						id: "fill-inputs",
-					});
+					// Decision-model answers bring their own sources; only the later
+					// source pass for the remaining fields failed.
+					const hasSomeSources = Object.values(result.suggestions).some(
+						({ citations }) => citations?.length,
+					);
+					toast.warning(
+						hasSomeSources
+							? "Felder ausgefüllt; nicht für alle Felder konnten Quellen ergänzt werden."
+							: "Felder ausgefüllt; Quellen konnten nicht ergänzt werden.",
+						{ id: "fill-inputs" },
+					);
 				} else {
 					toast.success("Felder ausgefüllt", { id: "fill-inputs" });
 				}

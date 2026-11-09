@@ -18,10 +18,13 @@ import type { TagKind } from "./shared";
 export const tagFocusSelector = "[data-tag-focus]";
 const panelFocusSelector =
 	"button:not([disabled]):not([tabindex='-1']), input:not([disabled]), [tabindex='0']";
-/** Focuses the tag before or after `from` in document order; returns whether one exists. */
+/**
+ * Focuses the tag before or after `from` in document order; returns whether one
+ * exists. Like native Tab, it skips tags taken out of the tab order.
+ */
 export const focusAdjacentTag = (from: Element, step: 1 | -1) => {
 	const tags = [...document.querySelectorAll<HTMLElement>(tagFocusSelector)].filter(
-		(tag) => tag.getClientRects().length > 0,
+		(tag) => tag === from || (tag.tabIndex >= 0 && tag.getClientRects().length > 0),
 	);
 	const next = tags[tags.indexOf(from as HTMLElement) + step];
 	next?.focus();
@@ -50,7 +53,8 @@ export const TagPopover = ({
 	trigger,
 	unit,
 }: {
-	children: (close: () => void) => ReactNode;
+	/** `close` returns focus to the tag; `moveOn` continues with the next tag. */
+	children: (close: () => void, moveOn: () => void) => ReactNode;
 	/** Sources of the current value; Cmd/Ctrl-click opens them, like in the side inputs. */
 	citations?: CitationRequest[];
 	icon: ReactNode;
@@ -114,14 +118,20 @@ export const TagPopover = ({
 			panelRef.current?.querySelector<HTMLElement>("[aria-pressed=true]") ?? panelControls()[0]
 		)?.focus({ preventScroll: true });
 	};
-	// A condition has no value of its own; it is edited through its source fields.
-	// Calculations are typed inline. Phones move with the keyboard bar instead.
-	const entersFirstInput = kind === "condition" && !isPhoneLayout();
 	// Without a source field to type in, focus stays on the tag.
 	const focusFirstInput = () =>
 		panelControls()
 			.find((control) => control instanceof HTMLInputElement)
 			?.focus({ preventScroll: true });
+	// Where opened details take focus. A condition has no value of its own and is
+	// edited through its source fields; a choice starts on its chosen or first
+	// option. Calculations and information are typed inline, and phones move
+	// with the keyboard bar instead.
+	const panelEntries: Partial<Record<TagKind, () => void>> = {
+		condition: focusFirstInput,
+		select: focusPanel,
+	};
+	const enterPanel = isPhoneLayout() ? undefined : panelEntries[kind];
 	const moveToTag = (step: 1 | -1) => {
 		const own = ownControl();
 		setIsOpen(false);
@@ -140,12 +150,12 @@ export const TagPopover = ({
 		) {
 			active.blur();
 		}
-		// A click on a focused condition also moves into its first source field.
-		if (entersFirstInput) {
+		// A click on a focused tag also moves into its details.
+		if (enterPanel) {
 			if (panelRef.current) {
-				focusFirstInput();
+				enterPanel();
 			} else {
-				focusPanelRef.current = focusFirstInput;
+				focusPanelRef.current = enterPanel;
 			}
 		}
 		setIsOpen(true);
@@ -154,10 +164,10 @@ export const TagPopover = ({
 		if (!openOnFocus || suppressFocusOpenRef.current) {
 			return;
 		}
-		// Opening a condition, by Tab or click, starts in its first source field.
-		// Focus returning from its open details (arrow up) stays on the tag.
-		if (entersFirstInput && !panelRef.current) {
-			focusPanelRef.current = focusFirstInput;
+		// Opening by Tab or click moves into the details; focus returning from
+		// open details (arrow up) stays on the tag.
+		if (enterPanel && !panelRef.current) {
+			focusPanelRef.current = enterPanel;
 		}
 		setIsOpen(true);
 	};
@@ -198,7 +208,9 @@ export const TagPopover = ({
 			const below = Math.max(0, bottom - rect.bottom - 20);
 			// Natural content height, so a constrained panel cannot flip back and forth.
 			const height = panel.scrollHeight + popup.height - panel.clientHeight;
-			const showBelow = height <= below || below >= above;
+			// Above when it fits, so the details do not cover the text that follows,
+			// where the next tags are; otherwise wherever there is more room.
+			const showBelow = height > above && (height <= below || below >= above);
 			const maxHeight = showBelow ? below : above;
 			const fits = kind !== "info" || height <= maxHeight;
 			setPosition({
@@ -393,7 +405,7 @@ export const TagPopover = ({
 								</button>
 							)}
 						</div>
-						{children(close)}
+						{children(close, () => moveToTag(1))}
 					</div>,
 					document.body,
 				)}

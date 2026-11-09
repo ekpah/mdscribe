@@ -284,13 +284,17 @@ export default function ContentSection({
 									variables={values}
 								/>
 							</div>
-							{/* The copied text: the same rendering without any input controls. */}
-							<div hidden ref={copySourceRef}>
-								<DynamicMarkdocRenderer
-									layout="template"
-									markdocContent={note as string}
-									variables={values}
-								/>
+							{/* The copied text: the same rendering without any input controls. The
+							    copy reads its own element, which must not carry `hidden`: a hidden
+							    clone has no layout, so its text would lose every line break. */}
+							<div hidden>
+								<div ref={copySourceRef}>
+									<DynamicMarkdocRenderer
+										layout="template"
+										markdocContent={note as string}
+										variables={values}
+									/>
+								</div>
 							</div>
 						</InlineEditingScope>
 					</InlineFieldsProvider>

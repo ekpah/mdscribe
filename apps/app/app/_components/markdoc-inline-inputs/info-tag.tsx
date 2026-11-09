@@ -12,10 +12,21 @@ import type { CSSProperties } from "react";
 import { useRef } from "react";
 import { I18nProvider } from "react-aria-components";
 
-import { formatDateGerman, normalizeDateValue, parseDateInput } from "../inputs/ui/date-utils";
+import {
+	formatDateGerman,
+	getDateShortcut,
+	normalizeDateValue,
+	parseDateInput,
+} from "../inputs/ui/date-utils";
 import { hasFieldActions, FieldDetails } from "./field-details";
 import { useLayoutValue, useFieldState } from "./field-state";
-import { touchInputClassName, parseNumberDraft, useDraft, useFrozenWidth } from "./shared";
+import {
+	chipFieldPress,
+	touchInputClassName,
+	parseNumberDraft,
+	useDraft,
+	useFrozenWidth,
+} from "./shared";
 import { TagPopover } from "./tag-popover";
 
 /**
@@ -67,7 +78,15 @@ export const InlineInfo = (props: InfoProps) => {
 			name={name}
 			title={name}
 			trigger={({ className, isOpen, onFocus, panelId }) => (
-				<span className={className}>
+				// oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- Pointer users can hit the whole chip; keyboard users reach the input itself.
+				<span
+					className={cn(className, "cursor-text")}
+					onClick={(event) => {
+						isPointerFocusRef.current = true;
+						chipFieldPress.onClick(event);
+					}}
+					onMouseDown={chipFieldPress.onMouseDown}
+				>
 					<input
 						aria-describedby={isOpen ? panelId : undefined}
 						aria-label={name}
@@ -123,6 +142,16 @@ export const InlineInfo = (props: InfoProps) => {
 						}}
 						onPointerDown={() => {
 							isPointerFocusRef.current = true;
+						}}
+						// h, g and m type heute, gestern and morgen.
+						onKeyDown={(event) => {
+							const shortcut = isDate ? getDateShortcut(event) : null;
+							if (shortcut) {
+								event.preventDefault();
+								const next = formatDateGerman(shortcut);
+								field.setDraft(next);
+								onVariableChange(name, next);
+							}
 						}}
 						placeholder={placeholder}
 						style={

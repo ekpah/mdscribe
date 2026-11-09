@@ -351,6 +351,8 @@ export const InputPreviewSection = ({
 					await fields.fill?.(audioFiles, textContext, contextFiles);
 				}}
 				panelPortalTarget={usesPreviewPanelPortal ? previewPanelElement : null}
+				// The fill toast continues where document recognition left off.
+				progressToastId="fill-inputs"
 			/>
 		) : null;
 	const citationDialog = (

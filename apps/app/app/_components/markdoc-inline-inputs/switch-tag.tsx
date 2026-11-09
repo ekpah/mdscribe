@@ -12,7 +12,8 @@ import {
 	useVariables,
 } from "markdoc-md/react";
 import type { SwitchProps, VariableValue } from "markdoc-md/react";
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
+import { flushSync } from "react-dom";
 
 import { FieldDetails } from "./field-details";
 import { useLayoutValue, useFieldState } from "./field-state";
@@ -27,8 +28,10 @@ export const BranchTrigger = ({
 	onFocus,
 	openPanel,
 	panelId,
+	ref,
 	ringClassName,
 	selected,
+	tabStop = true,
 }: {
 	className: string;
 	icon: ReactNode;
@@ -37,8 +40,11 @@ export const BranchTrigger = ({
 	onFocus: () => void;
 	openPanel: () => void;
 	panelId: string;
+	ref?: Ref<HTMLSpanElement>;
 	ringClassName: string;
 	selected: ReactNode;
+	/** Off, Tab passes the chip; a click still opens it. */
+	tabStop?: boolean;
 }) => (
 	// The whole chip opens the options for pointer users. The accessible control
 	// comes first, so Tab reaches it before fields nested in the selected case,
@@ -53,6 +59,7 @@ export const BranchTrigger = ({
 				?.focus({ preventScroll: true });
 			openPanel();
 		}}
+		ref={ref}
 	>
 		<button
 			aria-controls={isOpen ? panelId : undefined}
@@ -67,7 +74,7 @@ export const BranchTrigger = ({
 			}}
 			onFocus={onFocus}
 			// Safari skips buttons on Tab unless they set a tab index.
-			tabIndex={0}
+			tabIndex={tabStop ? 0 : -1}
 			type="button"
 		/>
 		{/* A pseudo-element placeholder stays out of copied text. */}
@@ -113,7 +120,7 @@ export const InlineSwitch = (props: SwitchProps) => {
 				/>
 			)}
 		>
-			{(close) => (
+			{(close, moveOn) => (
 				<>
 					{(props.description ?? contract?.description) ? (
 						<p className="mt-1.5 text-muted-foreground text-xs leading-normal">
@@ -125,15 +132,28 @@ export const InlineSwitch = (props: SwitchProps) => {
 							<button
 								aria-pressed={selectedIndex === index}
 								className={cn(
-									"flex items-center justify-between gap-2 rounded-md border border-transparent px-2.5 py-2 text-left text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+									// The focused option always shows its ring, also when the details opened by click.
+									"flex items-center justify-between gap-2 rounded-md border border-transparent px-2.5 py-2 text-left text-foreground outline-none hover:bg-muted focus:ring-2 focus:ring-solarized-cyan",
 									selectedIndex === index &&
 										"border-solarized-cyan/30 bg-solarized-cyan/10 text-solarized-cyan",
 								)}
 								data-option
 								key={option.index ?? `${option.primary}-${index}`}
-								onClick={() => {
+								// A click or tap chooses and closes; Space (a click without a
+								// pointer) chooses and stays, Enter chooses and moves on.
+								onClick={(event) => {
 									onVariableChange(name, toValue(option.primary));
-									close();
+									if (event.detail > 0) {
+										close();
+									}
+								}}
+								onKeyDown={(event) => {
+									if (event.key === "Enter") {
+										event.preventDefault();
+										// Render the chosen case first: the next tag may be one of its fields.
+										flushSync(() => onVariableChange(name, toValue(option.primary)));
+										moveOn();
+									}
 								}}
 								type="button"
 							>

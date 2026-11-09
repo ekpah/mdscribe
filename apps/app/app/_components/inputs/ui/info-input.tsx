@@ -14,7 +14,7 @@ import { useCallback, useId, useMemo, useState } from "react";
 import { Button, DatePicker, Dialog, Group, Popover } from "react-aria-components";
 import { useMaskInput } from "use-mask-input";
 
-import { formatDateGerman, parseDateInput } from "./date-utils";
+import { formatDateGerman, getDateShortcut, parseDateInput } from "./date-utils";
 import { SuggestionBadge } from "./suggestion-badge";
 
 type InfoValue = string | number | DateValue | undefined;
@@ -170,7 +170,18 @@ const InfoInput = ({
 						{descriptionTooltip}
 					</div>
 					<div className="flex">
-						<Group className="w-full">
+						{/* h, g and m type heute, gestern and morgen into the date segments. */}
+						<Group
+							className="w-full"
+							onKeyDownCapture={(event) => {
+								const shortcut = getDateShortcut(event);
+								if (shortcut) {
+									event.preventDefault();
+									event.stopPropagation();
+									handleDateChange(shortcut);
+								}
+							}}
+						>
 							<DateInput className={cn("pe-9", inputClassName)} />
 						</Group>
 						<Button

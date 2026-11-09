@@ -19,6 +19,7 @@ import { detailButtonClassName, FieldDetails, FieldSourceBadge } from "./field-d
 import { useLayoutValue, useFieldState } from "./field-state";
 import {
 	CALC_PLACEHOLDER,
+	chipFieldPress,
 	touchInputClassName,
 	fieldClassName,
 	parseNumberDraft,
@@ -244,11 +245,13 @@ export const InlineCalc = (props: CalcProps) => {
 			trigger={({ className, isOpen, onFocus, openPanel, panelId }) =>
 				override.canEdit ? (
 					// Typed like an information field; the details show formula and sources.
+					// oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- Pointer users can hit the whole chip; keyboard users reach the input itself.
 					<span
 						className={cn(
 							className,
-							"has-[input:focus-visible]:ring-2 has-[input:focus-visible]:ring-solarized-violet",
+							"cursor-text has-[input:focus-visible]:ring-2 has-[input:focus-visible]:ring-solarized-violet",
 						)}
+						{...chipFieldPress}
 					>
 						{/* Inline icons: block icons in flex boxes become line breaks in copied text. */}
 						<Sigma aria-hidden className="mr-1 inline h-3 w-3 align-[-0.1em]" />

@@ -6,6 +6,7 @@ import { parseConditionCase } from "markdoc-md/parse";
 import type { CaseConditionOperator } from "markdoc-md/parse";
 import { useBranchTag, useMarkdocInteraction } from "markdoc-md/react";
 import type { SwitchProps } from "markdoc-md/react";
+import { useEffect, useState } from "react";
 
 import { DependencyField } from "./calc-tag";
 import { useLayoutValue } from "./field-state";
@@ -37,11 +38,42 @@ const describeCase = (attributes: Record<string, unknown>, members: string[], pr
 		)
 		.join(" und ");
 };
+/**
+ * Whether each member is typed in its own field in the text, such as a reading
+ * that a condition grades. Tab then reaches those fields only; the condition
+ * just shows what they decide.
+ */
+const useMembersInText = (members: string[]) => {
+	const [chip, setChip] = useState<HTMLElement | null>(null);
+	const [inText, setInText] = useState(false);
+	const key = members.join("\n").toLowerCase();
+	useEffect(() => {
+		const text = chip?.closest("article");
+		if (!text) {
+			return;
+		}
+		const update = () => {
+			const typed = new Set(
+				[
+					...text.querySelectorAll<HTMLInputElement>("input[data-inline-input][data-tag-focus]"),
+				].map((field) => field.dataset.inlineInput?.toLowerCase()),
+			);
+			setInText(key.split("\n").every((member) => typed.has(member)));
+		};
+		update();
+		// Switching a case can add or remove fields anywhere in the text.
+		const observer = new MutationObserver(update);
+		observer.observe(text, { childList: true, subtree: true });
+		return () => observer.disconnect();
+	}, [chip, key]);
+	return { inText, ref: setChip };
+};
 export const InlineCondition = (props: SwitchProps) => {
 	const { name, cases, selectedIndex, selected } = useBranchTag(props, "condition");
 	const shownSelected = useLayoutValue(selected);
 	const { activeTagName, onVariableChange } = useMarkdocInteraction();
 	const members = Array.isArray(props.primary) ? props.primary : [props.primary];
+	const membersInText = useMembersInText(members);
 	if (!onVariableChange || members.length === 0) {
 		return selected;
 	}
@@ -63,8 +95,10 @@ export const InlineCondition = (props: SwitchProps) => {
 					onFocus={onFocus}
 					openPanel={openPanel}
 					panelId={panelId}
+					ref={membersInText.ref}
 					ringClassName="has-[>button:focus-visible]:ring-2 has-[>button:focus-visible]:ring-solarized-yellow"
 					selected={shownSelected}
+					tabStop={!membersInText.inText}
 				/>
 			)}
 			unit={props.unit}

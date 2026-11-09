@@ -26,6 +26,11 @@ interface InputContextControlsProps {
 	className?: string;
 	/** Closes the open context panel when filling starts, so the filled content shows. */
 	closeOnSubmit?: boolean;
+	/**
+	 * Toast that shows document recognition before `onSubmit`; the submit's own
+	 * progress toast with the same id then replaces it in place.
+	 */
+	progressToastId?: string;
 	controller: InputContextController;
 	defaultPanel?: InputContextPanel | null;
 	disabled?: boolean;
@@ -511,6 +516,7 @@ export const InputContextControls = ({
 	onFocusShortcut,
 	onSubmitShortcut,
 	panelPortalTarget,
+	progressToastId,
 	pendingLabel = "Wird ausgefüllt...",
 	showSubmit = true,
 	submitShortcutDisabled = false,
@@ -588,18 +594,35 @@ export const InputContextControls = ({
 			setOpenPanel(null);
 		}
 
+		// Recognizing uploaded documents can take a while before filling starts.
+		const recognizesDocuments =
+			controller.ocrConfigured &&
+			controller.contextFiles.some(
+				(file) =>
+					file.viewRotation || (file.ocrStatus !== "complete" && file.ocrStatus !== "error"),
+			);
+		const toastId = recognizesDocuments ? (progressToastId ?? "input-context-ocr") : undefined;
+		if (toastId) {
+			toast.loading("Dokumentenerkennung läuft…", { id: toastId });
+		}
 		try {
-			await onSubmit(await controller.prepareSubmission());
+			const submission = await controller.prepareSubmission();
+			if (toastId && !progressToastId) {
+				toast.dismiss(toastId);
+			}
+			await onSubmit(submission);
 		} catch (error) {
 			if (error instanceof Error && error.message) {
-				toast.error(error.message);
+				toast.error(error.message, { id: toastId });
+			} else if (toastId) {
+				toast.dismiss(toastId);
 			}
 			// Keep captured context visible so the user can inspect or retry.
 		} finally {
 			submittingRef.current = false;
 			setIsSubmitting(false);
 		}
-	}, [closeOnSubmit, controller, disabled, isSubmitting, onSubmit]);
+	}, [closeOnSubmit, controller, disabled, isSubmitting, onSubmit, progressToastId]);
 
 	const handleTextContextLimitExceeded = useCallback((maxCharacters: number) => {
 		toast.error(
