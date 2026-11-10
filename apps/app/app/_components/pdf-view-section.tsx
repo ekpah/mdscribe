@@ -64,7 +64,7 @@ interface PdfDocumentForAnnotations {
 }
 
 interface PdfViewport {
-	convertToViewportRectangle: (rect: number[]) => number[];
+	convertToViewportPoint: (x: number, y: number) => number[];
 }
 
 interface PdfPageForHighlight {
@@ -277,7 +277,8 @@ const getViewportStyle = (
 	rect: [number, number, number, number],
 	viewport: PdfViewport,
 ): CSSProperties => {
-	const [x1, y1, x2, y2] = viewport.convertToViewportRectangle(rect);
+	const [x1, y1] = viewport.convertToViewportPoint(rect[0], rect[1]);
+	const [x2, y2] = viewport.convertToViewportPoint(rect[2], rect[3]);
 	const left = Math.min(x1, x2);
 	const top = Math.min(y1, y2);
 	const width = Math.abs(x2 - x1);
@@ -292,9 +293,8 @@ const getViewportStyle = (
 };
 
 const getViewportBounds = (rect: [number, number, number, number], viewport: PdfViewport) => {
-	const convertedRect = viewport.convertToViewportRectangle(rect);
-	const y1 = convertedRect[1] ?? 0;
-	const y2 = convertedRect[3] ?? 0;
+	const [, y1] = viewport.convertToViewportPoint(rect[0], rect[1]);
+	const [, y2] = viewport.convertToViewportPoint(rect[2], rect[3]);
 	const top = Math.min(y1, y2);
 	const height = Math.abs(y2 - y1);
 	return { height, top };
@@ -482,6 +482,7 @@ const PdfBufferView = ({
 			onLoadError={onDocumentLoadError}
 			onLoadSuccess={(pdfDocument) => onDocumentLoadSuccess(buffer, pdfDocument)}
 			options={options}
+			suspense={false}
 		>
 			<Page
 				key={`${buffer.id}-${pageNumber}`}

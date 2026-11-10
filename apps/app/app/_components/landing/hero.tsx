@@ -2,10 +2,11 @@
 
 import { buttonVariants } from "@repo/design-system/components/ui/button";
 import { cn } from "@repo/design-system/lib/utils";
-import { ArrowDown, ArrowRight, Check, Github } from "lucide-react";
+import { ArrowDown, ArrowRight, Check } from "lucide-react";
 import Link from "next/link";
 import type { MouseEvent } from "react";
 
+import { GithubIcon } from "@/app/_components/landing/github-icon";
 import { USER_MESSAGES } from "@/lib/user-messages";
 
 interface HeroProps {
@@ -72,7 +73,7 @@ export const Hero = ({ isLoggedIn }: HeroProps) => {
 							rel="noopener noreferrer"
 							target="_blank"
 						>
-							<Github data-icon="inline-start" />
+							<GithubIcon data-icon="inline-start" />
 							{content.githubCta}
 						</Link>
 					</div>

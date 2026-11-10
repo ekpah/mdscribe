@@ -47,6 +47,7 @@
 ### Changed
 
 - Inline template fields and the document step bar are available to everyone instead of only to the admin; the `inline-inputs` flag and the side input column beside the template and document previews are removed.
+- Refresh compatible dependencies, including Next.js 16.4.5, Tiptap 3.33, LiteParse 2.18, AI SDK providers, Better Auth 1.7.18, Postgres.js 4.1, and validation tools. Upgrade Lucide to 1.70, React-PDF to 11 with matching PDF.js 6.3.289, and Hook Form Resolvers to 7. Preserve PDF loading behavior and rotated field highlights with the updated APIs, retain the GitHub brand icon locally, and refresh the Bun lockfile while keeping incompatible major upgrades deferred.
 - AI-Scribe answers locate their document citations in the background as soon as citations are complete, like Fill Inputs, so opening an image or PDF citation no longer waits for a decision-model request. Both views share one location cache and prefetch in `useCitationPreview`. A decision model that rejects box questions (for example Mammoth-1) shows the cited page without a highlight instead of an error, and is not asked again on every click; rate limits and outages still retry when the citation is opened.
 - Tab skips a condition when each field it compares is already a field in the text, as in a row of readings that conditions grade; Tab then moves straight from field to field. A click still opens the condition.
 - Fill Inputs allows its citation pass 20 s instead of 8 s within the existing 30 s evidence budget. Filled values still appear before their sources.

@@ -1,6 +1,6 @@
-import { Github } from "lucide-react";
 import Link from "next/link";
 
+import { GithubIcon } from "@/app/_components/landing/github-icon";
 import { USER_MESSAGES } from "@/lib/user-messages";
 
 export const Footer = () => {
@@ -25,7 +25,7 @@ export const Footer = () => {
 							rel="noopener noreferrer"
 							target="_blank"
 						>
-							<Github className="size-4" />
+							<GithubIcon className="size-4" />
 							{content.github}
 						</Link>
 						<Link className="transition-colors hover:text-foreground" href="/legal">

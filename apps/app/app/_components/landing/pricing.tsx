@@ -2,11 +2,12 @@
 
 import { buttonVariants } from "@repo/design-system/components/ui/button";
 import { cn } from "@repo/design-system/lib/utils";
-import { ArrowUpRight, Check, Github, Plus, Server } from "lucide-react";
+import { ArrowUpRight, Check, Plus, Server } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useState } from "react";
 import type { ReactNode } from "react";
 
+import { GithubIcon } from "@/app/_components/landing/github-icon";
 import { USER_MESSAGES } from "@/lib/user-messages";
 
 const CONTENT = USER_MESSAGES.landing;
@@ -131,7 +132,7 @@ const SourceSection = () => {
 						rel="noopener noreferrer"
 						target="_blank"
 					>
-						<Github data-icon="inline-start" />
+						<GithubIcon data-icon="inline-start" />
 						{content.cta}
 						<ArrowUpRight data-icon="inline-end" />
 					</Link>
