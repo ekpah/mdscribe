@@ -2,12 +2,11 @@ import { devices, expect, test } from "@playwright/test";
 
 test.use({ viewport: { height: 1000, width: 1600 } });
 
-for (const inlineInputs of [false, true]) {
-	test(`template text fills the available width with inline inputs ${inlineInputs}`, async ({
-		page,
-	}) => {
+// Signed in, the bottom toolbar also offers context and Füllen.
+for (const signedIn of [false, true]) {
+	test(`template text fills the available width when signed in ${signedIn}`, async ({ page }) => {
 		test.slow();
-		if (inlineInputs) {
+		if (signedIn) {
 			await page.goto("/sign-in");
 			await page.getByLabel("E-Mail oder Benutzername").fill("test@test.com");
 			await page.getByLabel("Passwort", { exact: true }).fill("password123");

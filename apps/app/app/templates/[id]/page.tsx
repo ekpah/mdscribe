@@ -10,7 +10,6 @@ import { QueryClient } from "@tanstack/react-query";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { inlineInputsFlag } from "@/flags";
 import { orpc } from "@/lib/orpc";
 import { getServerSession } from "@/lib/server-session";
 
@@ -40,10 +39,7 @@ const NotePage = async ({ params, searchParams }: PageProps<"/templates/[id]">) 
 	const { view } = await searchParams;
 	const contentView: TemplateContentView =
 		view === "examples" || view === "information" ? view : "template";
-	const [doc, inlineInputs] = await Promise.all([
-		queryClient.fetchQuery(orpc.templates.get.queryOptions({ input: { id } })),
-		inlineInputsFlag(),
-	]);
+	const doc = await queryClient.fetchQuery(orpc.templates.get.queryOptions({ input: { id } }));
 	if (!doc) {
 		throw new Error("Document not found");
 	}
@@ -78,7 +74,6 @@ const NotePage = async ({ params, searchParams }: PageProps<"/templates/[id]">) 
 				contentView={contentView}
 				examples={doc.examples}
 				information={doc.information}
-				inlineInputs={inlineInputs}
 				note={doc.content}
 			/>
 		</div>

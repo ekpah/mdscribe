@@ -28,13 +28,3 @@ export const templateAgentFlag = flag<boolean, FlagEntities>({
 	identify,
 	key: "template-agent",
 });
-
-export const inlineInputsFlag = flag<boolean, FlagEntities>({
-	// Admin-only preview.
-	decide: ({ entities }) => Boolean(entities?.isAdmin),
-	defaultValue: false,
-	description:
-		"Template fields edited inline in the text and document fields in a step bar, instead of the side input column",
-	identify,
-	key: "inline-inputs",
-});

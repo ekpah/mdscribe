@@ -1027,7 +1027,7 @@ export interface TemplateFields {
 	calculations: Map<string, CalcInputTagType>;
 	fieldSources: Record<string, InputSource>;
 	suggestedValues: Record<string, SuggestedValue>;
-	/** Provenance, AI suggestion and sources per field, for editors outside the side form. */
+	/** Provenance, AI suggestion and sources per field, for editors outside the form list, such as inline tags. */
 	states: Record<string, FieldState>;
 	changeHandlers: Record<string, (value: unknown) => void>;
 	/**

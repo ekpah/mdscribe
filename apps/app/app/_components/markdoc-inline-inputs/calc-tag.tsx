@@ -29,7 +29,7 @@ import {
 import { TagPopover } from "./tag-popover";
 
 /**
- * Typing over a calculated value overrides it, exactly like the side inputs:
+ * Typing over a calculated value overrides it, exactly like the form inputs:
  * the edit commits on blur or Enter, and clearing it resumes the formula.
  */
 const useCalcOverride = (
@@ -147,7 +147,7 @@ export const DependencyField = ({ name, unit: fallbackUnit }: { name: string; un
 	);
 };
 /**
- * The result, editable as a manual override exactly like the side inputs: an
+ * The result, editable as a manual override exactly like the form inputs: an
  * edit commits on blur or Enter, and clearing it or resetting resumes the formula.
  */
 const CalcResult = ({

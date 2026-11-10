@@ -34,7 +34,7 @@ export const hasFieldActions = (
 		(!isCalc && state?.suggestion && String(value ?? "") !== String(state.suggestion.value)),
 	);
 /**
- * Provenance, AI suggestion and sources of one field, as the side inputs show
+ * Provenance, AI suggestion and sources of one field, as the form inputs show
  * them. Calculations show their AI value and reset in the result section instead.
  */
 export const FieldDetails = ({

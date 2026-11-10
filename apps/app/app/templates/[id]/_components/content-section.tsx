@@ -174,22 +174,17 @@ const InformationPreview = ({ information }: { information: string }) => {
 
 export default function ContentSection({
 	contentView,
-	inlineInputs,
 	note,
 	examples,
 	information,
 }: {
 	contentView: TemplateContentView;
-	/** Edit fields inline in the text instead of in the side column. */
-	inlineInputs: boolean;
 	note: string;
 	examples: string[];
 	information: string;
 }) {
 	const inputTags = useMemo(() => parseMarkdocToInputs(note), [note]);
 	const [activeInputName, setActiveInputName] = useState<string | null>(null);
-	const [activeInputFocusKey, setActiveInputFocusKey] = useState(0);
-	const [activePreviewFocusKey, setActivePreviewFocusKey] = useState(0);
 	const pathname = usePathname();
 	const searchParams = useSearchParams();
 	const buildContentViewHref = (view: TemplateContentView) => {
@@ -213,14 +208,6 @@ export default function ContentSection({
 			templateHref={buildContentViewHref("template")}
 		/>
 	);
-	const handleInputSelect = useCallback((inputName: string) => {
-		setActiveInputName(inputName);
-		setActivePreviewFocusKey((currentKey) => currentKey + 1);
-	}, []);
-	const handleMarkdocTagSelect = useCallback((tagName: string) => {
-		setActiveInputName(tagName);
-		setActiveInputFocusKey((currentKey) => currentKey + 1);
-	}, []);
 	// Highlights every occurrence of the field edited last, without moving focus.
 	const handleInlineTagActivate = useCallback((event: SyntheticEvent) => {
 		const tag =
@@ -235,33 +222,15 @@ export default function ContentSection({
 
 	return (
 		<InputPreviewSection
-			activeInputFocusKey={activeInputFocusKey}
-			activeInputName={activeInputName}
-			activePreviewFocusKey={activePreviewFocusKey}
 			contentType="template"
 			edgeTabs={contentTabs}
-			inlineInputs={inlineInputs}
 			inputTags={inputTags}
-			onInputSelect={handleInputSelect}
 			preview={(values, onCitationSelect, fields) => {
 				if (contentView === "examples") {
 					return <ExamplesPreview examples={examples} />;
 				}
 				if (contentView === "information") {
 					return <InformationPreview information={information} />;
-				}
-				if (!inlineInputs) {
-					return (
-						<DynamicMarkdocRenderer
-							activeTagName={activeInputName}
-							className="prose prose-slate max-w-none grow"
-							layout="template"
-							markdocContent={note as string}
-							onCitationSelect={onCitationSelect}
-							onTagSelect={handleMarkdocTagSelect}
-							variables={values}
-						/>
-					);
 				}
 				return (
 					<InlineFieldsProvider value={fields}>
@@ -304,9 +273,7 @@ export default function ContentSection({
 			templateExamples={examples}
 			templateInformation={information}
 			toolbarActions={
-				inlineInputs && contentView === "template" ? (
-					<CopyTextButton sourceRef={copySourceRef} />
-				) : undefined
+				contentView === "template" ? <CopyTextButton sourceRef={copySourceRef} /> : undefined
 			}
 		/>
 	);

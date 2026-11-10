@@ -10,7 +10,7 @@ import type { FieldState } from "../inputs/inputs";
 export interface InlineFields {
 	states: Record<string, FieldState>;
 	setValue: (key: string, value: unknown) => void;
-	/** Accepts the AI suggestion or resumes a calculation, like the side inputs' reset. */
+	/** Accepts the AI suggestion or resumes a calculation, like the form inputs' reset. */
 	clearValue: (key: string) => void;
 	showSources: (citations: CitationRequest[]) => void;
 }

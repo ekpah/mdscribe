@@ -55,7 +55,7 @@ export const TagPopover = ({
 }: {
 	/** `close` returns focus to the tag; `moveOn` continues with the next tag. */
 	children: (close: () => void, moveOn: () => void) => ReactNode;
-	/** Sources of the current value; Cmd/Ctrl-click opens them, like in the side inputs. */
+	/** Sources of the current value; Cmd/Ctrl-click opens them, like in the form inputs. */
 	citations?: CitationRequest[];
 	icon: ReactNode;
 	/** Info tooltips become interactive when they offer actions such as sources. */
@@ -291,7 +291,7 @@ export const TagPopover = ({
 				}
 			}}
 			onClickCapture={(event) => {
-				// Cmd/Ctrl-click opens the value's sources, as in the side inputs.
+				// Cmd/Ctrl-click opens the value's sources, as in the form inputs.
 				if ((event.metaKey || event.ctrlKey) && citations?.length && fields) {
 					event.preventDefault();
 					event.stopPropagation();

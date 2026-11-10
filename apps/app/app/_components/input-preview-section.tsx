@@ -25,8 +25,6 @@ import { useSession } from "@/lib/auth-client";
 import type { OcrResult } from "@/lib/ocr-types";
 import { orpc } from "@/lib/orpc";
 
-import type { SideInputsSelection } from "./input-side-panel";
-import { InputSidePanelCard } from "./input-side-panel";
 import type {
 	FillInputsAudioFile,
 	FillInputsContextFile,
@@ -41,15 +39,11 @@ import type { InlineFields } from "./markdoc-inline-inputs";
 /** Where field edits happen: inline tags, their details, and the document step bar. */
 const fieldEditorSelector = "[data-markdoc-input], [data-inline-panel], [data-field-editor]";
 
-interface InputPreviewSectionProps extends SideInputsSelection {
+/** Fields are edited in the preview, with context, fill and global actions in a bottom toolbar. */
+interface InputPreviewSectionProps {
 	contentType: "document" | "template";
 	edgeTabs?: ReactNode;
 	inputTags: InputTagType[];
-	/**
-	 * Fields are edited in the preview, with a bottom toolbar, instead of in the
-	 * side input column. Gated by `inlineInputsFlag`.
-	 */
-	inlineInputs?: boolean;
 	/** Shows a field for review; templates focus its inline tag by default. */
 	onReviewField?: (inputName: string) => void;
 	onValuesChange?: (values: Record<string, unknown>) => void;
@@ -58,7 +52,7 @@ interface InputPreviewSectionProps extends SideInputsSelection {
 		onCitationSelect: (citations: CitationRequest[]) => void,
 		/** Field states and writes for editing inside the preview. */
 		fields: InlineFields,
-		/** The complete field state, for editors that reuse the side-form controls. */
+		/** The complete field state, for editors that reuse the form controls, such as the step bar. */
 		form: TemplateFields,
 	) => ReactNode;
 	previewToolbar?: ReactNode;
@@ -90,15 +84,9 @@ const createTextSourceSnapshot = (
 	);
 
 export const InputPreviewSection = ({
-	activeInputFocusKey,
-	activeInputName,
-	activePreviewFocusKey,
 	contentType,
 	edgeTabs,
-	inlineInputs = false,
 	inputTags,
-	onInputBlur,
-	onInputSelect,
 	onReviewField,
 	onValuesChange,
 	preview,
@@ -254,9 +242,6 @@ export const InputPreviewSection = ({
 	// ⌘/Ctrl+Z undoes and ⇧⌘/Ctrl+Shift+Z or Ctrl+Y redoes field changes, also while
 	// typing in a field. Other text boxes, such as the context notes, keep their own undo.
 	useEffect(() => {
-		if (!inlineInputs) {
-			return;
-		}
 		const handleKeyDown = (event: KeyboardEvent) => {
 			const key = event.key.toLowerCase();
 			const isUndo = key === "z" && !event.shiftKey;
@@ -291,7 +276,7 @@ export const InputPreviewSection = ({
 		};
 		document.addEventListener("keydown", handleKeyDown);
 		return () => document.removeEventListener("keydown", handleKeyDown);
-	}, [inlineInputs, redo, undo]);
+	}, [redo, undo]);
 
 	useEffect(() => {
 		onValuesChange?.(values);
@@ -339,12 +324,8 @@ export const InputPreviewSection = ({
 	const fillControls =
 		hasInputTags && fields.fill ? (
 			<InputContextControls
-				className={
-					inlineInputs
-						? "w-auto shrink-0"
-						: "shrink-0 border-t border-t-solarized-blue/30 bg-solarized-blue/5 px-4 py-3"
-				}
-				closeOnSubmit={inlineInputs}
+				className="w-auto shrink-0"
+				closeOnSubmit
 				controller={inputContextController}
 				onSubmit={async ({ audioFiles, contextFiles, preparedContextFiles, textContext }) => {
 					submittedFilesRef.current = preparedContextFiles;
@@ -355,35 +336,6 @@ export const InputPreviewSection = ({
 				progressToastId="fill-inputs"
 			/>
 		) : null;
-	const citationDialog = (
-		<CitationPreviewDialog onOpenChange={handleCitationDialogChange} previews={citationPreviews} />
-	);
-
-	if (!inlineInputs) {
-		return (
-			<>
-				<InputSidePanelCard
-					activeInputFocusKey={activeInputFocusKey}
-					activeInputName={activeInputName}
-					activePreviewFocusKey={activePreviewFocusKey}
-					contentType={contentType}
-					edgeTabs={edgeTabs}
-					fields={fields}
-					fillControls={fillControls}
-					inputTags={inputTags}
-					onCitationsSelect={handleCitationsSelect}
-					onInputBlur={onInputBlur}
-					onInputSelect={onInputSelect}
-					preview={preview(values, handleCitationsSelect, inlineFields, fields)}
-					previewPanelElement={previewPanelElement}
-					previewPanelRef={handlePreviewPanelRef}
-					previewToolbar={previewToolbar}
-				/>
-				{citationDialog}
-			</>
-		);
-	}
-
 	return (
 		<>
 			{/* Inline-size containment keeps a wide PDF or step bar from widening the page on phones. */}
@@ -468,7 +420,10 @@ export const InputPreviewSection = ({
 					</div>
 				) : null}
 			</Card>
-			{citationDialog}
+			<CitationPreviewDialog
+				onOpenChange={handleCitationDialogChange}
+				previews={citationPreviews}
+			/>
 		</>
 	);
 };

@@ -53,14 +53,11 @@ export default function ContentSection({
 	documentId,
 	definition,
 	information,
-	inlineInputs,
 }: {
 	downloadFileName?: string;
 	documentId: string;
 	definition: DocumentDefinition;
 	information: string;
-	/** Edit one field at a time in a step bar under the PDF instead of in the side column. */
-	inlineInputs: boolean;
 }) {
 	const normalizedDefinition = useMemo(() => {
 		try {
@@ -283,14 +280,9 @@ export default function ContentSection({
 
 	return (
 		<InputPreviewSection
-			activeInputFocusKey={activeInputFocusKey}
-			activeInputName={activeInputName}
 			contentType="document"
 			edgeTabs={<DocumentPreviewTabs activeView={contentView} onViewChange={setContentView} />}
-			inlineInputs={inlineInputs}
 			inputTags={inputs}
-			onInputBlur={handleInputBlur}
-			onInputSelect={(inputName) => handleActiveChange(inputName, false)}
 			onReviewField={(inputName) => handleActiveChange(inputName, true)}
 			onValuesChange={setValues}
 			preview={(_values, _onCitationSelect, fields, form) => {
@@ -306,15 +298,12 @@ export default function ContentSection({
 						activeFieldHighlights={activePdfFieldHighlights}
 						activeFieldNavigationKey={activePdfNavigationKey}
 						hasUploadedFile={Boolean(previewPdfBytes)}
-						onFieldOrderChange={inlineInputs ? handleFieldOrderChange : undefined}
+						onFieldOrderChange={handleFieldOrderChange}
 						onFieldSelect={handlePdfFieldSelect}
 						pdfFile={previewPdfBytes}
 						resetKey={documentId}
 					/>
 				);
-				if (!inlineInputs) {
-					return pdfView;
-				}
 				return (
 					<div className="flex h-full min-h-0 flex-col">
 						<div className="min-h-0 flex-1 overflow-y-auto">{pdfView}</div>
