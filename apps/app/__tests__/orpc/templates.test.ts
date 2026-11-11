@@ -238,7 +238,7 @@ describe("Templates oRPC Handlers", () => {
 				expect(result).toEqual([]);
 			});
 
-			test("returns user's authored templates (limited to 3)", async () => {
+			test("returns all of the user's authored templates by default", async () => {
 				const { user } = await createTestUser(server.db);
 
 				// Create 4 templates
@@ -255,7 +255,31 @@ describe("Templates oRPC Handlers", () => {
 					context,
 				});
 
-				// Should only return 3 (the limit)
+				// Without a limit, all authored templates are returned
+				expect(result).toHaveLength(4);
+			});
+
+			test("respects the limit input", async () => {
+				const { user } = await createTestUser(server.db);
+
+				// Create 4 templates
+				for (let i = 1; i <= 4; i += 1) {
+					await createTestTemplate(server.db, user.id, {
+						title: `Template ${i}`,
+					});
+				}
+
+				const session = createMockSession(user);
+				const context = createTestContext({ db: server.db, session });
+
+				const result = await call(
+					templatesHandler.authored,
+					{ limit: 3 },
+					{
+						context,
+					},
+				);
+
 				expect(result).toHaveLength(3);
 			});
 		});

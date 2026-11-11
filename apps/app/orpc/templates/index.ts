@@ -248,16 +248,25 @@ const getTemplateHandler = pub
 /**
  * Get templates authored by the current user
  */
-const getAuthoredHandler = authed.handler(async ({ context }) => {
-	const userTemplates = await context.db
-		.select(templateListSelection)
-		.from(template)
-		.where(eq(template.authorId, context.session.user.id))
-		.orderBy(desc(template.updatedAt))
-		.limit(3);
+const authoredTemplatesInput = z
+	.object({
+		limit: z.number().int().min(1).max(100).optional(),
+	})
+	.default({});
 
-	return userTemplates;
-});
+const getAuthoredHandler = authed
+	.input(authoredTemplatesInput)
+	.handler(async ({ context, input }) => {
+		const query = context.db
+			.select(templateListSelection)
+			.from(template)
+			.where(eq(template.authorId, context.session.user.id))
+			.orderBy(desc(template.updatedAt))
+			.$dynamic();
+		const userTemplates = await (input.limit ? query.limit(input.limit) : query);
+
+		return userTemplates;
+	});
 
 const getEditorContextHandler = authed.handler(async ({ context }) => {
 	const userId = context.session.user.id;

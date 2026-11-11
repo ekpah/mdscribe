@@ -739,7 +739,7 @@ export default async function DashboardPage() {
 	const queryClient = getQueryClient();
 	const usageQueryOptions = orpc.getUsage.queryOptions();
 	const collectionsQueryOptions = orpc.user.collections.list.queryOptions();
-	const authoredQueryOptions = orpc.templates.authored.queryOptions();
+	const authoredQueryOptions = orpc.templates.authored.queryOptions({ input: { limit: 3 } });
 	const aiFunctionRecommendationsQueryOptions = orpc.user.aiFunctionRecommendations.queryOptions();
 	const recentActivityQueryOptions = orpc.user.recentActivity.queryOptions();
 
