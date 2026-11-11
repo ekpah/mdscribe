@@ -46,9 +46,9 @@ const httpSelection: ResolvedOcrServiceSelection = {
 	model: {
 		apiKey: "private-token",
 		credentialSource: "operator",
-		endpoint: "http://paddle:8829/ocr",
-		modelName: "Paddle/ocr",
-		providerId: "paddle",
+		endpoint: "http://test-ocr:8829/ocr",
+		modelName: "Test OCR/ocr",
+		providerId: "test-ocr",
 		providerProtocol: "ocr-http",
 	},
 	slot: "file-image",
@@ -374,7 +374,7 @@ describe("Scribe OCR adapter", () => {
 					.where(eq(usageEvent.name, AI_SCRIBE_OCR_EVENT_NAME));
 				expect(events).toHaveLength(2);
 				for (const event of events) {
-					expect(event.model).toBe("Paddle/ocr");
+					expect(event.model).toBe("Test OCR/ocr");
 					expect(event.metadata).toMatchObject({ promptName: "ocr:document" });
 					expect(event.inputTokens).toBeNull();
 					expect(event.result).toBe(zdr ? "[zdr - content redacted]" : "Befund A\n\f\nBefund B");

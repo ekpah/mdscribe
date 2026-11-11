@@ -1,14 +1,12 @@
 # dots.mocr OCR service (Modal)
 
 [dots.mocr](https://huggingface.co/dots-studio/dots.mocr) (3B, MIT) on a Modal GPU.
-It serves the same multipart `POST /ocr` contract as `services/paddleocr`, so the
-app uses it through the existing **OCR HTTP** provider without code changes.
+It serves the multipart `POST /ocr` contract used by the app's **OCR HTTP** provider.
 
-Unlike the PaddleOCR deployment, one model pass returns both the text and the
-citation boxes:
+One model pass returns both the text and the citation boxes:
 
 - `text`: the page as Markdown with HTML tables in reading order, cleaned by
-  `services/paddleocr/postprocess.py` (LaTeX to Unicode, pressure readings).
+  `postprocess.py` (LaTeX to Unicode, pressure readings).
 - `results`: one entry per layout block (paragraph, list item, table, table
   cell region) with its plain text and an XYXY box in pixels of the uploaded,
   manually aligned image. dots.mocr reports no confidence, so it is always `1.0`.
@@ -41,5 +39,6 @@ In the app, add an **OCR HTTP** connection with that `/ocr` URL as base URL and
 ## Tests
 
 ```bash
-cd services/dotsocr && python3 -m unittest test_layout
+uv run --no-project --with fastapi --with numpy --with pillow \
+  python -m unittest discover -s services/dotsocr
 ```

@@ -4,7 +4,7 @@ import type { ResolvedOcrServiceSelection } from "@/orpc/scribe/providers";
 
 /**
  * Self-hosted OCR services implementing the LiteParse HTTP protocol, such as
- * `services/paddleocr`. Native document markup is kept independently of the
+ * `services/dotsocr`. Native document markup is kept independently of the
  * line-level citation geometry.
  */
 export const createHttpOcrAdapter = (model: ResolvedOcrServiceSelection["model"]): OcrAdapter => ({

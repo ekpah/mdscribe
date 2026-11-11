@@ -26,13 +26,8 @@ readonly -a SYSTEM_PACKAGES=(
 	fonts-roboto
 	postgresql
 	postgresql-contrib
-	postgresql-server-dev-15
-	libgl1
-	libglib2.0-0
-	libgomp1
-	libsm6
-	libxext6
-	libxrender1
+	# Match Debian's default server: PostgreSQL 15 on bookworm, 17 on trixie.
+	postgresql-server-dev-all
 	ssl-cert
 	xz-utils
 )
@@ -71,34 +66,21 @@ if ! command -v node >/dev/null 2>&1 || [[ "$(node --version)" != "v${NODE_VERSI
 fi
 
 step "Checking Bun ${BUN_VERSION}..."
-if ! command -v bun >/dev/null 2>&1 || [[ "$(bun --version)" != "${BUN_VERSION}" ]]; then
-	curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}"
-fi
 export BUN_INSTALL="${HOME}/.bun"
 export PATH="${BUN_INSTALL}/bin:${PATH}"
-sudo ln -sf "${BUN_INSTALL}/bin/bun" /usr/local/bin/bun
+if ! command -v bun >/dev/null 2>&1 || [[ "$(bun --version)" != "${BUN_VERSION}" ]]; then
+	curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}"
+	# Only link our own install; the base image may already provide Bun elsewhere.
+	sudo ln -sf "${BUN_INSTALL}/bin/bun" /usr/local/bin/bun
+fi
 
 step "Installing workspace dependencies..."
 bun install --frozen-lockfile
 
-readonly PADDLEOCR_VENV="${HOME}/.cache/mdscribe/paddleocr-venv"
-readonly PADDLEOCR_HOME="${HOME}/.cache/mdscribe/paddleocr-models"
-step "Installing the PaddleOCR CPU service..."
-uv python install 3.12
-uv venv --python 3.12 --allow-existing "${PADDLEOCR_VENV}"
-# PyPI publishes the same CPU runtime as the vendor index, without its slow CDN.
-# Resolve together so the runtime install does not first fetch incompatible NumPy/Pillow versions.
-uv pip install --python "${PADDLEOCR_VENV}/bin/python" \
-	paddlepaddle==3.3.1 \
-	--requirement services/paddleocr/requirements.txt
-
-step "Warming PaddleOCR model files..."
-mkdir -p "${PADDLEOCR_HOME}"
-HOME="${PADDLEOCR_HOME}" PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True \
-	PYTHONPATH="${PWD}/services/paddleocr" \
-	"${PADDLEOCR_VENV}/bin/python" -c \
-	'from server import _create_pipeline; pipeline = _create_pipeline(); assert pipeline is not None' \
-	2>&1 | tee "${HOME}/.cache/mdscribe/paddleocr-warm.log"
+step "Removing retired OCR test caches from older snapshots..."
+rm -rf -- "${HOME}/.cache/mdscribe/paddleocr-venv" \
+	"${HOME}/.cache/mdscribe/paddleocr-models" \
+	"${HOME}/.cache/mdscribe/paddleocr-warm.log"
 
 ensure_env_defaults() {
 	local env_file="$1"

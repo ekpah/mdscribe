@@ -1,7 +1,7 @@
-"""dots.mocr on a Modal GPU, serving the same `POST /ocr` contract as services/paddleocr.
+"""dots.mocr on a Modal GPU, serving the app's OCR HTTP `POST /ocr` contract.
 
 One model pass returns both: `text` is the page as Markdown with HTML tables
-(cleaned by paddleocr/postprocess.py), and `results` are its layout blocks
+(cleaned by postprocess.py), and `results` are its layout blocks
 (paragraphs, list items, table cells) as pixel boxes for citations.
 
     modal deploy services/dotsocr/modal_app.py
@@ -14,7 +14,6 @@ from pathlib import Path
 import modal
 
 SERVICE_DIR = Path(__file__).parent
-PADDLE_DIR = SERVICE_DIR.parent / "paddleocr"
 MODEL = "dots-studio/dots.mocr"
 CACHE_DIR = "/cache"
 VLM_PORT = 8118
@@ -41,9 +40,8 @@ image = (
             "TORCH_NCCL_DUMP_ON_TIMEOUT": "0",
         }
     )
-    # Reuse the Paddle service's request limits, response model and text cleanup.
-    .add_local_file(PADDLE_DIR / "server.py", "/root/server.py")
-    .add_local_file(PADDLE_DIR / "postprocess.py", "/root/postprocess.py")
+    .add_local_file(SERVICE_DIR / "server.py", "/root/server.py")
+    .add_local_file(SERVICE_DIR / "postprocess.py", "/root/postprocess.py")
     .add_local_file(SERVICE_DIR / "layout.py", "/root/layout.py")
 )
 

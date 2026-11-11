@@ -1,6 +1,6 @@
-"""Plain-text cleanup of PaddleOCR-VL Markdown for clinical documents.
+"""Plain-text cleanup of OCR Markdown for clinical documents.
 
-Dependency-free so it can be unit-tested without Paddle, Modal or a GPU.
+Dependency-free so it can be unit-tested without Modal or a GPU.
 """
 
 import re

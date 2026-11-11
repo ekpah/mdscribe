@@ -33,7 +33,7 @@ const PROTOCOLS = [
 		label: "OpenAI-kompatibel (llama.cpp / vLLM / LM Studio)",
 		value: "openai-compatible",
 	},
-	{ label: "OCR HTTP (LiteParse / PaddleOCR)", value: "ocr-http" },
+	{ label: "OCR HTTP (selbst gehostet)", value: "ocr-http" },
 	{ label: "Mistral OCR (native Dokumenten-API)", value: "mistral-ocr" },
 	{ label: "Privatemode OCR (verschlüsselt, DeepSeek OCR 2)", value: "privatemode-ocr" },
 	{ label: "OpenRouter", value: "openrouter" },

@@ -16,10 +16,9 @@ import { decrypt } from "@/lib/encryption";
 import { seedDatabase } from "../../scripts/seed";
 import { startTestServer } from "../setup";
 
-// OCR providers (local PaddleOCR, Mistral OCR, Privatemode) are covered separately.
-const isPaddle = ({ id }: { id: string }) => id.startsWith("dev-paddleocr-");
+// OCR providers (Mistral OCR, Privatemode) are covered separately.
 const isOcrRow = ({ id, providerId }: { id: string; providerId?: string }) =>
-	/^dev-paddleocr-|-ocr$/.test(providerId ?? id);
+	(providerId ?? id).endsWith("-ocr");
 const selectProviders = async (db: Database) => {
 	const rows = await db.select().from(aiProvider);
 	return rows.filter((row) => !isOcrRow(row));
@@ -133,10 +132,7 @@ test("seeds all available providers, Gemini defaults, and preserves admin choice
 	}
 	// Keys for OCR-capable providers also make their OCR models selectable.
 	const allModels = await db.select().from(aiModel);
-	expect(allModels.filter(isOcrRow).map(({ modelId }) => modelId)).toEqual([
-		"mistral-ocr-4-1",
-		"ocr",
-	]);
+	expect(allModels.filter(isOcrRow).map(({ modelId }) => modelId)).toEqual(["mistral-ocr-4-1"]);
 	const [defaults] = await db.select().from(aiDefaults);
 	expect(defaults).toMatchObject({
 		defaultAgentModelId: model.id,
@@ -205,18 +201,34 @@ test("no credentials needs no encryption secret, but a provided key does", async
 	expect(await selectProviders(db)).toHaveLength(0);
 });
 
-test("makes local PaddleOCR selectable without making it a default", async () => {
-	const { db } = await startTestServer("database-seed-paddle");
+test("retires the old test OCR service without removing manually configured providers", async () => {
+	const { db } = await startTestServer("database-seed-retired-ocr");
+	await db.insert(aiProvider).values([
+		{ id: "dev-paddleocr-provider", name: "PaddleOCR (local)", protocol: "ocr-http" },
+		{ id: "custom-ocr", name: "Custom OCR", protocol: "ocr-http" },
+	]);
+	await db.insert(aiModel).values([
+		{
+			displayName: "Test OCR",
+			id: "dev-paddleocr-model",
+			modelId: "ocr",
+			providerId: "dev-paddleocr-provider",
+		},
+		{ displayName: "Custom OCR", id: "custom-model", modelId: "ocr", providerId: "custom-ocr" },
+	]);
+	await db.insert(aiDefaults).values({
+		defaultFileImageModelId: "dev-paddleocr-model",
+		defaultTextModelId: "custom-model",
+		id: "global",
+	});
 	process.env.MDSCRIBE_SKIP_AI_SEED = "1";
 	await seedDatabase(db);
-	seedState.seeded = false;
 	await seedDatabase(db);
-	delete process.env.MDSCRIBE_SKIP_AI_SEED;
 	const providers = await db.select().from(aiProvider);
-	expect(providers.filter(isPaddle).map(({ baseUrl, protocol }) => [protocol, baseUrl])).toEqual([
-		["ocr-http", "http://127.0.0.1:8829/ocr"],
-	]);
 	const models = await db.select().from(aiModel);
-	expect(models.filter(isPaddle)).toHaveLength(1);
-	expect(await db.select().from(aiDefaults)).toHaveLength(0);
+	expect(providers.map(({ id }) => id)).toEqual(["custom-ocr"]);
+	expect(models.map(({ id }) => id)).toEqual(["custom-model"]);
+	const [defaults] = await db.select().from(aiDefaults);
+	expect(defaults.defaultFileImageModelId).toBeNull();
+	expect(defaults.defaultTextModelId).toBe("custom-model");
 });

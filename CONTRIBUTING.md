@@ -50,6 +50,19 @@ under Node for build-worker compatibility; the production server remains Bun.
 The Privatemode SDK itself does not require switching the app to Node, and is
 loaded only when a Privatemode client is needed.
 
+### Orb setup
+
+`.agents/setup` installs missing system packages, the pinned Node/Bun versions,
+workspace dependencies, and PostgreSQL with pgvector. PostgreSQL development
+headers follow Debian's default server version on both Debian 12 and 13.
+Existing packages and pgvector builds are reused on snapshot refreshes; Bun
+checks the frozen lockfile without reinstalling unchanged dependencies.
+
+Setup logs elapsed time at each step. `.agents/resume` only checks PostgreSQL
+and seeds the current thread's provider credentials. Local OCR runtimes and
+model weights are not installed. `.amp/services.yaml` builds and serves the app
+when `amp orb services ensure` is run; the preview build is not part of setup.
+
 ### Scribe OCR
 
 All document OCR goes through one function, `extractOcrDocument` in
@@ -66,14 +79,14 @@ in `ocr/adapters/` implementing `OcrAdapter` (`ocr/adapter.ts`):
 | Adapter          | Engine                                          | Input          |
 | ---------------- | ----------------------------------------------- | -------------- |
 | `llm.ts`         | Vision LLM with structured output (incl. OpenRouter and Tinfoil) | rendered pages |
-| `ocr-http.ts`    | Self-hosted OCR HTTP, e.g. `services/paddleocr` | rendered pages |
+| `ocr-http.ts`    | Self-hosted OCR HTTP, e.g. `services/dotsocr` | rendered pages |
 | `privatemode.ts` | DeepSeek OCR 2 via the attested Privatemode SDK | rendered pages |
 | `mistral.ts`     | Mistral OCR 4 native document API               | original file  |
 
 **Manual alignment is a product requirement.** Users must align images before
 OCR and explicitly confirm their orientation in the preview, including images
-that already look upright. Neither the application nor PaddleOCR detects or
-corrects page/text-line orientation. A legacy HTTP service may report
+that already look upright. The application does not detect or correct
+page/text-line orientation; OCR services must preserve the supplied frame. A legacy HTTP service may report
 `rotation: 0`; nonzero corrections are rejected. EXIF and PDF display metadata
 are still applied consistently with the original preview; this is not content
 orientation detection.
@@ -95,11 +108,9 @@ provider request, response validation, and box normalization; they must not put
 document content into error messages. Authentication, quotas, and usage logging
 stay in the oRPC handlers.
 
-In orbs, setup installs the PaddleOCR service from `services/paddleocr` and
-`.amp/services.yaml` runs it on port 8829. Development seeding adds it as a
-selectable document model (not the default: it needs about 12 GB of RAM for a
-phone photo), plus Mistral OCR and Privatemode OCR when `MISTRAL_API_KEY` or
-`PRIVATEMODE_API_KEY` is set.
+Development seeding adds Mistral OCR and Privatemode OCR when `MISTRAL_API_KEY`
+or `PRIVATEMODE_API_KEY` is set. Self-hosted OCR HTTP services are configured
+explicitly in the admin settings; orb setup does not install an OCR service.
 
 With a document model selected, PDF uploads run OCR immediately
 (`scribe.extractContextFile`). Image uploads wait for manual alignment: users

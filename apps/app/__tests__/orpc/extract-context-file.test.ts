@@ -145,18 +145,18 @@ test("upload OCR uses the OCR slot and every generation consumer reuses the unsi
 		const context = createTestContext({ db: server.db, session });
 		await server.db.insert(aiProvider).values({
 			baseUrl: `${endpoint.url}ocr`,
-			id: "paddle",
-			name: "Paddle",
+			id: "test-ocr",
+			name: "Test OCR",
 			protocol: "ocr-http",
 		});
 		await server.db
 			.insert(aiModel)
-			.values({ displayName: "OCR", id: "paddle-model", modelId: "ocr", providerId: "paddle" });
+			.values({ displayName: "OCR", id: "test-ocr-model", modelId: "ocr", providerId: "test-ocr" });
 		await createTestAiDefaults(server.db);
 		await server.db
 			.update(aiDefaults)
 			.set({
-				defaultFileImageModelId: "paddle-model",
+				defaultFileImageModelId: "test-ocr-model",
 				defaultStandardSupportsAgent: true,
 				defaultStandardSupportsDocuments: true,
 			})

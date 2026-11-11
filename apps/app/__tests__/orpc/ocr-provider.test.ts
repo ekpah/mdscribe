@@ -65,7 +65,7 @@ describe("OCR HTTP provider", () => {
 			{
 				apiKey: "first-secret",
 				baseUrl: endpoint(),
-				name: "Paddle",
+				name: "Test OCR",
 				protocol: "ocr-http",
 			},
 			{ context },

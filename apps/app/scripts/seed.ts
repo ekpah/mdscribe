@@ -286,33 +286,6 @@ const seedAiModels = async (db: SeedTransaction, providerId: string): Promise<vo
 	await seedAiDefaults(db, model.id, decisionModel.id);
 };
 
-/**
- * Makes the orb's local PaddleOCR service (`.amp/services.yaml`) selectable as
- * document model. It is not selected by default: it needs about 12 GB of RAM.
- */
-const seedPaddleOcr = async (db: SeedTransaction): Promise<void> => {
-	const provider = {
-		baseUrl: "http://127.0.0.1:8829/ocr",
-		name: "PaddleOCR (local)",
-		protocol: "ocr-http",
-	};
-	await db
-		.insert(schema.aiProvider)
-		.values({ ...provider, id: "dev-paddleocr-provider" })
-		.onConflictDoUpdate({ set: provider, target: schema.aiProvider.id });
-	const model = {
-		displayName: "PaddleOCR",
-		input: ["image", "document"] as ("image" | "document")[],
-		kind: "ocr" as const,
-		modelId: "ocr",
-		providerId: "dev-paddleocr-provider",
-	};
-	await db
-		.insert(schema.aiModel)
-		.values({ ...model, id: "dev-paddleocr-model" })
-		.onConflictDoUpdate({ set: model, target: schema.aiModel.id });
-};
-
 const seedAiProviders = async (db: SeedTransaction): Promise<void> => {
 	// Setup snapshots are shared; resume invokes this same seed with personal keys.
 	if (process.env.MDSCRIBE_SKIP_AI_SEED === "1") {
@@ -424,9 +397,12 @@ export const seedDatabase = async (db: Database): Promise<void> => {
 		throw new Error("Development seed data requires NODE_ENV=development.");
 	}
 
+	// Retire the test service in older development snapshots. Model/default
+	// references cascade or become null; manually configured providers stay intact.
+	await db.delete(schema.aiProvider).where(eq(schema.aiProvider.id, "dev-paddleocr-provider"));
+
 	// Providers may become available after the user/template seed (e.g. orb activation).
 	await db.transaction(seedAiProviders);
-	await db.transaction(seedPaddleOcr);
 	// Backfill old orb snapshots too, without resetting an existing Plus usage period.
 	await db.transaction(seedTestSubscription);
 

@@ -5,7 +5,7 @@ from postprocess import clean_markdown
 
 class LatexTests(unittest.TestCase):
     def test_units_and_indices_read_as_text(self):
-        # Verbatim PaddleOCR-VL-1.6 output from the benchmark documents.
+        # Verbatim OCR output from the benchmark documents.
         cases = {
             "Ruhe  $ O^{{2}} $": "Ruhe  O²",
             "SV-Index ml/ $ m^{{2}} $": "SV-Index ml/m²",
@@ -47,7 +47,7 @@ class PressureReadingTests(unittest.TestCase):
         self.assertEqual(clean_markdown("<td>52 126 (36)</td>"), "<td>52/26 (36)</td>")
 
     def test_handwritten_one_read_as_seven_is_restored(self):
-        # The same 143/69 (90) as read in other runs by the VLM and PP-OCRv6.
+        # The same 143/69 (90) as read in other OCR runs.
         for text in ["743/69/90", "743169(90)", "743/69 (90)"]:
             with self.subTest(text=text):
                 self.assertEqual(clean_markdown(f"<td>{text}</td>"), "<td>143/69 (90)</td>")
