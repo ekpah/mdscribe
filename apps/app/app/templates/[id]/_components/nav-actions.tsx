@@ -156,9 +156,12 @@ export const NavActions = ({
 				<Tooltip>
 					<TooltipTrigger
 						render={
-							<Link href="#">
+							<span
+								aria-disabled="true"
+								className="inline-flex h-7 w-7 cursor-not-allowed items-center justify-center rounded-md text-muted-foreground"
+							>
 								<Pencil {...templateActionIconProps} />
-							</Link>
+							</span>
 						}
 					/>
 					<TooltipContent>
