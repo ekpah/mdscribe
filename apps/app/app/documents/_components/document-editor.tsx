@@ -1311,6 +1311,7 @@ export default function DocumentEditor({
 	forkId?: string;
 }) {
 	const router = useRouter();
+	const queryClient = useQueryClient();
 	const sourceDocumentId = documentId || forkId;
 	const fieldCardRefs = useRef(new Map<string, HTMLDivElement>());
 	const initializedRef = useRef(false);
@@ -1380,6 +1381,31 @@ export default function DocumentEditor({
 	const createMutation = useMutation(orpc.documents.templates.create.mutationOptions());
 	const updateMutation = useMutation(orpc.documents.templates.update.mutationOptions());
 	const enhanceMutation = useMutation(orpc.documents.enhanceDefinition.mutationOptions());
+	const invalidateDocumentQueries = useCallback(
+		(targetDocumentId: string, shouldInvalidatePdf: boolean) =>
+			Promise.all([
+				queryClient.invalidateQueries({
+					queryKey: orpc.documents.templates.list.queryOptions().queryKey,
+				}),
+				queryClient.invalidateQueries({
+					queryKey: orpc.documents.templates.editorContext.queryOptions().queryKey,
+				}),
+				queryClient.invalidateQueries({
+					queryKey: orpc.documents.templates.get.queryOptions({ input: { id: targetDocumentId } })
+						.queryKey,
+				}),
+				...(shouldInvalidatePdf
+					? [
+							queryClient.invalidateQueries({
+								queryKey: orpc.documents.templates.getPdf.queryOptions({
+									input: { id: targetDocumentId },
+								}).queryKey,
+							}),
+						]
+					: []),
+			]),
+		[queryClient],
+	);
 
 	const handlePdfUpload = useCallback(
 		async (file: Uint8Array, fileMeta: { name: string; mimeType: string }) => {
@@ -1559,6 +1585,7 @@ export default function DocumentEditor({
 						: {}),
 				};
 				const updatedDocument = await updateMutation.mutateAsync(payload);
+				await invalidateDocumentQueries(updatedDocument.id, isPdfReplaced);
 				toast.success("Dokument gespeichert", { id: "document-save" });
 				router.push(`/documents/${updatedDocument.id}`);
 				return;
@@ -1573,6 +1600,7 @@ export default function DocumentEditor({
 				visibility,
 			});
 			trackEvent("document-created");
+			await invalidateDocumentQueries(createdDocument.id, true);
 			toast.success("Dokument erstellt", { id: "document-save" });
 			router.push(`/documents/${createdDocument.id}`);
 		} catch (error) {
@@ -1588,6 +1616,7 @@ export default function DocumentEditor({
 		isPdfReplaced,
 		newCategory,
 		pdfFileBytes,
+		invalidateDocumentQueries,
 		router,
 		title,
 		updateMutation,
