@@ -92,6 +92,7 @@
 
 ### Fixed
 
+- The template sidebar's "Von Dir erstellt" list and its count update right after a template is created, saved or deleted, without a page reload; the sidebar now reads the `templates.authored` query that these mutations invalidate. Deleting a template also refreshes custom collections, so it disappears from them as well.
 - The logged-out template page's pencil action was a dead `href="#"` link that jumped the page to the top on click; it is now a non-interactive icon with the existing "Nur für registrierte Nutzer" tooltip.
 - The sidebar collection "Von Dir erstellt" lists every template the user authored again instead of only the three most recent ones; it had reused the dashboard's quick-access query, which is capped at three entries, so the edit pencil appeared on templates missing from the list. The dashboard keeps its limit via the new `limit` input of `templates.authored`.
 - Orb setup selects PostgreSQL development headers for Debian's default server instead of requiring PostgreSQL 15, and preserves a compatible preinstalled Bun rather than replacing it with a broken symlink.

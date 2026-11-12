@@ -125,6 +125,17 @@ export default function AppSidebar({
 	});
 	const customCollectionsData = customCollectionsQueryData ?? initialCustomCollections;
 
+	const { data: authoredTemplatesQueryData } = useQuery({
+		...orpc.templates.authored.queryOptions(),
+		enabled: isLoggedIn,
+		select: (data) =>
+			data.map((temp) => ({
+				category: temp.category,
+				title: temp.title,
+				url: `/templates/${temp.id}`,
+			})),
+	});
+
 	const customCollectionsWithUrls = useMemo(
 		() =>
 			customCollectionsData.map((collection) => ({
@@ -261,7 +272,7 @@ export default function AppSidebar({
 
 	const menuSegments = (() => {
 		if (activeCollectionValue === "authored") {
-			return initialAuthoredTemplates;
+			return authoredTemplatesQueryData ?? initialAuthoredTemplates;
 		}
 		if (activeCollectionValue === "visible") {
 			return initialTemplates;

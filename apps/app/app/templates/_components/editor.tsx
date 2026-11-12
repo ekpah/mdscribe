@@ -262,6 +262,9 @@ const DeleteTemplateButton = ({
 					queryKey: orpc.templates.editorContext.queryOptions().queryKey,
 				}),
 				queryClient.invalidateQueries({
+					queryKey: orpc.user.collections.list.queryOptions().queryKey,
+				}),
+				queryClient.invalidateQueries({
 					queryKey: orpc.scribeForms.list.queryOptions().queryKey,
 				}),
 				queryClient.invalidateQueries({
