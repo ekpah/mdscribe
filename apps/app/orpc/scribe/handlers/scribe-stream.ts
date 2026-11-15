@@ -22,6 +22,7 @@ import { authed } from "@/orpc";
 import { scribeEntitlementsMiddleware } from "@/orpc/middlewares/entitlements";
 import { composeScribeContext } from "@/orpc/scribe/context";
 import type { ContextBuildInput, TemplateContextInput } from "@/orpc/scribe/context";
+import { resolveCitationDecisionModel } from "@/orpc/scribe/decisions/cite";
 import {
 	formatAudioTranscriptsForPrompt,
 	prepareAudioInputForModel,
@@ -45,7 +46,6 @@ import {
 import {
 	buildProviderOptions,
 	isGenerationStrategyFullyByok,
-	resolveDecisionModel,
 	modelAllowsReasoningOptions,
 	resolveGenerationStrategy,
 } from "@/orpc/scribe/providers";
@@ -925,16 +925,11 @@ export const runScribeGeneration = async ({
 			writer: Parameters<typeof writeResponseCitations>[0]["writer"],
 			draft: string,
 		) {
-			const decisionModel = await resolveDecisionModel(context.db, context.session.user.id).catch(
-				() => null,
+			const decisionTarget = await resolveCitationDecisionModel(
+				context.db,
+				context.session.user.id,
+				isGenerationStrategyFullyByok(generationStrategy),
 			);
-			// As in autofill, fully BYOK requests never send data to an operator-paid model.
-			const decisionTarget =
-				decisionModel &&
-				(decisionModel.credentialSource === "user_byok" ||
-					!isGenerationStrategyFullyByok(generationStrategy))
-					? decisionModel
-					: null;
 			await writeResponseCitations({
 				decision: decisionTarget && {
 					onUsage: ({ model, usage }, durationMs) =>

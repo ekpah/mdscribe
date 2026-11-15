@@ -8,7 +8,9 @@ import { Loader2, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { CitationList } from "@/features/response-citations/cited-response";
 import { getAiscribeErrorMessage } from "@/lib/aiscribe-errors";
+import type { OcrUIMessage } from "@/lib/ocr-types";
 import { orpc } from "@/lib/orpc";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import type { DocumentType } from "@/orpc/scribe/types";
@@ -59,6 +61,9 @@ interface DoctorsNoteSectionProps {
 	onSuggestionValueChange?: (sectionId: string, value: string | null) => void;
 }
 
+const messageText = (message: OcrUIMessage | undefined) =>
+	message?.parts.flatMap((part) => (part.type === "text" ? [part.text] : [])).join("") ?? "";
+
 export const DoctorsNoteSection = ({
 	config,
 	value,
@@ -66,7 +71,7 @@ export const DoctorsNoteSection = ({
 	context,
 	disabled = false,
 	minHeight = MIN_HEIGHT,
-	proposal = null,
+	proposal,
 	onProposalResolved,
 	onSuggestionValueChange,
 }: DoctorsNoteSectionProps) => {
@@ -76,7 +81,7 @@ export const DoctorsNoteSection = ({
 	const hasEnhancement = Boolean((config.documentType || config.formId) && config.buildPrompt);
 
 	// Use AI SDK useChat with custom oRPC transport
-	const { messages, sendMessage, status, stop, setMessages } = useChat({
+	const { messages, sendMessage, status, stop, setMessages } = useChat<OcrUIMessage>({
 		id: `section-${config.id}`,
 		onError: (error) => {
 			const message = getAiscribeErrorMessage(error);
@@ -114,19 +119,8 @@ export const DoctorsNoteSection = ({
 	});
 
 	// Extract completion text from the last assistant message
-	const completion = useMemo(() => {
-		const lastAssistantMessage = messages.findLast((m) => m.role === "assistant");
-		if (!lastAssistantMessage) {
-			return "";
-		}
-		if (lastAssistantMessage.parts) {
-			return lastAssistantMessage.parts
-				.filter((p) => p.type === "text")
-				.map((p) => (p as { type: "text"; text: string }).text)
-				.join("");
-		}
-		return "";
-	}, [messages]);
+	const responseMessage = messages.findLast((m) => m.role === "assistant");
+	const completion = useMemo(() => messageText(responseMessage), [responseMessage]);
 
 	// Loading state from useChat status
 	const isLoading = status === "streaming" || status === "submitted";
@@ -192,8 +186,13 @@ export const DoctorsNoteSection = ({
 		onSuggestionValueChange?.(config.id, effectiveProposal);
 	}, [config.id, effectiveProposal, onSuggestionValueChange]);
 
-	// Clear proposed text after a suggestion is accepted or rejected.
-	const handleSuggestionHandled = useCallback(() => {
+	// Clear proposed text after a suggestion is accepted or rejected. An accepted
+	// generation keeps its message, so its citations stay listed under the text.
+	const handleSuggestionAccepted = useCallback(() => {
+		setProposedText(null);
+		onProposalResolved?.();
+	}, [onProposalResolved]);
+	const handleSuggestionRejected = useCallback(() => {
 		setProposedText(null);
 		setMessages([]);
 		onProposalResolved?.();
@@ -243,11 +242,16 @@ export const DoctorsNoteSection = ({
 				minHeight={minHeight}
 				onChange={onChange}
 				onSubmit={hasEnhancement ? handleEnhance : undefined}
-				onSuggestionAccepted={handleSuggestionHandled}
-				onSuggestionRejected={handleSuggestionHandled}
+				onSuggestionAccepted={handleSuggestionAccepted}
+				onSuggestionRejected={handleSuggestionRejected}
 				placeholder={config.placeholder}
 				suggestedValue={effectiveProposal}
 				value={value}
+			/>
+			<CitationList
+				draft={completion}
+				message={responseMessage}
+				text={effectiveProposal ?? value}
 			/>
 		</div>
 	);

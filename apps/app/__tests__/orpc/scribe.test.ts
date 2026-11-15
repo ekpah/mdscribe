@@ -1013,6 +1013,29 @@ describe("Fill Inputs Handler", () => {
 					};
 					// The admin-selected decision model is used, not a hard-coded one.
 					expect(request.model).toBe("typesafe/jev-1.14");
+					const usage = { cost: 0.0002, input_tokens: 100, output_tokens: 20 };
+					// Citation engine questions: every value is stated, and a passage
+					// supports it when it names the field.
+					if (Object.keys(request.questions).some((key) => key.startsWith("c_"))) {
+						const state = JSON.parse(request.state) as {
+							sources: { passages: { id: string; text: string }[] }[];
+						};
+						const passages = new Map(
+							state.sources.flatMap((source) => source.passages).map(({ id, text }) => [id, text]),
+						);
+						const answers = Object.fromEntries(
+							Object.entries(request.questions).map(([key, question]) => {
+								if (key.startsWith("f_")) {
+									const probabilities = { absent: 0.05, interpreted: 0.05, stated: 0.9 };
+									return [key, { choice: "stated", confidence: 0.9, probabilities }];
+								}
+								const field = /Claim: «([^_:(]+)/u.exec(question.instructions)?.[1] ?? "";
+								const passage = /source passage (\S+),/u.exec(question.instructions)?.[1] ?? "";
+								return [key, { noul: passages.get(passage)?.includes(field) ? 0.95 : 0.05 }];
+							}),
+						);
+						return Promise.resolve(Response.json({ answers, model: request.model, usage }));
+					}
 					expect(request.provider).toEqual({ data_collection: "deny" });
 					// The decision model sees the same patient context as the LLM.
 					expect(request.state).toContain("<patient_context>");
@@ -1066,13 +1089,7 @@ describe("Fill Inputs Handler", () => {
 							];
 						}),
 					);
-					return Promise.resolve(
-						Response.json({
-							answers,
-							model: "typesafe/jev-1.14",
-							usage: { cost: 0.0002, input_tokens: 100, output_tokens: 20 },
-						}),
-					);
+					return Promise.resolve(Response.json({ answers, model: "typesafe/jev-1.14", usage }));
 				},
 				{ preconnect: originalFetch.preconnect },
 			),
@@ -1139,12 +1156,7 @@ describe("Fill Inputs Handler", () => {
 				},
 			];
 			aiMockState.nextGenerateTextOutput = { suggestions: remaining };
-			const annotations = [
-				{ field: "RV_Diastole", passages: [2] },
-				{ field: "Beurteilung", passages: [6] },
-				{ field: "Infusionsrate", passages: [8] },
-			];
-			aiMockState.nextCitationOutput = { annotations };
+			// With a decision model, the citation engine cites LLM values; no LLM citation pass.
 			const result = await call(fillInputsHandler, input, { context });
 			expect(result.suggestions).toEqual({
 				Aufnahme: {
@@ -1195,7 +1207,6 @@ describe("Fill Inputs Handler", () => {
 			});
 			// The stream shows decision-model answers before the LLM has filled the rest.
 			aiMockState.nextGenerateTextOutput = { suggestions: remaining };
-			aiMockState.nextCitationOutput = { annotations };
 			const events: FillInputsEvent[] = [];
 			for await (const event of await call(fillInputsStreamHandler, input, { context })) {
 				events.push(event);
@@ -1223,15 +1234,15 @@ describe("Fill Inputs Handler", () => {
 				Aufnahme: { value: "2025-12-21" },
 				Kontrolle: { value: "2026-01-18" },
 			});
-			// Every request above was a single decision call.
-			expect(decisionCalls).toBe(4);
+			// One decision call per request, plus one citation call when the LLM filled fields.
+			expect(decisionCalls).toBe(6);
 			aiMockState.nextGenerateTextOutput = { suggestions: [remaining[2]] };
 			const quantityOnly = await call(
 				fillInputsHandler,
 				{ ...input, inputFields: [input.inputFields[6]] },
 				{ context },
 			);
-			expect(decisionCalls).toBe(4);
+			expect(decisionCalls).toBe(7);
 			expect(quantityOnly.suggestions.Infusionsrate.value).toBe("2,5");
 			failure = true;
 			aiMockState.nextGenerateTextOutput = {
@@ -1257,7 +1268,9 @@ describe("Fill Inputs Handler", () => {
 			};
 			aiMockState.nextCitationOutput = {
 				annotations: [
-					...annotations,
+					{ field: "RV_Diastole", passages: [2] },
+					{ field: "Beurteilung", passages: [6] },
+					{ field: "Infusionsrate", passages: [8] },
 					{ field: "PAWP", passages: [1] },
 					{ field: "ZVD", passages: [3] },
 					{ field: "RA", passages: [4] },
@@ -2578,7 +2591,7 @@ describe("Scribe Stream Handler", () => {
 			}
 		});
 
-		test("cites with one decision-model request, keeping multi-source evidence and skipping unsupported claims", async () => {
+		test("cites with one decision-model request, keeping multi-source evidence and dropping claims with ungrounded numbers", async () => {
 			const { providerId } = await createTestAiDefaults(server.db);
 			await server.db
 				.update(aiProvider)
@@ -2587,8 +2600,8 @@ describe("Scribe Stream Handler", () => {
 			await createTestDecisionModel(server.db, providerId);
 			const { user } = await createTestUser(server.db);
 			const context = createTestContext({ db: server.db, session: createMockSession(user) });
-			const draft =
-				"Fieber seit gestern, kein Husten. Kalium 3,4 mmol/l. Eine Lungenembolie ist gesichert.";
+			const draft = "Fieber seit gestern, kein Husten. Kalium 3,4 mmol/l. Kreatinin 2,1 mg/dl.";
+			const notes = "Fieber seit gestern. Kein Husten. Kalium 3,4 mmol/l. Kreatinin 1,2 mg/dl.";
 			aiMockState.nextStreamTextText = draft;
 			// The LLM annotation pass must not run when the decision model answers.
 			aiMockState.nextCitationElements = (async function* elements() {
@@ -2612,28 +2625,25 @@ describe("Scribe Stream Handler", () => {
 							questions: Record<string, { instructions: string }>;
 							state: string;
 						};
-						const units = new Map<string, string>(
+						const passages = new Map<string, string>(
 							(
 								JSON.parse(request.state) as {
-									sources: { units: { id: string; text: string }[] }[];
+									sources: { passages: { id: string; text: string }[] }[];
 								}
-							).sources.flatMap((source) => source.units.map((unit) => [unit.id, unit.text])),
+							).sources.flatMap((source) =>
+								source.passages.map((passage) => [passage.id, passage.text]),
+							),
 						);
+						// Every passage sharing a word with the claim supports it, including
+						// «Kreatinin 1,2» for «Kreatinin 2,1»: the number check must drop it.
 						const answers = Object.fromEntries(
 							Object.entries(request.questions).map(([id, question]) => {
-								const item = /item: «([^»]+)»/iu.exec(question.instructions)?.[1] ?? "";
-								if (id.startsWith("sep_")) {
-									return [
-										id,
-										{ choice: "separate", probabilities: { attribute: 0.1, separate: 0.9 } },
-									];
+								const claim = /Claim: «([^»]+)»/u.exec(question.instructions)?.[1] ?? "";
+								if (id.startsWith("f_")) {
+									return [id, { choice: "stated", probabilities: { absent: 0.05, stated: 0.95 } }];
 								}
-								if (id.startsWith("g_")) {
-									// Below the 0.6 gate: a noisy pass on a contradicted claim.
-									return [id, { noul: item.includes("gesichert") ? 0.55 : 0.93 }];
-								}
-								const unit = units.get(id.split("_").at(-1) ?? "") ?? "";
-								const shared = [...longWords(item)].some((word) => longWords(unit).has(word));
+								const passage = passages.get(id.split("_").at(-1) ?? "") ?? "";
+								const shared = [...longWords(claim)].some((word) => longWords(passage).has(word));
 								return [id, { noul: shared ? 0.9 : 0.05 }];
 							}),
 						);
@@ -2660,8 +2670,7 @@ describe("Scribe Stream Handler", () => {
 									{
 										text: JSON.stringify({
 											befunde: "Kalium 3,4 mmol/l",
-											notes:
-												"Fieber seit gestern. Kein Husten. Lungenembolie nicht ausgeschlossen. Kalium 3,4 mmol/l.",
+											notes,
 										}),
 										type: "text",
 									},
@@ -2685,14 +2694,11 @@ describe("Scribe Stream Handler", () => {
 						citation.citations.map(({ quote, source }) => `${source} ${quote}`),
 					]),
 				).toEqual([
-					["Fieber seit gestern", ["mdscribe://input/notes Fieber seit gestern."]],
-					["kein Husten", ["mdscribe://input/notes Kein Husten."]],
+					["Fieber seit gestern", [`mdscribe://input/notes ${notes}`]],
+					["kein Husten", [`mdscribe://input/notes ${notes}`]],
 					[
 						"Kalium 3,4 mmol/l",
-						[
-							"mdscribe://input/befunde Kalium 3,4 mmol/l",
-							"mdscribe://input/notes Kalium 3,4 mmol/l.",
-						],
+						["mdscribe://input/befunde Kalium 3,4 mmol/l", `mdscribe://input/notes ${notes}`],
 					],
 				]);
 				expect(addScribeCitations(draft, citations).replaceAll(/\{%.*?%\}/g, "")).toBe(draft);

@@ -1,17 +1,20 @@
 import type { LanguageModel, streamText, UIMessageStreamWriter } from "ai";
 import { createMdscribeSource } from "markdoc-md/citations";
+import { validateMarkdocTemplate } from "markdoc-md/parse";
 
+import type { Citation, CitationSource } from "@/features/citation-engine";
 import type { OcrResult, OcrUIMessage } from "@/lib/ocr-types";
+import { citeWithDecisionModel } from "@/orpc/scribe/decisions/cite";
 import type { DecisionResponse, DecisionTarget } from "@/orpc/scribe/decisions/client";
 import type { FillInputsContextFile } from "@/orpc/scribe/types";
 
-import type { ScribeCitationSource } from "../markup";
+import { addScribeCitations } from "../markup";
+import type { ScribeCitation } from "../markup";
 import { streamResponseCitations } from "./annotate";
-import { matchResponseCitations } from "./match";
 
 type LlmFinish = NonNullable<Parameters<typeof streamText>[0]["onFinish"]>;
 
-/** Typed form inputs, audio transcripts and OCR text of one generation. */
+/** Typed form inputs, audio transcripts and OCR text (with page geometry) of one generation. */
 export const createResponseCitationSources = ({
 	audioTranscripts,
 	contextFiles,
@@ -22,7 +25,7 @@ export const createResponseCitationSources = ({
 	contextFiles: FillInputsContextFile[];
 	formData: Record<string, unknown>;
 	ocrResults: OcrResult[];
-}): ScribeCitationSource[] => {
+}): CitationSource[] => {
 	const labels: Record<string, string> = {
 		anamnese: "Anamnese",
 		befunde: "Befunde",
@@ -30,7 +33,7 @@ export const createResponseCitationSources = ({
 		epikrise: "Epikrise",
 		notes: "Notizen",
 	};
-	const sources: ScribeCitationSource[] = Object.entries(labels).flatMap(([id, label]) => {
+	const sources: CitationSource[] = Object.entries(labels).flatMap(([id, label]) => {
 		const text = formData[id];
 		return typeof text === "string" && text.trim()
 			? [{ label, source: createMdscribeSource("input", id), text }]
@@ -48,6 +51,7 @@ export const createResponseCitationSources = ({
 		if (file.id && ocr?.text.trim()) {
 			sources.push({
 				label: file.name,
+				pages: ocr.pages,
 				source: createMdscribeSource("file", file.id),
 				text: ocr.text,
 			});
@@ -70,8 +74,31 @@ interface CiteOptions {
 		providerOptions?: Parameters<typeof streamText>[0]["providerOptions"];
 	};
 	signal?: AbortSignal;
-	sources: readonly ScribeCitationSource[];
+	sources: readonly CitationSource[];
 }
+
+/** Engine citations as answer marks, skipping any whose markup would break the answer. */
+const toScribeCitations = (draft: string, citations: Citation[]): ScribeCitation[] => {
+	const accepted: ScribeCitation[] = [];
+	for (const { evidence, target } of citations) {
+		if (target.kind !== "span") {
+			continue;
+		}
+		const citation: ScribeCitation = {
+			citations: evidence.map(({ quote, source }) => ({ quote, source })),
+			end: target.end,
+			start: target.start,
+		};
+		if (
+			!validateMarkdocTemplate(addScribeCitations(draft, [...accepted, citation])).some(
+				(diagnostic) => diagnostic.severity === "error",
+			)
+		) {
+			accepted.push(citation);
+		}
+	}
+	return accepted;
+};
 
 const citeResponse = async function* citeResponse({
 	decision,
@@ -80,23 +107,23 @@ const citeResponse = async function* citeResponse({
 	signal,
 	sources,
 }: CiteOptions) {
-	let startedAt = Date.now();
 	if (decision) {
 		try {
-			yield* await matchResponseCitations({
-				draft,
-				onUsage: (response) => decision.onUsage(response, Date.now() - startedAt),
+			const citations = await citeWithDecisionModel({
+				markdown: draft,
+				onUsage: decision.onUsage,
 				signal,
 				sources,
 				target: decision.target,
 			});
+			yield* toScribeCitations(draft, citations);
 			return;
 		} catch {
 			// Fall back to the LLM pass; provider errors may contain patient data.
 			signal?.throwIfAborted();
 		}
-		startedAt = Date.now();
 	}
+	const startedAt = Date.now();
 	yield* streamResponseCitations({
 		draft,
 		model: llm.model,
@@ -117,7 +144,11 @@ export const writeResponseCitations = async ({
 }: CiteOptions & {
 	writer: Pick<UIMessageStreamWriter<OcrUIMessage>, "write">;
 }) => {
-	writer.write({ data: [...options.sources], type: "data-citation-sources" });
+	// Page geometry stays on the server; the client resolves quotes against the text.
+	writer.write({
+		data: options.sources.map(({ label, source, text }) => ({ label, source, text })),
+		type: "data-citation-sources",
+	});
 	writer.write({ data: "adding", id: "citations", type: "data-citation-status" });
 	try {
 		for await (const citation of citeResponse(options)) {

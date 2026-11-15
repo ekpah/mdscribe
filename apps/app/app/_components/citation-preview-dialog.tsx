@@ -18,13 +18,18 @@ export type CitationPreview =
 			source: string;
 	  };
 
+/** Brings the cited passage into view when a long source opens or its tab is shown. */
+const scrollToEvidence = (node: HTMLElement | null) => {
+	node?.scrollIntoView({ block: "center", inline: "nearest" });
+};
+
 const LocatedText = ({ match, text }: { match?: CitationTextMatch; text: string }) => (
 	<div className="min-h-0 overflow-auto rounded-md border bg-muted/20 p-4">
 		<pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">
 			{match ? (
 				<>
 					{text.slice(0, match.start)}
-					<mark className="rounded-sm bg-solarized-blue/25 text-inherit">
+					<mark className="rounded-sm bg-solarized-blue/25 text-inherit" ref={scrollToEvidence}>
 						{text.slice(match.start, match.end)}
 					</mark>
 					{text.slice(match.end)}
@@ -76,16 +81,9 @@ const LocatedDocument = ({
 	return (
 		<div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-2">
 			<span className="text-muted-foreground text-xs">Seite {location.pageNumber}</span>
-			<div
-				className="flex min-h-0 overflow-auto rounded-md border bg-muted/20 p-2"
-				style={{ containerType: "size" }}
-			>
-				<div
-					className="relative m-auto shrink-0 shadow-sm"
-					style={{
-						width: `min(100cqw, calc(100cqh * ${location.pageWidth / location.pageHeight}))`,
-					}}
-				>
+			{/* The page fills the panel width so its text stays readable; the cited box is scrolled into view. */}
+			<div className="min-h-0 overflow-auto rounded-md border bg-muted/20 p-2">
+				<div className="relative shadow-sm">
 					{/* oxlint-disable-next-line next/no-img-element -- locally rendered page data URL, not an optimizable asset */}
 					<img
 						alt={`Seite ${location.pageNumber} aus ${preview.label}`}
@@ -97,6 +95,7 @@ const LocatedDocument = ({
 					<span
 						aria-label={`Zitierte Fundstelle: ${location.quote}`}
 						className="pointer-events-none absolute rounded-sm border-2 border-solarized-orange bg-solarized-orange/20 shadow-[0_0_0_1px_rgba(255,255,255,0.8)]"
+						ref={scrollToEvidence}
 						style={highlightStyle}
 					/>
 				</div>

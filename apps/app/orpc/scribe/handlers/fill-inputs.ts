@@ -5,12 +5,14 @@ import { extractJsonMiddleware, generateText, Output, wrapLanguageModel } from "
 import { createMdscribeSource } from "markdoc-md/citations";
 import { z } from "zod";
 
+import type { CitationSource } from "@/features/citation-engine";
 import {
 	FILL_INPUT_PAYLOAD_LIMITS,
 	formatPayloadBytes,
 	getBase64DecodedByteLength,
 	getContextDocumentPayloadByteLength,
 } from "@/lib/input-fill-limits";
+import type { OcrResult } from "@/lib/ocr-types";
 import { AI_INPUT_FILL_EVENT_NAME } from "@/lib/usage-event-names";
 import { buildUsageEventData, extractOpenRouterUsage } from "@/lib/usage-logging";
 import type { StandardUsage, UsageInputData, UsageMetadata } from "@/lib/usage-logging";
@@ -18,6 +20,8 @@ import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
 import { scribeEntitlementsMiddleware } from "@/orpc/middlewares/entitlements";
 import { composeScribeContext } from "@/orpc/scribe/context";
+import { citeWithDecisionModel, resolveCitationDecisionModel } from "@/orpc/scribe/decisions/cite";
+import type { DecisionResponse } from "@/orpc/scribe/decisions/client";
 import { citeFillInputs } from "@/orpc/scribe/fill-inputs/cite";
 import { fillInputsWithDecisions } from "@/orpc/scribe/fill-inputs/decide";
 import type { FillInputSource } from "@/orpc/scribe/fill-inputs/decide";
@@ -145,6 +149,24 @@ const normalizeGeneratedJson = (text: string): string => {
 	} catch {
 		return normalized;
 	}
+};
+
+/** A context file's OCR text as a citation source; page geometry enables page locators. */
+const toFileSource = (
+	file: NonNullable<FillInputsInputPayload["contextFiles"]>[number] | undefined,
+	ocr: OcrResult,
+): CitationSource[] => {
+	const id = file?.id?.trim();
+	return file && id
+		? [
+				{
+					label: file.name,
+					pages: ocr.pages,
+					source: createMdscribeSource("file", id),
+					text: ocr.text,
+				},
+			]
+		: [];
 };
 
 const getCitationSources = (input: FillInputsInputPayload): FillInputsCitationSource[] => {
@@ -599,6 +621,50 @@ const buildFillInputContext = (input: FillInputsInputPayload) => {
 	}).contextXml;
 };
 
+// Every decision transport reports a cost, recorded through the OpenRouter usage shape.
+const logDecisionUsage = ({
+	db,
+	durationMs,
+	promptName,
+	provider,
+	response: { model, usage },
+	userId,
+	zdr,
+}: {
+	db: Database;
+	durationMs: number;
+	promptName: string;
+	provider: DecisionModelSelection;
+	response: DecisionResponse;
+	userId: string;
+	zdr: boolean;
+}) =>
+	logMediaPreprocessingUsage({
+		db,
+		isOpenRouter: true,
+		metadata: {
+			credentialSource: provider.credentialSource,
+			promptName,
+			providerId: provider.providerId,
+			providerProtocol: provider.protocol,
+		},
+		modelName: model,
+		name: AI_INPUT_FILL_EVENT_NAME,
+		providerMetadata: {
+			openrouter: {
+				usage: {
+					completionTokens: usage.output_tokens,
+					cost: usage.cost,
+					promptTokens: usage.input_tokens,
+					totalTokens: usage.input_tokens + usage.output_tokens,
+				},
+			},
+		},
+		timing: { timeToCompletionMs: durationMs },
+		userId,
+		zdr,
+	});
+
 /** Optional text-only fast path; this boundary owns accounting and LLM fallback. */
 const prepareFillInputDecisions = async ({
 	citationSources,
@@ -636,35 +702,16 @@ const prepareFillInputDecisions = async ({
 			fileTextContext: extractedFiles.textContext,
 		}),
 		inputFields: input.inputFields,
-		onUsage: ({ model, usage }) => {
-			const timeToCompletionMs = Date.now() - started;
-			// Every decision transport reports a cost, recorded through the OpenRouter usage shape.
-			logMediaPreprocessingUsage({
+		onUsage: (response) =>
+			logDecisionUsage({
 				db,
-				isOpenRouter: true,
-				metadata: {
-					credentialSource: provider.credentialSource,
-					promptName: "input_fill:decision",
-					providerId: provider.providerId,
-					providerProtocol: provider.protocol,
-				},
-				modelName: model,
-				name: AI_INPUT_FILL_EVENT_NAME,
-				providerMetadata: {
-					openrouter: {
-						usage: {
-							completionTokens: usage.output_tokens,
-							cost: usage.cost,
-							promptTokens: usage.input_tokens,
-							totalTokens: usage.input_tokens + usage.output_tokens,
-						},
-					},
-				},
-				timing: { timeToCompletionMs },
+				durationMs: Date.now() - started,
+				promptName: "input_fill:decision",
+				provider,
+				response,
 				userId,
 				zdr,
-			});
-		},
+			}),
 		signal: signal ? AbortSignal.any([signal, budget]) : budget,
 		sources,
 		target: provider,
@@ -674,11 +721,66 @@ const prepareFillInputDecisions = async ({
 	});
 };
 
+/** Filled values as facts for the citation engine; calculated values are arithmetic, not documented. */
+const citeValuesWithDecisionModel = async ({
+	db,
+	inputFields,
+	provider,
+	signal,
+	sources,
+	suggestions,
+	userId,
+	zdr,
+}: {
+	db: Database;
+	inputFields: InputField[];
+	provider: DecisionModelSelection;
+	signal: AbortSignal;
+	sources: CitationSource[];
+	suggestions: FillInputsResult["suggestions"];
+	userId: string;
+	zdr: boolean;
+}): Promise<FillInputsResult["suggestions"]> => {
+	const fields = inputFields.filter(
+		({ calculation, label }) =>
+			!calculation && suggestions[label] && !suggestions[label].citations?.length,
+	);
+	const citations = await citeWithDecisionModel({
+		fields: fields.map(({ description, label, unit }) => ({ description, name: label, unit })),
+		markdown: "",
+		onUsage: (response, durationMs) =>
+			logDecisionUsage({
+				db,
+				durationMs,
+				promptName: "input_fill:citations",
+				provider,
+				response,
+				userId,
+				zdr,
+			}),
+		signal,
+		sources,
+		target: provider,
+		values: Object.fromEntries(fields.map(({ label }) => [label, suggestions[label].value])),
+	});
+	const cited = { ...suggestions };
+	for (const { evidence, target } of citations) {
+		if (target.kind === "value") {
+			cited[target.key] = {
+				...cited[target.key],
+				citations: evidence.map(({ quote, source }) => ({ quote, source })),
+			};
+		}
+	}
+	return cited;
+};
+
 /** The optional evidence phase cannot discard or rewrite successfully filled values. */
 const addFillInputCitations = async ({
 	contextFiles,
 	db,
 	filesAreNative,
+	fullyByok,
 	generationSelection,
 	inputFields,
 	result,
@@ -690,11 +792,12 @@ const addFillInputCitations = async ({
 	contextFiles: NonNullable<FillInputsInputPayload["contextFiles"]>;
 	db: Database;
 	filesAreNative: boolean;
+	fullyByok: boolean;
 	generationSelection: FillInputsGenerationSelection;
 	inputFields: InputField[];
 	result: FillInputsResult;
 	signal?: AbortSignal;
-	sources: FillInputSource[];
+	sources: CitationSource[];
 	userId: string;
 	zdr: boolean;
 }): Promise<FillInputsResult> => {
@@ -724,11 +827,27 @@ const addFillInputCitations = async ({
 			});
 			({ ocrResults } = nativeText);
 			citationSources.push(
-				...nativeText.ocrResults.flatMap((ocr, index) => {
-					const id = contextFiles[index].id?.trim();
-					return id ? [{ source: createMdscribeSource("file", id), text: ocr.text }] : [];
-				}),
+				...nativeText.ocrResults.flatMap((ocr, index) => toFileSource(contextFiles[index], ocr)),
 			);
+		}
+		const provider = await resolveCitationDecisionModel(db, userId, fullyByok);
+		if (provider) {
+			try {
+				const suggestions = await citeValuesWithDecisionModel({
+					db,
+					inputFields,
+					provider,
+					signal: evidenceSignal,
+					sources: citationSources,
+					suggestions: result.suggestions,
+					userId,
+					zdr,
+				});
+				return { ...result, ocrResults, suggestions };
+			} catch {
+				// Fall back to the LLM pass; provider errors may contain patient data.
+				evidenceSignal.throwIfAborted();
+			}
 		}
 		const started = Date.now();
 		const suggestions = await citeFillInputs({
@@ -858,14 +977,13 @@ const runFillInputs = async function* runFillInputs({
 	});
 	const filesAreNative = generationStrategy.files?.mode === "native";
 	const nativeContextFiles = filesAreNative ? contextFiles : [];
-	const sources: FillInputSource[] = [
+	const sources: CitationSource[] = [
 		...Object.entries(input.textContext ?? {}).flatMap(([id, text]) =>
-			text?.trim() ? [{ source: createMdscribeSource("input", id), text }] : [],
+			text?.trim() ? [{ label: id, source: createMdscribeSource("input", id), text }] : [],
 		),
-		...extractedFiles.ocrResults.flatMap((result, index) => {
-			const id = contextFiles[index]?.id?.trim();
-			return id ? [{ source: createMdscribeSource("file", id), text: result.text }] : [];
-		}),
+		...extractedFiles.ocrResults.flatMap((result, index) =>
+			toFileSource(contextFiles[index], result),
+		),
 	];
 	const prefilled = await prepareFillInputDecisions({
 		citationSources,
@@ -997,6 +1115,7 @@ const runFillInputs = async function* runFillInputs({
 		contextFiles,
 		db: context.db,
 		filesAreNative,
+		fullyByok: isGenerationStrategyFullyByok(generationStrategy),
 		generationSelection,
 		inputFields: input.inputFields,
 		result: { ocrResults: extractedFiles.ocrResults, suggestions: fillResult.suggestions },

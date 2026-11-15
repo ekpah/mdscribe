@@ -1,9 +1,9 @@
 import { parseDate, today } from "@internationalized/date";
 import { parse } from "@markdoc/markdoc";
 import type { Node } from "@markdoc/markdoc";
-import { parseCitationSource } from "markdoc-md/citations";
 import { z } from "zod";
 
+import { collectPassages, visibleText } from "@/features/citation-engine/passages";
 import { formatOcrTextForPrompt } from "@/lib/ocr-prompt-text";
 import { requestDecision } from "@/orpc/scribe/decisions/client";
 import type {
@@ -36,72 +36,9 @@ const choiceSchema = z.object({
 // A conservative acceptance threshold, not calibrated clinical certainty.
 const ACCEPT_GATE = 0.95;
 
-// Read syntax only. Never transform/evaluate document tags or their attributes.
-const visibleText = (node: Node): string => {
-	if (node.type === "text") {
-		return String(node.attributes.content ?? "");
-	}
-	if (node.type === "softbreak" || node.type === "hardbreak") {
-		return "\n";
-	}
-	return node.children
-		.map(visibleText)
-		.join(["tr", "list", "table"].includes(node.type) ? "\n" : "");
-};
-
 // Block boundaries become line breaks so adjacent paragraphs do not merge.
 const documentText = (node: Node): string =>
 	node.type === "inline" ? visibleText(node) : node.children.map(documentText).join("\n");
-
-// Passages are only used to cite a decided value; the model sees the patient context.
-export const collectPassages = (sources: FillInputSource[]) => {
-	const evidence: { source: string; quote: string; text: string }[] = [];
-	for (const { source, text: original } of sources) {
-		const text = formatOcrTextForPrompt(original);
-		const lines = text.split("\n");
-		const isInput = parseCitationSource(source).kind === "input";
-		const push = (visible: string, quote: string) => {
-			if (visible.trim() && quote.trim() && quote.length <= 4000) {
-				evidence.push({ quote: quote.trim(), source, text: visible.trim() });
-			}
-		};
-		// Text sources are displayed verbatim, unlike OCR's rendered document.
-		// Retain their literal markup so the existing exact resolver can highlight it.
-		const literal = (node: Node) =>
-			isInput && original === text && node.location
-				? lines.slice(node.location.start.line, node.location.end.line)
-				: undefined;
-		const visit = (node: Node) => {
-			if (node.type === "tr") {
-				const visible = visibleText(node);
-				const quote = isInput ? literal(node)?.join("\n") : visible;
-				if (quote !== undefined) {
-					push(visible, quote);
-				}
-				return;
-			}
-			// Paragraph, heading and list-item text. One passage per line keeps
-			// citations short.
-			if (node.type === "inline") {
-				const visible = visibleText(node).split("\n");
-				const quotes = isInput ? literal(node) : visible;
-				if (quotes?.length === visible.length) {
-					for (const [index, line] of visible.entries()) {
-						push(line, quotes[index]);
-					}
-				} else if (quotes) {
-					push(visible.join("\n"), quotes.join("\n"));
-				}
-				return;
-			}
-			for (const child of node.children) {
-				visit(child);
-			}
-		};
-		visit(parse(text));
-	}
-	return evidence;
-};
 
 type Passage = ReturnType<typeof collectPassages>[number];
 

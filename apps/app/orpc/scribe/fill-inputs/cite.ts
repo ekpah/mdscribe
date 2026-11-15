@@ -2,7 +2,7 @@ import { generateText, Output } from "ai";
 import type { LanguageModel, LanguageModelUsage } from "ai";
 import { z } from "zod";
 
-import { collectPassages } from "@/orpc/scribe/fill-inputs/decide";
+import { collectPassages } from "@/features/citation-engine/passages";
 import type { FillInputSource } from "@/orpc/scribe/fill-inputs/decide";
 import type { FillInputsResult, InputField } from "@/orpc/scribe/types";
 
