@@ -1,0 +1,159 @@
+---
+title: Schnellstart für Entwickler
+sidebarTitle: Schnellstart
+description: markdoc-md installieren, eine Vorlage mit React rendern und aus ihrer Analyse ein Eingabeformular bauen.
+---
+
+import { Flow, Rendered, Value } from "/snippets/markdoc.jsx";
+
+## Installieren
+
+<CodeGroup>
+
+```sh npm
+npm install markdoc-md react react-dom
+```
+
+```sh pnpm
+pnpm add markdoc-md react react-dom
+```
+
+```sh bun
+bun add markdoc-md react react-dom
+```
+
+</CodeGroup>
+
+Das Paket ist reines ESM und benötigt Node.js 20 oder neuer. React ist eine optionale
+Peer-Dependency: Parsing, Validierung, Auflösung von Zitaten und FHIR-Auswertung funktionieren auch
+ohne. Installieren Sie `react` und `react-dom` nur, wenn Sie `markdoc-md/react` verwenden.
+
+## Eine Vorlage rendern
+
+`DynamicMarkdocRenderer` erhält den Quelltext der Vorlage (Template) und die aktuellen Werte. Er
+parst die Vorlage einmal und rendert bei geänderten Werten mit geringem Aufwand neu.
+
+```tsx
+import { DynamicMarkdocRenderer } from "markdoc-md/react";
+
+const template = `**BMI:** {% calc "bmi" formula="[gewicht] / ([groesse] / 100) ^ 2" unit="kg/m²" renderUnit=true %}{% info "gewicht" type="number" unit="kg" /%}{% /calc %}`;
+
+export function Preview() {
+  return <DynamicMarkdocRenderer markdocContent={template} variables={{ gewicht: 82, groesse: 178 }} />;
+}
+```
+
+<Rendered>
+  **BMI:** <Value kind="calc">25.88 kg/m²</Value>
+</Rendered>
+
+`groesse` ist nirgends deklariert, und trotzdem funktioniert die Formel: Ein nicht deklarierter
+Verweis in einer Formel wird automatisch zu einer Zahleneingabe. Entfernen Sie `groesse` aus den
+Werten, zeigt das Ergebnis `… kg/m²`, bis der Wert wieder eingetragen ist.
+
+<Note>
+  Die Standardkomponenten verwenden Utility-Klassennamen (`bg-solarized-blue` und ähnliche) und
+  `data-*`-Attribute als Ansatzpunkte. Ohne CSS-Framework werden sie korrekt, nur ungestylt
+  dargestellt. Über die Prop `components` ersetzen Sie sie durch eigene Komponenten; siehe
+  [Eigene Komponenten](/markdoc-md/guides/custom-components).
+</Note>
+
+## Ein Formular aus der Vorlage bauen
+
+`analyzeMarkdocTemplate` liefert alles, was ein Formular braucht, ganz ohne React:
+
+```ts
+import { analyzeMarkdocTemplate } from "markdoc-md";
+
+const { inputs, variables, diagnostics } = analyzeMarkdocTemplate(template);
+```
+
+| Feld | Inhalt |
+| --- | --- |
+| `inputs` | Ein Baum der Eingaben in Dokumentreihenfolge: `Info`, `Switch` (mit `Case`-Kindern) und `Calc` (mit seinen Teileingaben als Kindern) |
+| `variables` | Ein [Vertrag](/markdoc-md/concepts/variables) pro Variablenname: Wertebereich (Domain), Einheit, Beschreibung, Formel und Rollen |
+| `diagnostics` | Alle Prüfmeldungen der [Validierung](/markdoc-md/concepts/validation); jede Meldung mit `severity: "error"` sollte das Speichern blockieren |
+
+Für die BMI-Vorlage oben sieht `inputs` so aus:
+
+```json
+[
+  {
+    "name": "Calc",
+    "attributes": { "primary": "bmi", "formula": "[gewicht] / ([groesse] / 100) ^ 2", "unit": "kg/m²", "renderUnit": true },
+    "children": [
+      { "name": "Info", "attributes": { "primary": "gewicht", "type": "number", "unit": "kg", "renderUnit": false }, "children": [] },
+      { "name": "Info", "attributes": { "primary": "groesse", "type": "number" }, "children": [] }
+    ]
+  }
+]
+```
+
+Wählen Sie pro Eingabe ein Steuerelement:
+
+| Eingabe | Zu prüfende `attributes` | Empfohlenes Steuerelement |
+| --- | --- | --- |
+| `Info` | `type`: `string`, `number` oder `date` | Text-, Zahlen- oder Datumsfeld; `unit` und `description` als Hinweise anzeigen |
+| `Switch` | `type`: `boolean` oder `checkbox` | Checkbox |
+| `Switch` | kein `type` oder `string` | Auswahlliste mit einer Option pro `Case`-Kind (`attributes.primary`) |
+| `Calc` | `formula` | Schreibgeschütztes Ergebnis mit optionalem Feld zum Überschreiben; `children` als Teileingaben darstellen |
+
+Verwenden Sie `attributes.primary` als Schlüssel im `variables`-Objekt, das Sie an den Renderer
+übergeben.
+
+### Nur relevante Eingaben zeigen
+
+Eingaben innerhalb eines `switch`- oder `condition`-Falls tragen `visibility`. `isBranchVisible`
+sagt Ihnen, ob der Fall, der sie enthält, gerade ausgewählt ist. So kann ein Formular Felder
+ausblenden, die im Dokument nicht erscheinen würden:
+
+```ts
+import { isBranchVisible } from "markdoc-md";
+
+const shown = inputs.filter((input) => isBranchVisible(input.visibility, values));
+```
+
+## Vor dem Speichern validieren
+
+Das Rendern ist tolerant, damit alte gespeicherte Vorlagen weiterhin angezeigt werden. Validieren
+Sie stattdessen dort, wo Vorlagen angelegt oder geändert werden:
+
+```ts
+import { validateMarkdocTemplate } from "markdoc-md";
+
+const diagnostics = validateMarkdocTemplate(source);
+if (diagnostics.some((item) => item.severity === "error")) {
+  // Probleme anzeigen und das Speichern verweigern.
+}
+```
+
+Jede Prüfmeldung hat einen stabilen `code` und, falls verfügbar, eine `location` mit
+Zeilennummern. [Prüfmeldungen](/markdoc-md/reference/diagnostics) listet alle Codes auf.
+
+## Der vollständige Ablauf
+
+<Flow
+  steps={[
+    { title: "validateMarkdocTemplate", text: "beim Speichern", tone: "neutral" },
+    { title: "analyzeMarkdocTemplate", text: "Eingaben → Formularfelder", tone: "info" },
+    { title: "Werte", text: "aus dem Formular, von einer KI oder aus FHIR", tone: "switch" },
+    { title: "DynamicMarkdocRenderer", text: "rendert das Dokument", tone: "calc" },
+  ]}
+/>
+
+## Nächste Schritte
+
+<Columns cols={2}>
+  <Card title="Tags" icon="tags" href="/markdoc-md/tags/info">
+    Attribute und Verhalten aller Tags.
+  </Card>
+  <Card title="Eigene Komponenten" icon="palette" href="/markdoc-md/guides/custom-components">
+    Inline-Eingaben, eigene Badges und Klick-Handler.
+  </Card>
+  <Card title="Werte aus FHIR füllen" icon="hospital" href="/markdoc-md/guides/fhir-sources">
+    Eingaben per FHIRPath aus einem FHIR-Bundle vorbelegen.
+  </Card>
+  <Card title="API-Referenz" icon="book" href="/markdoc-md/reference/api">
+    Alle Einstiegspunkte und Exporte.
+  </Card>
+</Columns>

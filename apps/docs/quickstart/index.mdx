@@ -1,75 +1,73 @@
 ---
 title: Quickstart
-description: In ca. 10 Minuten vom Account zum ersten nutzbaren Dokument.
+description: In zehn Minuten von der Anmeldung zum ersten ausgefüllten Textbaustein.
 ---
 
-## Ziel
+import { Field } from "/snippets/markdoc.jsx";
 
-Sie erstellen ein erstes Template, generieren damit ein Dokument und wissen danach, wie Sie iterativ bessere Ergebnisse bekommen.
+Sie legen einen kleinen Textbaustein an, lassen ihn von der KI ausfüllen und kopieren das Ergebnis.
 
-## Voraussetzung
+<Steps>
+  <Step title="Anmelden">
+    Registrieren Sie sich unter [mdscribe.de/sign-up](https://mdscribe.de/sign-up) oder melden Sie
+    sich unter [mdscribe.de/sign-in](https://mdscribe.de/sign-in) an.
+  </Step>
+  <Step title="Textbaustein anlegen">
+    Öffnen Sie **Textbausteine** und klicken Sie in der Seitenleiste auf **Neue Vorlage**. Geben
+    Sie **Kategorie** und **Name** ein und fügen Sie in den Reiter **Template** ein:
 
-- Ein aktiver MDScribe-Account
-- Grundidee, welches Dokument Sie erzeugen wollen (z. B. Entlassungsbrief)
+    ```markdown
+    **Aufnahmegrund:** {% info "Aufnahmegrund" description="Leitsymptom und Dauer" /%}
 
-## 1. Anmelden
+    **Diagnosen:** {% info "Diagnosen" description="Hauptdiagnose zuerst, mit ICD-10" /%}
 
-1. Gehen Sie zu [Sign in](https://mdscribe.de/sign-in) oder [Sign up](https://mdscribe.de/sign-up).
-2. Melden Sie sich an.
-3. Oeffnen Sie danach den Bereich fuer Templates.
+    **Verlauf:** {% info "Verlauf" /%}
 
-## 2. Erstes Template anlegen
+    **Entlassung:** {% switch "Entlassung" %}{% case "nach Hause" %}Entlassung in die häusliche Umgebung.{% /case %}{% case "Verlegung" %}Verlegung in eine weiterbehandelnde Einrichtung.{% /case %}{% /switch %}
+    ```
 
-Erstellen Sie ein neues Template und starten Sie mit dieser Minimalstruktur:
+    Der eingefügte Text wird zu farbigen Chips. Klicken Sie auf **Textbaustein speichern**.
+  </Step>
+  <Step title="Ausfüllen lassen">
+    Auf der Seite des Textbausteins geben Sie unten erfundene Notizen ein und klicken auf **Füllen**:
 
-```markdown
-# Kurzbrief
+    ```text
+    Aufnahme wegen Dyspnoe seit 3 Tagen. NSTEMI, Z. n. PCI RIVA.
+    Komplikationsloser Verlauf auf IMC, Entlassung nach Hause.
+    ```
 
-## Aufnahmegrund
-{% info "aufnahmegrund" /%}
+    Die KI trägt die Werte ein:
 
-## Diagnosen
-{% info "diagnosen" /%}
+    > **Aufnahmegrund:** <Field>Dyspnoe seit 3 Tagen</Field><br />
+    > **Entlassung:** <Field kind="select">Entlassung in die häusliche Umgebung.</Field>
 
-## Verlauf
-{% info "verlauf" /%}
-
-## Entlassung
-{% switch "entlassung" %}{% case "nach-hause" %}Entlassung nach Hause.{% /case %}{% case "verlegung" %}Verlegung in weiterbehandelnde Einrichtung.{% /case %}{% /switch %}
-```
-
-Wenn Sie unsicher sind, lesen Sie parallel: [Templates](/templates) und [Tag-Referenz](/templates/tags).
-
-## 3. Dokument generieren
-
-1. Wechseln Sie in den Bereich fuer KI-Dokumentation.
-2. Waehlen Sie Ihr Template aus.
-3. Geben Sie klinische Informationen ein.
-4. Starten Sie die Generierung.
-
-## 4. Ergebnis pruefen und finalisieren
-
-Pruefen Sie das generierte Dokument direkt auf:
-
-- medizinische Korrektheit
-- Vollstaendigkeit der Diagnosen/Befunde
-- Stil und Struktur fuer Ihr Zielsystem
-- inhaltliche Halluzinationen oder unerwuenschte Fuelltexte
-
-## Fertig, wenn diese Punkte stimmen
-
-- Sie haben mindestens ein Template gespeichert.
-- Sie haben mindestens ein Dokument erfolgreich generiert.
-- Sie haben das Ergebnis manuell fachlich validiert.
+    Jedes Feld können Sie direkt im Text korrigieren. **KI-Werte prüfen** führt durch alle Werte der
+    KI.
+  </Step>
+  <Step title="Prüfen und kopieren">
+    Prüfen Sie Korrektheit und Vollständigkeit, dann **Kopieren**. Der kopierte Text enthält keine
+    Felder mehr und lässt sich in Brief oder KIS einfügen.
+  </Step>
+</Steps>
 
 <Warning>
-  **Datenschutz**
-
-  Fuer cloud-gehostete Nutzung sollten derzeit keine sensiblen Patienten-PII/PHI eingegeben werden. Fuer sensible Daten ist Self-Hosting der empfohlene Weg.
+  In der öffentlichen MDScribe-Cloud nur erfundene oder wirksam anonymisierte Inhalte verwenden.
+  Siehe [Datenschutz](/privacy).
 </Warning>
 
 ## Danach
 
-1. [Beispiel-Workflow: Entlassungsbrief](/quickstart/schnellstart)
-2. [KI-Instruktionen fuer bessere Qualitaet](/ai/ki-instruktionen)
-3. [FAQ](/faq)
+<Columns cols={2}>
+  <Card title="Beispiel: Entlassbrief" icon="file-medical" href="/quickstart/schnellstart">
+    Ein vollständigerer Textbaustein mit Beispielen und Informationen.
+  </Card>
+  <Card title="AI Scribe" icon="microphone" href="/ai">
+    Ganze Abschnitte aus Notizen oder Diktat formulieren lassen.
+  </Card>
+  <Card title="Tags" icon="tags" href="/templates/tags">
+    Auswahlen, Berechnungen und Bedingungen.
+  </Card>
+  <Card title="FAQ" icon="circle-question" href="/faq">
+    Häufige Fragen und Probleme.
+  </Card>
+</Columns>

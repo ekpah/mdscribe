@@ -1,0 +1,47 @@
+---
+title: Rich-Text-Editor anbinden
+sidebarTitle: Editor-Anbindung
+description: Wandeln Sie Vorlagen in bearbeitbares HTML um und zurück, so wie der Vorlagen-Editor von MDScribe.
+---
+
+import { Flow } from "/snippets/markdoc.jsx";
+
+`markdoc-md/editor` wandelt zwischen dem Quelltext einer Vorlage und HTML für einen Rich-Text-Editor
+wie TipTap um.
+
+<Flow
+  steps={[
+    { title: "Quelltext der Vorlage", text: "gespeichertes Markdoc", tone: "neutral" },
+    { title: "renderTipTapHTML", text: "bearbeitbares HTML, funktioniert ohne DOM", tone: "info" },
+    { title: "Editor", text: "Text, Tabellen und Tags werden bearbeitet", tone: "switch" },
+    { title: "htmlToMarkdoc", text: "zurück zu Markdoc, benötigt DOMParser", tone: "calc" },
+  ]}
+/>
+
+```ts
+import { htmlToMarkdoc, isHtmlToMarkdocSupported, renderTipTapHTML } from "markdoc-md/editor";
+
+const html = renderTipTapHTML(source);
+
+if (isHtmlToMarkdocSupported()) {
+  const nextSource = htmlToMarkdoc(editor.getHTML());
+}
+```
+
+| Funktion | Läuft in | Hinweise |
+| --- | --- | --- |
+| `renderTipTapHTML(source, { config?, sanitize? })` | Node oder Browser | Hält Leerzeilen, Lücken an `details`-Blöcken und Tabellen bearbeitbar |
+| `htmlToMarkdoc(html)` | nur Browser | Wirft ohne `DOMParser` einen Fehler; prüfen Sie vorher `isHtmlToMarkdocSupported()` |
+| `serializeMarkdocTable(rows, hasHeader)` | überall | Aus `markdoc-md/parse`. Erzeugt eine [Markdoc-Tabelle](/markdoc-md/tags/tables) aus Zellen mit `colspan`/`rowspan` |
+| `sanitizeMarkdocForRendering(source)` | überall | Entfernt strukturell defekte `cite`-Begrenzer und behält deren Text |
+
+<Note>
+  Der Hin- und Rückweg normalisiert das alte `{% score %}` zu `{% calc %}`, speichert Tabellen als
+  Markdoc-Listentabellen und lässt Listen von Quellenangaben unverändert.
+</Note>
+
+## Beim Tippen validieren
+
+Führen Sie `analyzeMarkdocTemplate` bei jeder Änderung aus (mit Debounce) und unterstreichen Sie die
+Prüfmeldungen an ihrer `location`. MDScribe markiert ungültige Tags mit einer roten Wellenlinie und
+verweigert das Speichern von Vorlagen mit Fehlern.

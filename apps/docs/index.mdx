@@ -1,60 +1,85 @@
 ---
-title: Dokumentation
-description: Kompakter Einstieg und Diátaxis-Übersicht für MDScribe.
+title: MDScribe-Dokumentation
+sidebarTitle: Übersicht
+description: Medizinische Dokumentation mit wiederverwendbaren Vorlagen und KI-Unterstützung.
 ---
 
-Willkommen in der MDScribe-Dokumentation. Die Inhalte folgen dem **Diátaxis-Modell** mit vier klaren Bereichen: Tutorials, How-to-Guides, Referenz und Erklärungen.
+import { Flow, Rendered, TagLegend, Value } from "/snippets/markdoc.jsx";
 
-## Schneller Einstieg
+MDScribe erstellt medizinische Dokumente aus **Vorlagen**. Eine Vorlage legt Struktur, Felder und
+Formulierungen einmal fest. Für jeden Fall füllen Sie nur noch die Werte aus, von Hand oder per KI
+aus Ihren Notizen, Diktaten und Befunden.
+
+## So funktioniert MDScribe
+
+<Flow
+  steps={[
+    { title: "Vorlage", text: "Struktur, Felder, Auswahlen und Berechnungen", tone: "neutral" },
+    { title: "Eingaben", text: "Text, Diktat oder Dateien", tone: "info" },
+    { title: "Ausfüllen", text: "von Hand oder per KI", tone: "switch" },
+    { title: "Prüfen und kopieren", text: "fertiger Text für Brief oder KIS", tone: "calc" },
+  ]}
+/>
+
+Aus dieser Vorlage …
+
+```markdown
+**Gewicht:** {% info "Gewicht" type="number" unit="kg" renderUnit=true /%}
+**BMI:** {% calc "BMI" formula="[Gewicht] / ([Groesse] / 100) ^ 2" unit="kg/m²" renderUnit=true %}{% /calc %}
+**Raucherstatus:** {% switch "Raucher" type="checkbox" %}{% case "true" %}Raucher{% /case %}{% case "false" %}Nichtraucher{% /case %}{% /switch %}
+```
+
+… entsteht mit `Gewicht = 82`, `Groesse = 178` und angehaktem Raucher-Feld:
+
+<Rendered title="Dokument">
+  **Gewicht:** <Value>82 kg</Value><br />
+  **BMI:** <Value kind="calc">25.88 kg/m²</Value><br />
+  **Raucherstatus:** <Value kind="switch">Raucher</Value>
+</Rendered>
+
+<TagLegend
+  labels={{
+    info: "Eingegebener Wert",
+    switch: "Gewählte Formulierung",
+    calc: "Berechneter Wert",
+  }}
+/>
+
+## Erste Schritte
 
 <Columns cols={2}>
-  <Card title="Quickstart" href="/quickstart">
-    Der schnellste Weg vom Account zum ersten nutzbaren Dokument.
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    In zehn Minuten von der Anmeldung zum ersten Dokument.
   </Card>
-  <Card title="Templates" href="/templates">
-    Template-Aufbau, Tags und praktische Best Practices.
+  <Card title="Beispiel: Entlassbrief" icon="file-medical" href="/quickstart/schnellstart">
+    Ein vollständiger Ablauf mit Vorlage, Eingabe und Prüfung.
   </Card>
-  <Card title="Dokumente" href="/documents">
-    Fillbare PDF-Formulare hochladen, ausfuellen und verwalten.
+  <Card title="Vorlagen" icon="file-pen" href="/templates">
+    Vorlagen anlegen, Tags einsetzen, Sammlungen verwalten.
   </Card>
-  <Card title="KI-Instruktionen" href="/ai/ki-instruktionen">
-    Steuern Sie Struktur und Stil der KI-Ausgabe im Template.
-  </Card>
-  <Card title="Datenschutz" href="/privacy">
-    Leitplanken für Cloud und Self-Hosting.
+  <Card title="Datenschutz" icon="shield-halved" href="/privacy">
+    Welche Daten in die Cloud gehören und welche nicht.
   </Card>
 </Columns>
 
-## Nach Dokumentationsart
+## Bereiche dieser Dokumentation
 
-<Columns cols={2}>
-  <Card title="Tutorials" href="/tutorials">
-    Schritt-für-Schritt-Lernpfade für den Einstieg in MDScribe.
+<Columns cols={1}>
+  <Card title="Dokumentation" icon="user-doctor" href="/quickstart">
+    Für Ärztinnen und Ärzte: Vorlagen, KI-Dokumentation, PDF-Formulare, Textbausteine und
+    Datenschutz.
   </Card>
-  <Card title="How-to-Guides" href="/how-to">
-    Aufgabenorientierte Anleitungen für konkrete Ziele im Arbeitsalltag.
+  <Card title="Betrieb" icon="server" href="/self-hosting">
+    Für Administratoren: Self-Hosting, E-Mail und die Anbindung von KI-Providern.
   </Card>
-  <Card title="Referenz" href="/reference">
-    Präzise Nachschlagewerke zu Syntax, Parametern und Features.
-  </Card>
-  <Card title="Erklärungen" href="/explanation">
-    Hintergründe, Architekturentscheidungen und konzeptionelles Verständnis.
+  <Card title="markdoc-md" icon="code" href="/markdoc-md">
+    Für Entwickler (englisch): die Template-Sprache hinter allen Vorlagen als
+    eigenständiges npm-Paket.
   </Card>
 </Columns>
 
-## Nach Produktbereichen (Cal.com-inspirierte Struktur)
-
-<Columns cols={2}>
-  <Card title="Template-Editor" href="/reference/tags">
-    Tags, Struktur und wiederverwendbare Bausteine für medizinische Templates.
-  </Card>
-  <Card title="KI-Assistenz" href="/ai/ki-instruktionen">
-    Praxisanleitungen für bessere KI-Ergebnisse in der Dokumentation.
-  </Card>
-  <Card title="Datenschutz & Compliance" href="/privacy">
-    Datensicherheit, DSGVO-Kontext und sichere Nutzung im medizinischen Umfeld.
-  </Card>
-  <Card title="Deployment" href="/self-hosting">
-    Self-Hosting und betriebliche Hinweise für Teams und Organisationen.
-  </Card>
-</Columns>
+<Warning>
+  Die öffentliche MDScribe-Cloud ist nur für erfundene oder wirksam anonymisierte Inhalte gedacht.
+  Echte Patientendaten gehören in eine [selbst betriebene Instanz](/self-hosting). Details unter
+  [Private vs. anonyme Daten](/privacy/private-vs-anonyme-daten).
+</Warning>

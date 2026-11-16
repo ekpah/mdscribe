@@ -1,0 +1,164 @@
+---
+title: calc
+description: Scores und abgeleitete Werte aus anderen Eingaben berechnen.
+---
+
+import { Flow, Rendered, Value } from "/snippets/markdoc.jsx";
+
+```markdown
+- **MAD:**
+  {% calc "mad" formula="([rr_sys] + 2 * [rr_dia]) / 3" unit="mmHg" round=0 renderUnit=true %}
+  {% info "rr_sys" type="number" unit="mmHg" /%}
+  {% info "rr_dia" type="number" unit="mmHg" /%}
+  {% /calc %}
+```
+
+<Columns cols={2}>
+  <Rendered title="rr_sys = 128, rr_dia = 79">
+    **MAD:** <Value kind="calc" title="Formula: ([rr_sys] + 2 * [rr_dia]) / 3">95 mmHg</Value>
+  </Rendered>
+  <Rendered title="rr_dia fehlt">
+    **MAD:** <Value kind="calc">…</Value>
+  </Rendered>
+</Columns>
+
+`calc` wertet `formula` aus und zeigt das Ergebnis. Die Tags in seinem Inneren deklarieren die
+Eingaben, die die Formel verwendet; sie werden nicht angezeigt. Beim Überfahren des Ergebnisses mit
+der Maus erscheint die Formel.
+
+## Attribute
+
+| Attribut | Standard | Bedeutung |
+| --- | --- | --- |
+| `primary` | Pflicht | Nicht leerer Name des Ergebnisses; kann als erster Wert in Anführungszeichen stehen |
+| `formula` | Pflicht | Der auszuwertende Ausdruck. Gemeinsam für alle Erwähnungen des Namens |
+| `round` | `2` | Nachkommastellen, `0` bis `100`; `false` schaltet das Runden ab. Gemeinsam für alle Erwähnungen |
+| `unit` | – | Einheit des Ergebnisses |
+| `renderUnit` | `false` | `unit` hinter dem Ergebnis ausgeben |
+
+## Formeln
+
+Formeln wertet [fparser](https://github.com/bylexus/fparser) aus.
+
+| Schreibweise | Bedeutung |
+| --- | --- |
+| `[gewicht]` | Wert der Variable `gewicht`. Eckige Klammern erlauben jeden Namen; einfache Namen funktionieren auch ohne |
+| `+ - * /` | Grundrechenarten |
+| `^` | Potenz, zum Beispiel `[groesse] ^ 2` |
+| `( )` | Klammern |
+| `>= > <= < =` | Vergleiche; 1 wenn wahr, 0 wenn falsch |
+| `PI`, `E` | Konstanten; werden nie als Eingaben behandelt |
+| `sqrt(x)`, `log(x)`, `round(x)`, … | Funktionen aus JavaScripts `Math` |
+
+Vergleiche machen aus Schwellenwerten Punkte: `([alter] >= 65) + ([alter] >= 75)` ergibt 0, 1 oder 2.
+
+### Woher die Zahlen kommen
+
+| Eingabe | Wert in der Formel |
+| --- | --- |
+| `info` mit `type="number"` | Die Zahl |
+| Checkbox- oder boolescher `switch` | 1 für wahr, 0 für falsch, sofern seine Fälle kein `value` haben |
+| Text-`switch` | Das `value` des gewählten Falls |
+| Ein anderer `calc` | Dessen gerundetes Ergebnis |
+| Ein Name ohne Deklaration | Eine automatisch angelegte Zahleneingabe |
+
+## Eingaben deklarieren
+
+Sie müssen Eingaben nicht deklarieren. Diese beiden Vorlagen erzeugen dieselben Eingaben:
+
+<CodeGroup>
+
+```markdown Ohne Deklaration
+{% calc "bmi" formula="[gewicht] / ([groesse] / 100) ^ 2" %}{% /calc %}
+```
+
+```markdown Mit Deklaration
+{% calc "bmi" formula="[gewicht] / ([groesse] / 100) ^ 2" %}
+{% info "gewicht" type="number" /%}
+{% info "groesse" type="number" /%}
+{% /calc %}
+```
+
+</CodeGroup>
+
+Deklarieren Sie sie, wenn Sie eine `unit`, eine `description`, eine `source` oder statt einer Zahl
+eine Checkbox hinzufügen möchten. Eine Eingabe lässt sich auch an jeder anderen Stelle der Vorlage
+deklarieren, zum Beispiel dort, wo ihr Wert im Text erscheint.
+
+<div id="placing-a-calc-with-declarations" style={{ scrollMarginTop: "7rem" }} />
+
+## Einen calc mit Deklarationen platzieren
+
+Ein `calc` über mehrere Zeilen darf nicht hinter Text in derselben Zeile beginnen. Schreiben Sie ihn
+in eine Zeile, in eigene Zeilen oder eingerückt unter einen Listenpunkt:
+
+<CodeGroup>
+
+```markdown Eine Zeile
+**BMI:** {% calc "bmi" formula="[gewicht] / ([groesse] / 100) ^ 2" %}{% info "gewicht" type="number" /%}{% /calc %}
+```
+
+```markdown Eigene Zeilen
+**BMI:**
+
+{% calc "bmi" formula="[gewicht] / ([groesse] / 100) ^ 2" %}
+{% info "gewicht" type="number" /%}
+{% /calc %}
+```
+
+```markdown Listenpunkt
+- **BMI:**
+  {% calc "bmi" formula="[gewicht] / ([groesse] / 100) ^ 2" %}
+  {% info "gewicht" type="number" /%}
+  {% /calc %}
+```
+
+</CodeGroup>
+
+<Warning>
+  `**BMI:** {% calc … %}` mit Deklarationen in den folgenden Zeilen zerstört die Absatzstruktur von
+  Markdoc. Die Validierung meldet mehrere `markdoc-schema`-Fehler, und die deklarierten Werte geraten
+  in den gerenderten Text.
+</Warning>
+
+## Wann ein Ergebnis erscheint
+
+Eine Berechnung zeigt `…`, bis **jede** Variable ihrer Formel einen Wert hat. Nicht angehakte
+Checkboxen zählen als mit `false` ausgefüllt. Nicht endliche Ergebnisse, etwa bei einer Division
+durch null, zeigen ebenfalls `…`. Berechnungen, die von einer Berechnung ohne Wert abhängen, bleiben
+ebenfalls ohne Wert, und Conditions darauf verwenden ihren Standardfall.
+
+## Rundung gehört zum Wert
+
+`round` formatiert nicht nur die Anzeige. Eine benannte Berechnung **veröffentlicht** ihr gerundetes
+Ergebnis, und alles andere verwendet diese veröffentlichte Zahl: ein `info`, das sie anzeigt, eine
+Condition, die sie prüft, eine Berechnung, die darauf aufbaut.
+
+<Flow
+  steps={[
+    { title: "Formel", text: "q = 1 / 3 ergibt 0.333…", tone: "calc" },
+    { title: "Veröffentlicht", text: "round=2 macht daraus 0.33", tone: "calc" },
+    { title: "Weiterverwendet", text: "[q] * 100 ergibt 33, nicht 33.33", tone: "neutral" },
+  ]}
+/>
+
+Deshalb müssen wiederholte `calc`-Tags mit demselben Namen in `formula` und `round` übereinstimmen.
+Rundung nur für die Anzeige gehört an ein [`info`](/markdoc-md/tags/info#showing-a-calculated-value).
+
+## Überschreiben
+
+Wird für den Namen der Berechnung selbst ein Wert übergeben, ersetzt er das Ergebnis der Formel. Der
+überschriebene Wert wird wie ein berechnetes Ergebnis gerundet. Ein leerer Wert schaltet zurück auf
+die Formel.
+
+## Berechnungen überall
+
+Benannte Berechnungen werden für die gesamte Vorlage aufgelöst, auch innerhalb eines Falls, der
+gerade nicht angezeigt wird. Sie dürfen in beliebiger Reihenfolge voneinander abhängen, solange
+kein Zyklus entsteht. Eine Berechnung, die direkt oder über andere von sich selbst abhängt, ist der
+Fehler `calc-cycle`.
+
+## Veraltet: `score`
+
+`{% score %}` ist ein Alias für `calc`. Es wird weiterhin gerendert, und der MDScribe-Editor
+speichert es als `calc`.

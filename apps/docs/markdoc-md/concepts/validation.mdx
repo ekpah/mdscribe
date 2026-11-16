@@ -1,0 +1,78 @@
+---
+title: Validierung und tolerantes Rendern
+sidebarTitle: Validierung
+description: Wo markdoc-md Vorlagen streng prüft und warum das Rendern nie einen Fehler wirft.
+---
+
+import { Flow } from "/snippets/markdoc.jsx";
+
+markdoc-md prüft Vorlagen an zwei verschiedenen Stellen, mit zwei verschiedenen Haltungen.
+
+<Columns cols={2}>
+  <Card title="Streng: beim Speichern einer Vorlage" icon="shield-check">
+    `validateMarkdocTemplate` meldet jedes Problem. Ihr Editor und Ihr Speicher-Endpunkt sollten
+    Vorlagen mit Fehlern ablehnen.
+  </Card>
+  <Card title="Tolerant: beim Rendern einer Vorlage" icon="eye">
+    Der Renderer wirft nie einen Fehler. Fehlerhafte Tags werden wirkungslos oder als `…`
+    dargestellt, damit Vorlagen, die vor Einführung einer Regel gespeichert wurden, weiterhin
+    angezeigt werden.
+  </Card>
+</Columns>
+
+<Flow
+  steps={[
+    { title: "Bearbeiten", text: "Prüfmeldungen schon beim Tippen anzeigen", tone: "info" },
+    { title: "Speichern", text: 'Ablehnen bei jeder Prüfmeldung mit severity "error"', tone: "calc" },
+    { title: "Rendern", text: "Alles Gespeicherte anzeigen, nie einen Fehler werfen", tone: "switch" },
+  ]}
+/>
+
+## Was die Validierung prüft
+
+`validateMarkdocTemplate(source, config?)` kombiniert drei Ebenen:
+
+1. **Markdoc-Syntax und -Schema**: unbekannte Tags, falsche Attributtypen, eine fehlerhafte
+   `formula`, ein inline geschriebenes `details`-Tag. Diese Meldungen haben den Code
+   `markdoc-schema` und Markdocs eigene `id`.
+2. **Variablenverträge**: widersprüchliche Typen oder Einstellungen zwischen Verwendungen eines
+   Namens, ungültige Fälle, Probleme in Berechnungen. Siehe
+   [Variablen und Verträge](/markdoc-md/concepts/variables).
+3. **Zitate**: ungültige Quellen, fehlerhafte Zitatlisten, zu lange wörtliche Zitate.
+
+Nicht geprüft werden die klinische Richtigkeit und die Vollständigkeit eines Dokuments.
+
+```ts
+import { validateMarkdocTemplate } from "markdoc-md";
+
+for (const item of validateMarkdocTemplate(source)) {
+  console.log(item.severity, item.code, item.location?.start.line);
+}
+```
+
+`analyzeMarkdocTemplate` liefert dieselben Prüfmeldungen zusammen mit den Eingaben, sodass ein
+Editor pro Änderung nur einen Aufruf braucht.
+
+<Tip>
+  Verwenden Sie den stabilen `code`, um übersetzte Meldungen anzuzeigen.
+  [Prüfmeldungen](/markdoc-md/reference/diagnostics) listet jeden Code mit einem Beispiel auf, das
+  ihn auslöst.
+</Tip>
+
+## Wie das Rendern bei Fehlern reagiert
+
+| Problem in einer gespeicherten Vorlage | Was gerendert wird |
+| --- | --- |
+| Wert für `info` fehlt | Ein leeres Badge |
+| Eingabe einer Berechnung fehlt, oder Division durch null | `…` |
+| `switch`-Wert passt zu keinem Fall | Der Fall mit `default=true`, sonst nichts |
+| `condition`-Wert fehlt | Der Fall mit `default=true`, sonst nichts |
+| Ungültiges Zitat | Der zitierte Text, ohne Verknüpfung |
+| Unausgeglichene `cite`-Tags | Der Text darin; das überzählige Tag entfällt |
+| Veraltetes `{% score %}`-Tag | Wird als `calc` gerendert |
+
+## Ein eigenes Schema verwenden
+
+Wenn Sie [Tags hinzufügen](/markdoc-md/guides/extending-schema), übergeben Sie dieselbe
+Konfiguration an Validierung und Rendern. Andernfalls lehnt die Validierung Tags ab, die der
+Renderer versteht, oder umgekehrt.

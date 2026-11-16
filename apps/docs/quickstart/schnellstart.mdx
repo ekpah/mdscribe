@@ -1,70 +1,74 @@
 ---
-title: Beispiel-Workflow Entlassungsbrief
-description: Ein kompletter Minimalablauf fuer einen Entlassungsbrief mit Template, Eingabe und Output-Check.
+title: "Beispiel: Entlassbrief"
+description: Ein vollständiger Ablauf mit Textbaustein, Informationen, Beispiel, Eingabe und Prüfung.
 ---
 
-## Ziel
+Ziel ist ein Entlassbrief-Textbaustein, den Sie für weitere Fälle wiederverwenden und im Team teilen
+können.
 
-In einem Durchlauf ein reproduzierbares Entlassungsbrief-Setup bauen, das Sie fuer weitere Faelle kopieren koennen.
+## 1. Template
 
-## 1. Template anlegen
-
-Nutzen Sie als Startpunkt:
+Legen Sie unter **Textbausteine → Neue Vorlage** an:
 
 ```markdown
-# Entlassungsbrief
-
 ## Aufnahme
-<!-- Kurz, faktenbasiert, ohne Spekulation -->
-{% info "aufnahmeanlass" /%}
+{% info "Aufnahmeanlass" description="Kurz und faktenbasiert: Leitsymptom, Beginn, Zuweisung" /%}
 
 ## Diagnosen
-<!-- Hauptdiagnose zuerst, dann Nebendiagnosen -->
-{% info "diagnosen" /%}
+{% info "Diagnosen" description="Hauptdiagnose zuerst, dann Nebendiagnosen, jeweils mit ICD-10" /%}
 
 ## Verlauf
-<!-- Chronologisch, nur relevante Ereignisse -->
-{% info "verlauf" /%}
+{% info "Verlauf" description="Chronologisch, nur relevante Ereignisse" /%}
 
 ## Medikation bei Entlassung
-{% info "entlassmedikation" /%}
+{% info "Entlassmedikation" description="Wirkstoff Dosis Schema, neue Medikamente markieren" /%}
 
 ## Procedere
-{% info "procedere" /%}
+Wiedervorstellung {% switch "Wiedervorstellung" %}{% case "Hausarzt" %}beim Hausarzt in einer Woche{% /case %}{% case "Ambulanz" %}in unserer Ambulanz{% /case %}{% case "bei Bedarf" %}bei Bedarf{% /case %}{% /switch %}.
+{% info "Procedere" /%}
 ```
 
-## 2. KI-Eingabe vorbereiten
+Die `description` jedes Felds sagt der KI, was hineingehört.
 
-Gute Eingaben sind strukturiert und knapp:
+## 2. Informationen
+
+Im Reiter **Informationen**:
+
+```text
+- Formeller Stil, Adressat ist der weiterbehandelnde Arzt.
+- Diagnosen nach Relevanz sortieren.
+- Nur dokumentierte Fakten, keine Vermutungen.
+- Fehlt eine Angabe, das Feld leer lassen.
+```
+
+## 3. Ein Beispiel
+
+Im Reiter **Beispiele** einen fertigen, erfundenen Entlassbrief hinterlegen. Die KI übernimmt daraus
+Stil und Detailgrad, nie Inhalte.
+
+## 4. Ausfüllen
+
+Notizen knapp und gegliedert eingeben, dann **Füllen**:
 
 ```text
 Aufnahme wegen Dyspnoe und Thoraxschmerz seit 2 Tagen.
 Vorgeschichte: arterielle Hypertonie, DM2.
-Befunde: Troponin erhoeht, ST-Senkungen V4-V6.
+Befunde: Troponin erhöht, ST-Senkungen V4–V6.
 Verlauf: Monitoring auf IMC, antithrombotische Therapie, klinische Stabilisierung.
-Entlassung in stabilem Zustand.
+Entlassung in stabilem Zustand, Wiedervorstellung beim Hausarzt.
 ```
 
-## 3. Generieren und nachschaerfen
+Fehlt etwas, ergänzen Sie die Notizen und füllen erneut, oder Sie korrigieren das Feld direkt im
+Text.
 
-1. Dokument generieren.
-2. Ergebnis gegen den Eingabetext gegenpruefen.
-3. Fehlende Punkte als kurze Nachinformation ergaenzen.
-4. Erneut generieren.
-
-<Tip>
-  **Schneller Qualitaetsgewinn**
-
-  Fuer wiederkehrende Dokumenttypen lohnt sich ein Satz KI-Kommentare im Template (HTML-Kommentare), z. B. fuer bevorzugte Reihenfolge oder Formulierungsstil.
-</Tip>
-
-## 4. Freigabecheck vor Copy/Paste
+## 5. Vor dem Kopieren prüfen
 
 - Diagnosen korrekt und konsistent?
-- Datum/Medikation plausibel?
-- Keine personenbezogenen Details enthalten, die im Cloud-Betrieb nicht eingegeben werden sollten?
-- Stil passt zu Ihrem Zielsystem?
+- Daten und Medikation plausibel?
+- Nichts erfunden, was nicht in den Notizen stand?
+- In der Cloud: keine personenbezogenen Angaben?
 
-## Naechster Schritt
-
-Wenn das klappt, bauen Sie eine zweite Variante fuer einen anderen Dokumenttyp und halten beide als Team-Standard fest.
+<Tip>
+  Läuft der Textbaustein gut, legen Sie ihn öffentlich an oder in eine gemeinsame Sammlung, damit
+  Kollegen denselben Standard nutzen.
+</Tip>

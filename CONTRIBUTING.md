@@ -153,7 +153,7 @@ incompatible with Bun 1.2.
 MDScribe is a monorepo managed with Bun workspaces and Turborepo:
 
 - `apps/app` — Main Next.js application
-- `apps/docs` — Documentation source content and hosted-site configuration; no local Mintlify CLI, preview, or validation scripts are installed
+- `apps/docs` — Documentation source content and hosted-site configuration; no local Mintlify CLI is installed. To preview, run `npx mint@latest dev` and `npx mint@latest broken-links` in `apps/docs`; shared visual components live in `apps/docs/snippets/`
 - `packages/database` — Drizzle ORM schema and client
 - `packages/design-system` — Shared UI components
 - `packages/email` — Email sending utilities

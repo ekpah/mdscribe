@@ -1,0 +1,94 @@
+---
+title: info
+description: Einen eingetragenen Wert einfügen, etwa einen Namen, ein Datum oder einen Messwert.
+---
+
+import { Rendered, Value } from "/snippets/markdoc.jsx";
+
+```markdown
+**Gewicht:** {% info "gewicht" type="number" unit="kg" round=1 renderUnit=true /%}
+```
+
+<Columns cols={2}>
+  <Rendered title="gewicht = 82.46">
+    **Gewicht:** <Value>82.5 kg</Value>
+  </Rendered>
+  <Rendered title="gewicht nicht gesetzt">
+    **Gewicht:** <Value>&nbsp;kg</Value>
+  </Rendered>
+</Columns>
+
+`info` rendert den Wert einer Variable. Die Analyse macht daraus ein Text-, Zahlen- oder
+Datumsfeld. Ein fehlender Wert erscheint als leeres Badge; mit `renderUnit=true` steht darin nur
+die Einheit.
+
+## Attribute
+
+### Den Wert beschreiben
+
+Diese Attribute gehören zur Variable selbst. Alle Erwähnungen desselben Namens teilen sie und
+müssen darin übereinstimmen.
+
+| Attribut | Standard | Bedeutung |
+| --- | --- | --- |
+| `primary` | Pflicht | Name der Variable. Kann als erster Wert in Anführungszeichen stehen: `{% info "gewicht" /%}` |
+| `type` | `"string"` | `"string"`, `"number"` oder `"date"`. Bestimmt das Eingabeelement und die [Domäne](/markdoc-md/concepts/variables) der Variable |
+| `unit` | – | Einheit des Werts, zum Beispiel `"kg"` |
+| `description` | – | Hinweis für alle, die das Feld ausfüllen, ob Mensch oder KI |
+| `source` | – | Woher sich der Wert abrufen lässt, zum Beispiel ein [`fhir://`-Ausdruck](/markdoc-md/guides/fhir-sources). Der Renderer ruft ihn nicht ab |
+
+### Nur die Anzeige
+
+Diese Attribute wirken nur an dieser Stelle. Andere Erwähnungen desselben Namens dürfen sie
+anders setzen.
+
+| Attribut | Standard | Bedeutung |
+| --- | --- | --- |
+| `round` | – | Nachkommastellen für Zahlen; `false` schaltet das Runden ab |
+| `renderUnit` | `false` | `unit` hinter dem Wert ausgeben |
+
+## Beispiele
+
+```markdown
+**Patientin:** {% info "patient" /%}
+**Aufnahme:** {% info "aufnahmedatum" type="date" /%}
+**Temperatur:** {% info "temperatur" type="number" unit="°C" round=1 renderUnit=true /%}
+**Alter:** {% info "alter" type="number" description="Alter in vollendeten Jahren" /%} Jahre
+```
+
+<Rendered>
+  **Patientin:** <Value>Erika Mustermann</Value><br />
+  **Aufnahme:** <Value>2026-03-14</Value><br />
+  **Temperatur:** <Value>38.4 °C</Value><br />
+  **Alter:** <Value>68</Value> Jahre
+</Rendered>
+
+<div id="showing-a-calculated-value" style={{ scrollMarginTop: "7rem" }} />
+
+## Einen berechneten Wert anzeigen
+
+Ein `info` mit demselben Namen wie ein [`calc`](/markdoc-md/tags/calc) zeigt das Ergebnis der
+Berechnung. Geben Sie ihm `type="number"`, damit beide Erwähnungen die Zahlendomäne teilen. Solange
+der Berechnung noch Eingaben fehlen, zeigt auch das `info` `…`.
+
+```markdown
+{% calc "bmi" formula="[gewicht] / ([groesse] / 100) ^ 2" %}{% /calc %}
+Der BMI von {% info "bmi" type="number" round=1 /%} liegt im Normalbereich.
+```
+
+<Rendered title="gewicht = 72, groesse = 178">
+  <Value kind="calc" title="Formula: [gewicht] / ([groesse] / 100) ^ 2">22.72</Value><br />
+  Der BMI von <Value>22.7</Value> liegt im Normalbereich.
+</Rendered>
+
+Der `calc` selbst zeigt das Ergebnis mit seiner eigenen Rundung (Standard: 2 Stellen), das `info`
+rundet nur für seine Anzeige auf eine Stelle.
+
+## Hinweise
+
+- Verwenden Sie `type="number"` für jedes Feld, das eine Formel nutzt. Ein Text- oder Datumsfeld in
+  einer Formel ist der Fehler `calc-variable-not-numeric`, weil sein Wert sonst unbemerkt als 0
+  zählen würde.
+- Groß- und Kleinschreibung zählt: `Gewicht` und `gewicht` sind zwei verschiedene Variablen.
+- Bevorzugen Sie Namen ohne Leerzeichen, etwa `rr_sys`. Sie lassen sich in Formeln leichter
+  verwenden.

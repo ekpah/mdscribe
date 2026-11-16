@@ -1,0 +1,71 @@
+---
+title: Werte aus FHIR übernehmen
+description: Füllen Sie Eingaben einer Vorlage mit FHIRPath-Ausdrücken aus einem FHIR-Bundle vor.
+---
+
+import { Stack } from "/snippets/markdoc.jsx";
+
+Ein `info`- oder `switch`-Tag kann mit `source="fhir://<FHIRPath>"` angeben, wo sein Wert zu finden
+ist. `resolveMarkdocSources` wertet diese Ausdrücke gegen ein FHIR-Bundle aus und liefert Werte, die
+Sie direkt an den Renderer übergeben können.
+
+```markdown
+**Hämoglobin:** {% info "hb" type="number" unit="g/dl" renderUnit=true source="fhir://Observation.where(code.coding.code = '718-7').last().value.value" /%}
+**Geschlecht:** {% info "sex" source="fhir://Patient.gender" /%}
+```
+
+```ts
+import { resolveMarkdocSources } from "markdoc-md";
+
+const { values, diagnostics } = resolveMarkdocSources(template, { fhir: bundle });
+// values → { hb: 13.2, sex: "female" }
+```
+
+<Stack
+  layers={[
+    { title: "FHIR-Bundle", text: "Ressourcen wie Patient, Observation, Condition …, auch verschachtelte Dokument-Bundles", tone: "neutral", edge: "FHIRPath je source-Attribut" },
+    { title: "resolveMarkdocSources", text: "ein Wert pro Variable, dazu Prüfmeldungen", tone: "info", edge: "mit manuellen oder KI-Werten zusammenführen" },
+    { title: "DynamicMarkdocRenderer", text: "rendert das Dokument", tone: "calc" },
+  ]}
+/>
+
+<Note>
+  Der Renderer lädt Quellen nie selbst. Sie entscheiden, wann sie aufgelöst werden und wie sie mit
+  von Hand eingegebenen Werten zusammenspielen, zum Beispiel indem manuelle Eingaben Vorrang haben.
+</Note>
+
+## Wie Ausdrücke ausgewertet werden
+
+- Der Kontext muss eine Ressource mit `resourceType: "Bundle"` sein. Ihre Einträge, einschließlich
+  der Einträge verschachtelter Bundles, bilden die Collection, auf der der Ausdruck läuft. Ausdrücke
+  beginnen daher mit einem Ressourcentyp wie `Observation.…`.
+- Die Auswertung verwendet das FHIR-R4-Modell.
+- Ein Ausdruck muss genau **einen** String, eine Zahl oder einen Boolean liefern. Geben Sie den
+  primitiven Wert zurück, zum Beispiel `valueQuantity.value` oder `value.value`, nicht die ganze
+  `Quantity`.
+- Liefert der Ausdruck kein Ergebnis, bleibt die Variable leer, ohne Prüfmeldung.
+
+## Prüfmeldungen
+
+| Code | Bedeutung |
+| --- | --- |
+| `missing-context` | Es wurde kein `fhir`-Kontext übergeben |
+| `invalid-source` | `fhir://` ohne Ausdruck |
+| `evaluation-error` | FHIRPath konnte den Ausdruck nicht auswerten |
+| `multiple-results` | Der Ausdruck lieferte mehr als einen Wert; ergänzen Sie `.last()` oder einen Filter |
+| `unsupported-result` | Das Ergebnis ist ein Objekt, etwa eine Ressource oder eine `Quantity` |
+| `unsupported-source` | Die Quelle verwendet ein anderes URI-Schema als `fhir://` |
+| `invalid-template` | Die Vorkommen der Variable widersprechen sich, daher ist ihre Quelle mehrdeutig |
+
+## Ergebnisse untersuchen
+
+`inspectMarkdocSources` liefert dieselben Werte und Prüfmeldungen und zusätzlich die rohen
+FHIRPath-Ergebnisse jeder Quelle. Verwenden Sie die Funktion in Autorenwerkzeugen, um zu zeigen,
+warum ein Ausdruck nichts oder zu viel zurückgegeben hat.
+
+## Regeln für `source`
+
+`source` ist Teil des [Vertrags](/markdoc-md/concepts/variables) der Variable: Alle Vorkommen eines
+Namens müssen darin übereinstimmen. Eine Array-`condition` kann keine Quelle tragen; setzen Sie sie
+stattdessen am eigenen `info`-Tag jedes Mitglieds. `evaluateFhirSource(bundle, expression)` aus
+`markdoc-md/sources` wertet einen einzelnen Ausdruck auf dieselbe Weise aus.

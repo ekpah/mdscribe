@@ -2,7 +2,7 @@
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
   "name": "MDScribe",
-  "description": "Dokumentation fuer MDScribe.",
+  "description": "Dokumentation für MDScribe und die Template-Sprache markdoc-md.",
   "colors": {
     "primary": "#268bd2",
     "light": "#2aa198",
@@ -23,93 +23,168 @@
     }
   },
   "navigation": {
-    "groups": [
+    "tabs": [
       {
-        "group": "Start",
-        "pages": [
-          "index",
-          "quickstart/index",
-          "quickstart/schnellstart",
-          "faq"
+        "tab": "Dokumentation",
+        "groups": [
+          {
+            "group": "Einstieg",
+            "pages": [
+              "index",
+              "quickstart/index",
+              "quickstart/schnellstart",
+              "faq"
+            ]
+          },
+          {
+            "group": "Vorlagen",
+            "pages": [
+              "templates/index",
+              "templates/tags",
+              "templates/info-tag",
+              "templates/switch-case-tags",
+              "templates/condition-tag",
+              "templates/calc-tag",
+              "templates/details-tag",
+              "ai/ki-instruktionen"
+            ]
+          },
+          {
+            "group": "Arbeiten mit MDScribe",
+            "pages": [
+              "ai/index",
+              "documents/index",
+              "text-snippets"
+            ]
+          },
+          {
+            "group": "Datenschutz",
+            "pages": [
+              "privacy/index",
+              "privacy/private-vs-anonyme-daten",
+              "privacy/ki-datenfluss"
+            ]
+          }
         ]
       },
       {
-        "group": "Tutorials",
-        "pages": [
-          "tutorials/index"
+        "tab": "Betrieb",
+        "groups": [
+          {
+            "group": "Self-Hosting",
+            "pages": [
+              "self-hosting/index",
+              "self-hosting/email"
+            ]
+          },
+          {
+            "group": "KI-Provider",
+            "pages": [
+              "providers/index",
+              "providers/byok",
+              "providers/openrouter",
+              "providers/openai-compatible",
+              "providers/private",
+              "providers/local",
+              "providers/openai",
+              "providers/anthropic",
+              "providers/workers-ai"
+            ]
+          }
         ]
       },
       {
-        "group": "How-to",
-        "pages": [
-          "how-to/index",
-          "how-to/ki-instruktionen",
-          "how-to/self-hosting"
-        ]
-      },
-      {
-        "group": "Produktbereiche",
-        "pages": [
-          "templates/index",
-          "templates/tags",
-          "templates/info-tag",
-          "templates/calc-tag",
-          "templates/switch-case-tags",
-          "templates/details-tag",
-          "documents/index",
-          "ai/index",
-          "ai/ki-instruktionen",
-          "text-snippets",
-          "knowledge"
-        ]
-      },
-      {
-        "group": "KI-Provider",
-        "pages": [
-          "providers/index",
-          "providers/byok",
-          "providers/openrouter",
-          "providers/openai-compatible",
-          "providers/private",
-          "providers/local",
-          "providers/openai",
-          "providers/anthropic",
-          "providers/workers-ai"
-        ]
-      },
-      {
-        "group": "Datenschutz",
-        "pages": [
-          "privacy/index",
-          "privacy/private-vs-anonyme-daten",
-          "privacy/ki-datenfluss"
-        ]
-      },
-      {
-        "group": "Self-Hosting",
-        "pages": [
-          "self-hosting/index",
-          "self-hosting/email"
-        ]
-      },
-      {
-        "group": "Referenz",
-        "pages": [
-          "reference/index",
-          "reference/tags"
-        ]
-      },
-      {
-        "group": "Erklaerungen",
-        "pages": [
-          "explanation/index",
-          "explanation/diataxis",
-          "explanation/privacy"
+        "tab": "markdoc-md",
+        "groups": [
+          {
+            "group": "Einstieg",
+            "pages": [
+              "markdoc-md/index",
+              "markdoc-md/tutorial",
+              "markdoc-md/quickstart"
+            ]
+          },
+          {
+            "group": "Konzepte",
+            "pages": [
+              "markdoc-md/concepts/variables",
+              "markdoc-md/concepts/validation"
+            ]
+          },
+          {
+            "group": "Tags",
+            "pages": [
+              "markdoc-md/tags/info",
+              "markdoc-md/tags/switch",
+              "markdoc-md/tags/condition",
+              "markdoc-md/tags/calc",
+              "markdoc-md/tags/details",
+              "markdoc-md/tags/cite",
+              "markdoc-md/tags/tables"
+            ]
+          },
+          {
+            "group": "Anleitungen",
+            "pages": [
+              "markdoc-md/guides/custom-components",
+              "markdoc-md/guides/fhir-sources",
+              "markdoc-md/guides/citations",
+              "markdoc-md/guides/editor",
+              "markdoc-md/guides/extending-schema"
+            ]
+          },
+          {
+            "group": "Referenz",
+            "pages": [
+              "markdoc-md/reference/api",
+              "markdoc-md/reference/diagnostics"
+            ]
+          }
         ]
       }
     ]
   },
   "redirects": [
+    {
+      "source": "/tutorials",
+      "destination": "/quickstart"
+    },
+    {
+      "source": "/how-to",
+      "destination": "/quickstart"
+    },
+    {
+      "source": "/how-to/ki-instruktionen",
+      "destination": "/ai/ki-instruktionen"
+    },
+    {
+      "source": "/how-to/self-hosting",
+      "destination": "/self-hosting"
+    },
+    {
+      "source": "/reference",
+      "destination": "/templates/tags"
+    },
+    {
+      "source": "/reference/tags",
+      "destination": "/templates/tags"
+    },
+    {
+      "source": "/explanation",
+      "destination": "/"
+    },
+    {
+      "source": "/explanation/diataxis",
+      "destination": "/"
+    },
+    {
+      "source": "/explanation/privacy",
+      "destination": "/privacy"
+    },
+    {
+      "source": "/knowledge",
+      "destination": "/"
+    },
     {
       "source": "/content/docs/:slug*",
       "destination": "/:slug*"

@@ -1,0 +1,84 @@
+---
+title: Quellenangaben auflösen
+description: Machen Sie aus einer angeklickten Quellenangabe eine Dateivorschau, eine Textmarkierung, eine Webseite oder FHIR-Daten.
+---
+
+import { Flow } from "/snippets/markdoc.jsx";
+
+Der Renderer meldet nur, welche Quellenangabe angeklickt wurde. Ihre Anwendung lädt die Quelle und
+zeigt sie an. `resolveCitation` übernimmt den gemeinsamen Teil: Die Funktion zerlegt die Quelle,
+findet das Zitat und liefert ein typisiertes Ergebnis zur Anzeige.
+
+<Flow
+  steps={[
+    { title: "Klick", text: "onCitationSelect(citations)", tone: "info" },
+    { title: "resolveCitation", text: "ein Aufruf pro Auszug, mit Ihrem Kontext", tone: "switch" },
+    { title: "Anzeigen", text: "Dokument, Text, externe Seite oder Fehler", tone: "calc" },
+  ]}
+/>
+
+```tsx
+import { resolveCitation, type CitationRequest } from "markdoc-md/citations";
+import { DynamicMarkdocRenderer } from "markdoc-md/react";
+
+async function openCitation(citations: CitationRequest[]) {
+  const result = await resolveCitation(citations[0], {
+    files,  // Map<string, File> für mdscribe://file/<id>
+    texts,  // Map<string, { label, text }> für mdscribe://input/<id>
+    fhir,   // ein FHIR-Bundle für fhir://…
+  });
+  showPreview(result);
+}
+
+<DynamicMarkdocRenderer markdocContent={template} variables={values} onCitationSelect={openCitation} />;
+```
+
+`onCitationSelect` erhält alle Auszüge der angeklickten Markierung: einen für `source`/`quote`,
+mehrere für eine `citations=[…]`-Liste.
+
+## Ergebnisse
+
+| `kind` | Geliefert für | Enthält |
+| --- | --- | --- |
+| `document` | `mdscribe://file/…` | `url` der Datei, `label` und, falls das Zitat gefunden wurde, dessen `location`: Seite, Begrenzungen und ein Seitenbild |
+| `text` | `mdscribe://input/…` und FHIR | `text` und den Bereich `match` des Zitats |
+| `external` | `https://…` | `url` und `label` (den Hostnamen) |
+| `error` | alles, was fehlgeschlagen ist | einen stabilen `code` und eine unbedenkliche englische `message` |
+
+<Note>
+  `resolveCitation` wirft nie eine Exception. Fehler eines eigenen Resolvers werden zu
+  `resolver-error`, ein abgebrochenes `signal` wird zu `cancelled`. Für deutsche Fehlertexte
+  übersetzen Sie anhand von `code`.
+</Note>
+
+## Kontext
+
+Jede Fähigkeit ist optional. Übergeben Sie nur, was Ihre Quellen brauchen; eine HTTPS-Quellenangabe
+lässt sich mit `{}` auflösen.
+
+| Feld | Wofür |
+| --- | --- |
+| `files` | Map von Datei-IDs auf `File`-Objekte |
+| `createFileUrl` | Erzeugt die Vorschau-URL; Standard ist `URL.createObjectURL`. Das Freigeben (Revoke) liegt bei Ihnen |
+| `documentResolver` | `(file, quote, signal) => location \| null`; sucht ein Zitat in einem Dokument mit eigener Logik |
+| `documentResolverEndpoint` | Sonst werden Datei und Zitat per POST hierhin gesendet; Standard ist `/api/citations/resolve-document` |
+| `texts` | Map von Eingabe-IDs auf `{ label, text }`, jeweils höchstens 2 MiB |
+| `fhir` | FHIR-Bundle für `fhir://`-Quellen |
+| `fhirResolver` | Ersetzt die eingebaute FHIR-Verarbeitung, zum Beispiel um `#path=` auszuwerten |
+| `signal` | `AbortSignal` zum Abbrechen |
+
+## Externe Seiten anzeigen
+
+Zeigen Sie `https`-Quellen in einem Sandbox-iframe mit `referrerpolicy="no-referrer"` an.
+
+<Warning>
+  Websites, die das Einbetten per CSP oder `X-Frame-Options` verbieten, werden nicht angezeigt.
+  Bieten Sie als Ausweichlösung einen Link an.
+</Warning>
+
+## Was Ihre Anwendung übernimmt
+
+Das Paket speichert keine Dateien, authentifiziert nicht, extrahiert keinen Dokumenttext, cacht
+nicht, begrenzt keine Anfragen und rendert keinen Vorschaudialog. Es enthält auch keine
+Quellenauswahl für Autoren. Erzeugen Sie Quellen mit `createMdscribeSource(kind, id)` oder in den
+dokumentierten [URI-Formen](/markdoc-md/tags/cite#source-forms).

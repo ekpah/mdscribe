@@ -10,7 +10,7 @@ description: Zugriff auf viele Modelle verschiedener Anbieter über einen einzig
 ## Einrichtung
 
 1. API-Key unter [openrouter.ai/keys](https://openrouter.ai/keys) erstellen.
-2. In MDScribe unter `Admin → Einstellungen → Modelle → Verbindungen` einen neuen Provider anlegen:
+2. In MDScribe unter **Admin → Systemeinstellungen → KI-Provider & Modelle → Verbindungen** einen neuen Provider anlegen:
    - **Protokoll**: `OpenRouter`
    - **Base URL**: leer lassen
    - **API-Key**: der erstellte Key
@@ -20,8 +20,9 @@ Die Synchronisierung fragt den vollständigen Katalog inklusive Transkriptionsmo
 
 ## Besonderheiten
 
-- **Reasoning-Steuerung**: Für Modelle, die Reasoning unterstützen, sendet MDScribe den konfigurierten Reasoning-Aufwand des jeweiligen Standard-Slots mit.
-- **Audio-Transkription**: OpenRouter-Transkriptionsmodelle werden über die JSON-Schnittstelle (`/v1/audio/transcriptions` mit `input_audio`) angesprochen und können den Speech-to-Text-Slot belegen.
+- **Reasoning-Steuerung**: Für Modelle, die Reasoning unterstützen, sendet MDScribe den konfigurierten Reasoning-Aufwand des jeweiligen Standardmodells mit.
+- **Routing**: Pro Modell lässt sich unter **Modelle** das OpenRouter-Routing wählen: `Standard`, `Nitro (schnell)`, `Floor (günstig)` oder `Exacto (Qualität)`.
+- **Audio-Transkription**: OpenRouter-Transkriptionsmodelle werden über die JSON-Schnittstelle (`/v1/audio/transcriptions` mit `input_audio`) angesprochen und können als **Audio-Modell** dienen.
 
 ## Einordnung für den Datenschutz
 

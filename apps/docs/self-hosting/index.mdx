@@ -97,9 +97,11 @@ Self-Hosted-Installation sind insbesondere diese Werte relevant:
 | `MAIL_FROM_ADDRESS` | Absenderadresse für alle von MDScribe versendeten E-Mails |
 | `MAIL_FROM_NAME` | Anzeigename des Absenders |
 | `MAIL_BROADCAST_SMTP_URL` | Optionaler separater SMTP-Provider für Marketing-Broadcasts |
+| `STRIPE_SECRET_KEY` | Optional. Aktiviert Abonnements; dann sind auch `STRIPE_WEBHOOK_SECRET`, `STRIPE_PLUS_PRICE_ID` und `STRIPE_PLUS_PRICE_ID_ANNUAL` Pflicht. Siehe [Abonnements und Kontingente](#abonnements-und-kontingente) |
 
 Erzeugen Sie für `BETTER_AUTH_SECRET` ein langes, zufälliges Secret. Verwenden
-Sie die Adresse aus `ADMIN_EMAIL` für den administrativen Account der Instanz.
+Sie die Adresse aus `ADMIN_EMAIL` für den administrativen Account der Instanz: Nur das Konto mit
+genau dieser E-Mail-Adresse erhält den Bereich **Admin**.
 
 Behandeln Sie `BETTER_AUTH_SECRET` wie einen dauerhaften
 Verschlüsselungsschlüssel. Eine unvorbereitete Änderung kann bestehende Sessions
@@ -108,15 +110,8 @@ machen.
 
 ### E-Mail-Provider konfigurieren
 
-MDScribe verwendet Standard-SMTP. Dadurch können Sie einen externen
-E-Mail-Provider oder einen Relay in Ihrer eigenen Infrastruktur anbinden, ohne
-den Anwendungscode zu ändern.
-
-Die vollständige Anleitung mit Postmark-Beispielen, On-Premises-Hinweisen,
-Versandtests und Fehlersuche finden Sie unter
-[E-Mail-Provider konfigurieren](/self-hosting/email).
-
-Für einen Provider mit STARTTLS auf Port `587`:
+MDScribe versendet Anmelde-, Verifizierungs- und System-E-Mails über Standard-SMTP, also über einen
+externen Anbieter oder einen Relay in Ihrer Infrastruktur:
 
 ```dotenv
 MAIL_SMTP_URL="smtp://benutzer:passwort@smtp.example.org:587?requireTLS=true"
@@ -124,47 +119,19 @@ MAIL_FROM_ADDRESS="noreply@example.org"
 MAIL_FROM_NAME="MDScribe"
 ```
 
-Für implizites TLS auf Port `465` verwenden Sie `smtps://`:
+Varianten für implizites TLS, interne Relays, Postmark, Tests und Fehlersuche stehen unter
+[E-Mail-Provider konfigurieren](/self-hosting/email).
 
-```dotenv
-MAIL_SMTP_URL="smtps://benutzer:passwort@smtp.example.org:465"
-```
-
-Ein interner Relay ohne SMTP-Authentifizierung kann ebenfalls verwendet werden:
-
-```dotenv
-MAIL_SMTP_URL="smtp://mail.intern.example.org:25?requireTLS=true"
-```
-
-Sonderzeichen in Benutzername und Passwort müssen URL-kodiert sein. Lassen Sie
-die Zertifikatsprüfung in Produktion aktiviert. Für interne
-Zertifizierungsstellen muss deren CA-Zertifikat im Container beziehungsweise in
-der Runtime als vertrauenswürdig installiert werden.
-
-Marketing-E-Mails können optional über einen getrennten Provider oder
-Broadcast-Stream versendet werden:
-
-```dotenv
-MAIL_BROADCAST_SMTP_URL="smtp://benutzer:passwort@smtp-broadcast.example.org:587?requireTLS=true"
-```
-
-Ist `MAIL_BROADCAST_SMTP_URL` leer, verwendet MDScribe auch für Broadcasts
-`MAIL_SMTP_URL`. Es gibt keinen automatischen Fallback zu einem externen
-Anbieter. Ein Ausfall des konfigurierten Relays führt zu einem sichtbaren
-Versandfehler.
-
-Prüfen Sie nach der Einrichtung mindestens Verifizierungs-E-Mail,
-Passwort-Reset und eine Admin-Test-E-Mail. Autorisieren Sie die Absenderdomain
-entsprechend den Vorgaben Ihres Providers mit SPF, DKIM und DMARC.
+### KI-Provider
 
 KI-Zugangsdaten sind keine globalen Deployment-Variablen. Legen Sie Provider
 nach der Anmeldung unter
-`Admin → Einstellungen → Modelle → Verbindungen` an. Die API-Schlüssel werden
+**Admin → Systemeinstellungen → KI-Provider & Modelle → Verbindungen** an. Die API-Schlüssel werden
 verschlüsselt in PostgreSQL gespeichert und nicht an den Browser
 zurückgegeben. Ohne konfigurierte Verbindung findet keine KI-Generierung statt.
 
 Optional können Sie auf jeder Verbindung
-**Nutzer-API-Schlüssel (BYOK)** aktivieren. Nur dann erscheint diese Verbindung
+**BYOK - Nutzer können eigene API-Schlüssel verwenden** aktivieren. Nur dann erscheint diese Verbindung
 unter `Einstellungen → KI-Zugang` für Nutzer. Protokoll und Base URL bleiben
 durch Ihre Admin-Konfiguration festgelegt. Wenn Sie keine nutzereigenen
 Schlüssel erlauben möchten, lassen Sie den Schalter auf allen Verbindungen
@@ -258,6 +225,24 @@ Ein Rollback der Anwendung macht eine bereits ausgeführte Datenbankmigration
 nicht automatisch rückgängig. Prüfen Sie deshalb vorab, ob alte und neue
 App-Version während des Rollouts mit dem migrierten Schema funktionieren.
 
+## Abonnements und Kontingente
+
+Funktionen und KI-Kontingent hängen davon ab, ob ein Nutzer ein aktives Plus-Abonnement hat. Ohne
+`STRIPE_SECRET_KEY` gibt es keine Abonnements, und **alle Nutzer gelten als kostenlos**:
+
+| | Kostenlos (ohne Stripe: alle) | Plus |
+| --- | --- | --- |
+| Private Textbausteine, Dokumente, AI Vorlagen, Brief-Baukästen | Nein, nur öffentlich | Ja |
+| KI-Kontingent pro Monat (Modellkosten) | 0,30 USD | 8 USD |
+| Eingaben und KI-Ausgaben in den Nutzungsdaten | Im Volltext gespeichert | Nicht gespeichert |
+
+Aufrufe über [nutzereigene Schlüssel (BYOK)](/providers/byok) zählen nicht gegen das Kontingent.
+
+<Warning>
+  Ohne Stripe speichert eine selbst betriebene Instanz die Eingaben und KI-Ausgaben aller Nutzer in
+  der Tabelle `usage_event`. Beziehen Sie diese Tabelle in Ihr Lösch- und Zugriffskonzept ein.
+</Warning>
+
 ## Backup und Betrieb
 
 PostgreSQL enthält neben Konten und Konfiguration auch Templates und
@@ -287,7 +272,7 @@ Repositories und nicht die Nutzungsbedingungen der MDScribe-Cloud.
 | Zulässige klinische Inhalte | Nur synthetisch oder wirksam anonymisiert | Reale oder pseudonymisierte Daten nur unter Verantwortung der betreibenden Einrichtung |
 | Infrastruktur und Updates | Durch MDScribe betrieben | Durch den Betreiber geplant und ausgeführt |
 | PostgreSQL und Backups | Durch MDScribe betrieben | Speicherort, Verschlüsselung, Sicherung und Restore durch den Betreiber |
-| KI-Provider | Nutzerseitig hinterlegter Schlüssel; Datenweg abhängig vom Provider | Admin wählt Cloud- oder lokale Provider und verantwortet deren Datenweg |
+| KI-Provider | Von MDScribe konfiguriert; eigene Schlüssel nur per BYOK auf freigegebenen Verbindungen | Admin wählt Cloud- oder lokale Provider und verantwortet deren Datenweg |
 | Datenschutz und Aufbewahrung | Cloud-Datenschutzhinweise gelten | Betreiber erstellt eigene Hinweise, Fristen und Prozesse |
 | Support und Verfügbarkeit | Keine zugesicherte SLA | Keine Support- oder SLA-Zusage durch MDScribe |
 | Funktionsumfang | Konfiguration der öffentlichen Instanz | Open-Source-Anwendung, an eigene Infrastruktur anpassbar |

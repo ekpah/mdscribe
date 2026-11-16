@@ -1,0 +1,128 @@
+---
+title: markdoc-md
+sidebarTitle: Überblick
+mode: "wide"
+description: Die Vorlagensprache hinter MDScribe. Einmal schreiben, für jeden Patienten korrekt ausfüllen, mit Eingaben, Auswahlen, Berechnungen und Quellenangaben.
+---
+
+import { Flow } from "/snippets/markdoc.jsx";
+import { LiveTemplate } from "/snippets/live-template.jsx";
+
+**markdoc-md** macht aus einem medizinischen Textbaustein eine Vorlage, die mitdenkt. Sie
+schreiben Struktur, Eingaben und Regeln **einmal**. Ein Mensch, ein Formular oder eine KI trägt
+danach nur noch die Werte ein, und der Text, Scores und Empfehlungen passen sich von selbst an.
+
+Probieren Sie es aus: Die Demo füllt die Vorlage Schritt für Schritt aus. Danach können Sie jede
+Eingabe selbst ändern.
+
+<LiveTemplate />
+
+## Warum nicht einfach Text kopieren?
+
+Kopierter Freitext sieht fertig aus, auch wenn er es nicht ist. Im Beispiel wurde das Alter
+nachträglich von 68 auf 79 korrigiert:
+
+<Columns cols={2}>
+  <Card title="Kopierter Freitext" icon="copy">
+    **CHA₂DS₂-VA:** 3 Punkte <span style={{ color: "#dc322f" }}>← noch mit Alter 68 gerechnet</span>
+
+    **Antikoagulation:** empfohlen
+
+    **Strategie:** <span style={{ color: "#dc322f" }}>[Frequenz-/Rhythmuskontrolle]</span>
+
+    Jede Zahl hängt davon ab, dass jemand an alles denkt.
+  </Card>
+  <Card title="Mit markdoc-md" icon="wand-magic-sparkles">
+    **CHA₂DS₂-VA:** <span style={{ color: "#cb4b16", fontWeight: 600 }}>4 Punkte</span>, aus den Eingaben berechnet
+
+    **Antikoagulation:** <span style={{ color: "#859900", fontWeight: 600 }}>empfohlen</span>, aus dem Score abgeleitet
+
+    **Strategie:** fehlt sichtbar, bis jemand auswählt
+
+    Eine Eingabe ändern, und alles Abhängige zieht nach.
+  </Card>
+</Columns>
+
+| Problem mit Freitext | Was markdoc-md stattdessen tut |
+| --- | --- |
+| Scores werden von Hand gerechnet und veralten | [`calc`](/markdoc-md/tags/calc) rechnet bei jeder Änderung neu. Fehlt ein Wert, steht `…` statt einer falschen Zahl |
+| Platzhalter wie „[Name]“ bleiben stehen | Jede Lücke ist eine typisierte Eingabe. Das Formular zeigt, was noch fehlt |
+| Jede Person formuliert anders | [`switch`](/markdoc-md/tags/switch) und [`condition`](/markdoc-md/tags/condition) setzen geprüfte Formulierungen ein |
+| Eine KI schreibt frei und erfindet womöglich | Die KI füllt nur Variablen. Der Text bleibt der geprüfte Vorlagentext, Belege hängen per [`cite`](/markdoc-md/tags/cite) am Satz |
+| Fehler in der Vorlage fallen erst am Patienten auf | Die [Validierung](/markdoc-md/concepts/validation) blockiert widersprüchliche Vorlagen schon beim Speichern |
+
+## So sieht es in MDScribe aus
+
+Dieselbe Vorlage im MDScribe-Textbaustein: Jedes Feld ist direkt im Text editierbar, der Score
+rechnet mit, und **Kopieren** liefert reinen Text ohne Markierungen.
+
+<Frame caption="Ausfüllen eines Textbausteins in MDScribe (17 Sekunden, ohne Ton)">
+  <video
+    autoPlay
+    muted
+    loop
+    playsInline
+    className="mx-auto block w-full max-w-3xl rounded-xl"
+    poster="/videos/textbaustein-ausfuellen.jpg"
+    src="/videos/textbaustein-ausfuellen.mp4"
+  ></video>
+</Frame>
+
+## So funktioniert es
+
+<Flow
+  steps={[
+    { title: "Vorlage", text: "Markdown mit info-, switch-, condition- und calc-Tags", tone: "neutral" },
+    { title: "Analysieren", text: "analyzeMarkdocTemplate findet Eingaben und prüft Verträge", tone: "info" },
+    { title: "Ausfüllen", text: "Formular, Mensch oder KI liefern Werte", tone: "switch" },
+    { title: "Rendern", text: "DynamicMarkdocRenderer löst Berechnungen auf und zeigt den Text", tone: "calc" },
+  ]}
+  caption="Dieselbe Vorlage erzeugt das Eingabeformular und das fertige Dokument."
+/>
+
+1. **Analysieren:** Die Vorlage wird einmal analysiert. Heraus kommen eine Liste typisierter
+   Eingaben, aus der sich ein Formular bauen lässt, und Prüfmeldungen, die das Speichern einer
+   fehlerhaften Vorlage verhindern.
+2. **Ausfüllen:** Die Variablen kommen aus beliebigen Quellen: manuelle Eingabe, KI-Extraktion
+   oder [FHIR-Daten](/markdoc-md/guides/fhir-sources).
+3. **Rendern:** Mit den aktuellen Werten entsteht der Text. Berechnungen werden in
+   Abhängigkeitsreihenfolge aufgelöst, Auswahlen setzen ihren Text ein, und fehlende Eingaben
+   einer Berechnung erscheinen als `…` statt als falsche Zahl.
+
+## Die Tags
+
+| Tag | Wofür | Beispiel |
+| --- | --- | --- |
+| [`info`](/markdoc-md/tags/info) | Einen eingetragenen Wert einsetzen | `{% info "gewicht" type="number" unit="kg" /%}` |
+| [`switch` / `case`](/markdoc-md/tags/switch) | Text aus benannten Optionen oder einer Checkbox wählen | `{% switch "strategie" %}…{% /switch %}` |
+| [`condition`](/markdoc-md/tags/condition) | Text anhand von Zahlen-Schwellenwerten wählen | `{% condition "alter" %}{% case gte=18 %}…{% /case %}{% /condition %}` |
+| [`calc`](/markdoc-md/tags/calc) | Scores und abgeleitete Werte berechnen | `{% calc "bmi" formula="[gewicht] / ([groesse] / 100) ^ 2" %}{% /calc %}` |
+| [`details`](/markdoc-md/tags/details) | Aufklappbarer Abschnitt | `{% details summary="Labor" %}…{% /details %}` |
+| [`cite`](/markdoc-md/tags/cite) | Text mit seiner Quelle verknüpfen | `{% cite source="https://…" %}…{% /cite %}` |
+| [Tabellen](/markdoc-md/tags/tables) | Markdoc-Tabellen mit verbundenen Zellen | `{% table %}…{% /table %}` |
+
+Alles andere ist normales Markdown: Überschriften, Fettdruck, Listen und Links funktionieren wie
+gewohnt.
+
+<Note>
+  markdoc-md ist als Paket [`markdoc-md`](https://www.npmjs.com/package/markdoc-md) unter
+  Apache-2.0 veröffentlicht und baut auf [Markdoc](https://markdoc.dev) auf. Sie können es auch
+  außerhalb von MDScribe in eigenen Anwendungen nutzen.
+</Note>
+
+## Wie geht es weiter?
+
+<Columns cols={2}>
+  <Card title="Tutorial" icon="graduation-cap" href="/markdoc-md/tutorial">
+    Bauen Sie Schritt für Schritt einen vollständigen Diagnoseblock.
+  </Card>
+  <Card title="Schnellstart für Entwickler" icon="code" href="/markdoc-md/quickstart">
+    Paket installieren, eine Vorlage rendern und ein Formular aus ihren Eingaben bauen.
+  </Card>
+  <Card title="Variablen und Verträge" icon="link" href="/markdoc-md/concepts/variables">
+    Wie wiederholte Tags einen Wert teilen und was die Validierung erzwingt.
+  </Card>
+  <Card title="API-Referenz" icon="book" href="/markdoc-md/reference/api">
+    Alle öffentlichen Einstiegspunkte und Exporte.
+  </Card>
+</Columns>

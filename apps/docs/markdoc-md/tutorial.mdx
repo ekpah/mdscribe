@@ -1,0 +1,213 @@
+---
+title: "Tutorial: Einen Diagnoseblock erstellen"
+sidebarTitle: Tutorial
+description: Machen Sie aus einem einfachen Markdown-Diagnoseblock eine wiederverwendbare Vorlage mit Eingaben, Auswahloptionen, berechnetem Score und Quellenangabe.
+---
+
+import { Cited, Rendered, Value } from "/snippets/markdoc.jsx";
+
+Sie bauen einen strukturierten Diagnoseblock für Patienten mit Vorhofflimmern. Jeder Schritt fügt
+ein Tag hinzu und zeigt, was die Vorlage (Template) mit fiktiven Patientendaten rendert.
+
+<Rendered title="Ziel">
+  **Vorhofflimmern**
+  - **Klassifikation:** <Value>persistierend</Value>; Erstdiagnose <Value>März 2024</Value>
+  - **Symptomatik:** mEHRA-Klasse <Value>IIa</Value>
+  - **<Cited>CHA₂DS₂-VA</Cited>:** <Value kind="calc">3 Punkte</Value>
+  - **Antikoagulation:** <Value>Apixaban</Value>; <Value kind="switch">regelmäßig eingenommen</Value>
+  - **Therapiestrategie:** <Value kind="switch">Frequenzkontrolle</Value>
+</Rendered>
+
+<Tip>
+  Sie können in MDScribe mitmachen: Legen Sie eine Vorlage an, fügen Sie jeden Schritt in den
+  Editor ein und füllen Sie die Eingaben neben der Vorschau aus.
+</Tip>
+
+<Steps titleSize="h2">
+<Step title="Mit Markdown beginnen" id="mit-markdown-beginnen">
+Schreiben Sie den Block als gewöhnliches Markdown, mit Platzhaltern für alles, was sich von
+Patient zu Patient ändert.
+
+```markdown
+**Vorhofflimmern**
+- **Klassifikation:** [Klassifikation]; Erstdiagnose [Monat] 20XX
+- **Symptomatik:** mEHRA-Klasse X
+- **CHA₂DS₂-VA:** X Punkte
+- **Antikoagulation:** [Medikament]
+- **Therapiestrategie:** [Strategie]
+```
+
+Das ist bereits eine gültige Vorlage. Es gibt nur noch nichts auszufüllen.
+</Step>
+
+<Step title="Platzhalter durch Eingaben ersetzen" id="platzhalter-durch-eingaben-ersetzen">
+Ein [`info`](/markdoc-md/tags/info)-Tag fügt einen Wert ein. Sein Name in Anführungszeichen,
+etwa `"klassifikation"`, ist der Name der Eingabe.
+
+```markdown {2-6}
+**Vorhofflimmern**
+- **Klassifikation:** {% info "klassifikation" /%}; Erstdiagnose {% info "erstdiagnose" /%}
+- **Symptomatik:** mEHRA-Klasse {% info "ehra" /%}
+- **CHA₂DS₂-VA:** {% info "cha2ds2_va" type="number" unit="Punkte" renderUnit=true /%}
+- **Antikoagulation:** {% info "antikoagulation" /%}
+- **Therapiestrategie:** {% info "strategie" /%}
+```
+
+`type="number"` sagt einem Formular, dass es ein Zahlenfeld anbieten soll, und `renderUnit=true`
+gibt die Einheit hinter dem Wert aus.
+
+<Rendered>
+  **Vorhofflimmern**
+  - **Klassifikation:** <Value>persistierend</Value>; Erstdiagnose <Value>März 2024</Value>
+  - **Symptomatik:** mEHRA-Klasse <Value>IIa</Value>
+  - **CHA₂DS₂-VA:** <Value>3 Punkte</Value>
+  - **Antikoagulation:** <Value>Apixaban</Value>
+  - **Therapiestrategie:** <Value>Frequenzkontrolle</Value>
+</Rendered>
+</Step>
+
+<Step title="Feste Optionen anbieten" id="feste-optionen-anbieten">
+Jedes Mal „Frequenzkontrolle“ zu tippen ist langsam und fehleranfällig. Ein
+[`switch`](/markdoc-md/tags/switch) legt die Optionen fest; jeder `case` enthält den Text für
+eine Option.
+
+```markdown {6}
+**Vorhofflimmern**
+- **Klassifikation:** {% info "klassifikation" /%}; Erstdiagnose {% info "erstdiagnose" /%}
+- **Symptomatik:** mEHRA-Klasse {% info "ehra" /%}
+- **CHA₂DS₂-VA:** {% info "cha2ds2_va" type="number" unit="Punkte" renderUnit=true /%}
+- **Antikoagulation:** {% info "antikoagulation" /%}
+- **Therapiestrategie:** {% switch "strategie" %}{% case "frequenz" %}Frequenzkontrolle{% /case %}{% case "rhythmus" %}Rhythmuskontrolle{% /case %}{% /switch %}
+```
+
+<Columns cols={2}>
+  <Rendered title='strategie = "frequenz"'>
+    **Therapiestrategie:** <Value kind="switch">Frequenzkontrolle</Value>
+  </Rendered>
+  <Rendered title='strategie = "rhythmus"'>
+    **Therapiestrategie:** <Value kind="switch">Rhythmuskontrolle</Value>
+  </Rendered>
+</Columns>
+
+Der Optionsschlüssel (`frequenz`) und der gerenderte Text (`Frequenzkontrolle`) sind getrennt.
+So können Sie den Text später umformulieren, ohne gespeicherte Werte ungültig zu machen.
+</Step>
+
+<Step title="Eine Ja/Nein-Checkbox hinzufügen" id="eine-ja-nein-checkbox-hinzufuegen">
+Ein Switch mit `type="checkbox"` wird zu einer Checkbox mit den Fällen `"true"` und `"false"`.
+
+```markdown {5}
+**Vorhofflimmern**
+- **Klassifikation:** {% info "klassifikation" /%}; Erstdiagnose {% info "erstdiagnose" /%}
+- **Symptomatik:** mEHRA-Klasse {% info "ehra" /%}
+- **CHA₂DS₂-VA:** {% info "cha2ds2_va" type="number" unit="Punkte" renderUnit=true /%}
+- **Antikoagulation:** {% info "antikoagulation" /%}; {% switch "einnahme_regelmaessig" type="checkbox" %}{% case "true" %}regelmäßig eingenommen{% /case %}{% case "false" %}nicht regelmäßig eingenommen{% /case %}{% /switch %}
+- **Therapiestrategie:** {% switch "strategie" %}{% case "frequenz" %}Frequenzkontrolle{% /case %}{% case "rhythmus" %}Rhythmuskontrolle{% /case %}{% /switch %}
+```
+
+<Rendered title="einnahme_regelmaessig = true">
+  **Antikoagulation:** <Value>Apixaban</Value>; <Value kind="switch">regelmäßig eingenommen</Value>
+</Rendered>
+
+<Warning>
+  Eine nicht gesetzte Checkbox zählt als `false`. Übergeben Sie den Wert ausdrücklich, wenn
+  „unbekannt“ nicht als „nicht regelmäßig eingenommen“ erscheinen darf. Für Zahlenschwellen
+  verwenden Sie statt eines Switch [`condition`](/markdoc-md/tags/condition).
+</Warning>
+</Step>
+
+<Step title="Den Score berechnen" id="den-score-berechnen">
+Statt CHA₂DS₂-VA von Hand auszurechnen, überlassen Sie das [`calc`](/markdoc-md/tags/calc). Die
+Formel verweist in eckigen Klammern auf Eingaben. Die Tags innerhalb von `calc` deklarieren diese
+Eingaben mit Typ und Beschreibung; angezeigt wird nur das Ergebnis.
+
+```markdown {4-12}
+**Vorhofflimmern**
+- **Klassifikation:** {% info "klassifikation" /%}; Erstdiagnose {% info "erstdiagnose" /%}
+- **Symptomatik:** mEHRA-Klasse {% info "ehra" /%}
+- **CHA₂DS₂-VA:**
+  {% calc primary="cha2ds2_va" formula="[herzinsuffizienz] + [hypertonie] + ([alter] >= 65) + ([alter] >= 75) + [diabetes] + 2 * [schlaganfall_tia] + [gefaesserkrankung]" unit="Punkte" renderUnit=true %}
+  {% info "alter" type="number" description="Alter in vollendeten Jahren" /%}
+  {% switch "herzinsuffizienz" type="boolean" /%}
+  {% switch "hypertonie" type="boolean" /%}
+  {% switch "diabetes" type="boolean" /%}
+  {% switch "schlaganfall_tia" type="boolean" description="Schlaganfall, TIA oder arterielle Thromboembolie" /%}
+  {% switch "gefaesserkrankung" type="boolean" /%}
+  {% /calc %}
+- **Antikoagulation:** {% info "antikoagulation" /%}; {% switch "einnahme_regelmaessig" type="checkbox" %}{% case "true" %}regelmäßig eingenommen{% /case %}{% case "false" %}nicht regelmäßig eingenommen{% /case %}{% /switch %}
+- **Therapiestrategie:** {% switch "strategie" %}{% case "frequenz" %}Frequenzkontrolle{% /case %}{% case "rhythmus" %}Rhythmuskontrolle{% /case %}{% /switch %}
+```
+
+Boolesche Eingaben zählen als 1 für `true` und als 0 für `false`. Ein Vergleich wie
+`[alter] >= 65` ergibt 1, wenn er zutrifft. Die beiden Altersterme liefern also aus einer
+einzigen Eingabe 0, 1 oder 2 Punkte.
+
+| Komponente | Punkte |
+| --- | --- |
+| Chronische Herzinsuffizienz | 1 |
+| Arterielle Hypertonie | 1 |
+| Alter | 0 unter 65, 1 bei 65–74, 2 ab 75 |
+| Diabetes mellitus | 1 |
+| Früherer Schlaganfall, TIA oder arterielle Thromboembolie | 2 |
+| Gefäßerkrankung | 1 |
+
+Bei einer 68-jährigen Patientin mit Hypertonie und Diabetes ergibt sich 1 + 1 + 1:
+
+<Columns cols={2}>
+  <Rendered title="Alle Eingaben ausgefüllt">
+    **CHA₂DS₂-VA:** <Value kind="calc" title="Formula: [herzinsuffizienz] + [hypertonie] + …">3 Punkte</Value>
+  </Rendered>
+  <Rendered title="Alter fehlt noch">
+    **CHA₂DS₂-VA:** <Value kind="calc">… Punkte</Value>
+  </Rendered>
+</Columns>
+
+Eine Berechnung wartet, bis jede verwendete Eingabe einen Wert hat, und zeigt dann das Ergebnis;
+bis dahin steht dort `…` (hier wegen `renderUnit=true` mit Einheit). Nicht angehakte Checkboxen
+gelten als ausgefüllt. Wenn Sie mit der Maus über das Badge fahren, sehen Sie die Formel.
+
+<Note>
+  Dieses Beispiel verwendet CHA₂DS₂-VA, den Score, den die
+  [ESC-Leitlinie 2024 zu Vorhofflimmern](https://academic.oup.com/eurheartj/article/45/36/3314/7738779)
+  empfiehlt. Anders als CHA₂DS₂-VASc vergibt er keinen Punkt für das Geschlecht; das Maximum
+  liegt bei 8 Punkten.
+</Note>
+</Step>
+
+<Step title="Die Quelle zitieren" id="die-quelle-zitieren">
+Umschließen Sie Text mit [`cite`](/markdoc-md/tags/cite), um ihn mit belegendem Material zu
+verknüpfen, hier mit der MDCalc-Seite zum Score.
+
+```markdown
+- **{% cite source="https://www.mdcalc.com/calc/10583/cha2ds2-va-score-atrial-fibrillation-stroke-risk" %}CHA₂DS₂-VA{% /cite %}:**
+```
+
+<Rendered title="Beim Überfahren mit der Maus oder bei gedrückter Strg-/Cmd-Taste">
+  **<Cited>CHA₂DS₂-VA</Cited>:** <Value kind="calc">3 Punkte</Value>
+</Rendered>
+
+Zitate sehen wie normaler Text aus, bis jemand mit der Maus darüberfährt oder <kbd>Strg</kbd>
+(<kbd>Cmd</kbd> unter macOS) gedrückt hält. Ein Klick übergibt die Quelle an die
+Host-Anwendung, die entscheidet, wie sie geöffnet wird. Quellen können auch hochgeladene
+Dateien, Textfelder oder FHIR-Daten sein.
+</Step>
+</Steps>
+
+## Was Sie gebaut haben
+
+| Schritt | Tag | Erzeugte Eingabe |
+| --- | --- | --- |
+| 2 | `info` | Text-, Zahlen- oder Datumsfeld |
+| 3 | `switch` | Auswahl aus Optionen |
+| 4 | `switch type="checkbox"` | Checkbox |
+| 5 | `calc` | Berechneter Wert mit seinen Teileingaben; ein übergebener Wert überschreibt ihn |
+| 6 | `cite` | Keine; verknüpft Text mit einer Quelle |
+
+<Columns cols={2}>
+  <Card title="In Ihrer App rendern" icon="code" href="/markdoc-md/quickstart">
+    Übergeben Sie diese Vorlage und ihre Werte an den React-Renderer.
+  </Card>
+  <Card title="Variablen wiederverwenden" icon="link" href="/markdoc-md/concepts/variables">
+    Verwenden Sie dieselbe Eingabe an mehreren Stellen und erfahren Sie, was sie konsistent hält.
+  </Card>
+</Columns>

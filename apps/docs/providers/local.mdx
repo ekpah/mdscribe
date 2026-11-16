@@ -10,14 +10,14 @@ Mit einem lokalen Inferenz-Server verlassen klinische Daten die eigene Infrastru
 Das Grundmuster ist immer gleich:
 
 1. Inferenz-Server starten und ein Modell laden.
-2. In MDScribe unter `Admin → Einstellungen → Modelle → Verbindungen` einen neuen Provider anlegen:
-   - **Protokoll**: `OpenAI-kompatibel`
+2. In MDScribe unter **Admin → Systemeinstellungen → KI-Provider & Modelle → Verbindungen** einen neuen Provider anlegen:
+   - **Protokoll**: `OpenAI-kompatibel (llama.cpp / vLLM / LM Studio)`
    - **Base URL**: **erforderlich**, inklusive `/v1` (siehe unten je Server)
    - **API-Key**: nur falls der Server einen verlangt
 3. Verbindung prüfen und speichern — die Modellliste wird über `GET /v1/models` synchronisiert.
-4. Synchronisierte Modelle den Standard-Slots zuweisen (siehe [KI-Provider](/providers)).
+4. Synchronisierte Modelle als Standardmodelle zuweisen (siehe [KI-Provider](/providers)).
 
-Modell-Fähigkeiten (Reasoning, Dokumente, Audio) werden bei OpenAI-kompatiblen Providern bewusst nicht erraten; der Administrator pflegt sie pro Modell manuell.
+Modell-Fähigkeiten werden bei OpenAI-kompatiblen Providern bewusst nicht erraten. Ob das Standard-Modell Dokumente oder Audio direkt verarbeitet, legen Sie im Reiter **Modelle** mit den Häkchen unter „Fähigkeiten des Standard-Modells“ fest.
 
 ## Ollama
 
@@ -62,7 +62,7 @@ llama-server -hf ggml-org/gpt-oss-20b-GGUF --port 8080 -c 16384
 
 ## Diktat und Dokumente lokal
 
-- **Speech-to-Text**: MDScribe spricht bei OpenAI-kompatiblen Providern den `/v1/audio/transcriptions`-Endpoint an. Ein lokaler Whisper-Server mit dieser Schnittstelle (z. B. [Speaches](https://speaches.ai) oder vLLM mit einem Whisper-Modell) kann den Speech-to-Text-Slot belegen.
+- **Speech-to-Text**: MDScribe spricht bei OpenAI-kompatiblen Providern den `/v1/audio/transcriptions`-Endpoint an. Ein lokaler Whisper-Server mit dieser Schnittstelle (z. B. [Speaches](https://speaches.ai) oder vLLM mit einem Whisper-Modell) kann als **Audio-Modell** dienen.
 - **Dokumente/Bilder**: Vision-fähige offene Modelle (z. B. Qwen-VL-Varianten) können als Dokumenten-Modell dienen; alternativ übernimmt das Standard-Modell die Dokumente direkt, wenn seine Dokumente-Fähigkeit angehakt ist.
 
 ## Einordnung für den Datenschutz

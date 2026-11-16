@@ -16,15 +16,15 @@ Schritt-für-Schritt-Anleitungen für die gängigen Setups stehen unter [Lokale 
 ## Einrichtung
 
 1. Inferenz-Server starten und die OpenAI-kompatible Schnittstelle aktivieren.
-2. In MDScribe unter `Admin → Einstellungen → Modelle → Verbindungen` einen neuen Provider anlegen:
-   - **Protokoll**: `OpenAI-kompatibel`
+2. In MDScribe unter **Admin → Systemeinstellungen → KI-Provider & Modelle → Verbindungen** einen neuen Provider anlegen:
+   - **Protokoll**: `OpenAI-kompatibel (llama.cpp / vLLM / LM Studio)`
    - **Base URL**: **erforderlich**, inklusive `/v1` (z.B. `http://localhost:11434/v1` für Ollama)
    - **API-Key**: nur falls der Server einen verlangt
 3. Verbindung prüfen und speichern — die Modellliste wird über `GET /v1/models` synchronisiert.
 
 ## Besonderheiten
 
-- Es findet keine Ableitung von Modell-Fähigkeiten statt: Reasoning-Unterstützung und Modalitäten werden nicht erraten. Der Administrator wählt selbst, welches Modell welchen Slot belegt, und kann Fähigkeiten pro Modell manuell pflegen.
+- Es findet keine Ableitung von Modell-Fähigkeiten statt: Reasoning-Unterstützung und Modalitäten werden nicht erraten. Der Administrator wählt selbst, welches Modell welche Rolle übernimmt, und legt die Fähigkeiten des Standard-Modells im Reiter **Modelle** per Häkchen fest.
 - Eine explizite Base URL ist Pflicht; es gibt bewusst keinen Fallback-Endpunkt.
 
 ## Einordnung für den Datenschutz

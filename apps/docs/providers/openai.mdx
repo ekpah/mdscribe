@@ -10,7 +10,7 @@ Die direkte Anbindung an die [OpenAI-API](https://platform.openai.com) stellt GP
 ## Einrichtung
 
 1. API-Key unter [platform.openai.com/api-keys](https://platform.openai.com/api-keys) erstellen.
-2. In MDScribe unter `Admin → Einstellungen → Modelle → Verbindungen` einen neuen Provider anlegen:
+2. In MDScribe unter **Admin → Systemeinstellungen → KI-Provider & Modelle → Verbindungen** einen neuen Provider anlegen:
    - **Protokoll**: `OpenAI`
    - **Base URL**: leer lassen (Standard: `https://api.openai.com/v1`)
    - **API-Key**: der erstellte Key
@@ -20,7 +20,7 @@ Bei der Synchronisierung werden Embedding- und TTS-Modelle automatisch ausgefilt
 
 ## Audio-Transkription
 
-Transkriptionsmodelle (`whisper-1` sowie Modelle mit `transcribe` im Namen) können den Speech-to-Text-Slot belegen. MDScribe verwendet dafür die dedizierte Transcription-API von OpenAI.
+Transkriptionsmodelle (`whisper-1` sowie Modelle mit `transcribe` im Namen) können als **Audio-Modell** dienen. MDScribe verwendet dafür die dedizierte Transcription-API von OpenAI.
 
 ## Einordnung für den Datenschutz
 

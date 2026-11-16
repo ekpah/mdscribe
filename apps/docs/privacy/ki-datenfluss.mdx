@@ -3,6 +3,8 @@ title: KI-Datenfluss
 description: Wie Daten durch die KI-Pipeline von MDScribe fließen
 ---
 
+import { Stack } from "/snippets/markdoc.jsx";
+
 ## KI-Datenfluss
 
 Der konkrete Datenweg hängt von den Verbindungen und Standardmodellen ab,
@@ -21,15 +23,14 @@ Speicherregionen oder Unterauftragnehmern.
 
 ### Übersicht
 
-```text
-Nutzer
-  ↓ TLS
-MDScribe-Server
-  ↓ TLS
-admin-konfigurierte Provider-Verbindung
-  ↓ gegebenenfalls
-nachgelagerter Modellanbieter
-```
+<Stack
+  layers={[
+    { title: "Nutzer (Browser)", tone: "info", edge: "TLS" },
+    { title: "MDScribe-Server", tone: "switch", edge: "TLS" },
+    { title: "Vom Administrator konfigurierte Provider-Verbindung", tone: "calc", edge: "gegebenenfalls" },
+    { title: "Nachgelagerter Modellanbieter" },
+  ]}
+/>
 
 Die Antwort läuft denselben Weg zurück. Bei lokalen Verbindungen kann der
 gesamte Provider-Pfad in der Infrastruktur des Betreibers bleiben. Ein

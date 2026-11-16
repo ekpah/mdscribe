@@ -33,18 +33,18 @@ Erst wenn die Attestierung erfolgreich geprüft wurde, sendet MDScribe Anfragen.
 ### Einrichtung
 
 1. API-Key bei [Tinfoil](https://docs.tinfoil.sh/get-api-key) erstellen.
-2. In MDScribe unter `Admin → Einstellungen → Modelle → Verbindungen` einen neuen Provider anlegen:
+2. In MDScribe unter **Admin → Systemeinstellungen → KI-Provider & Modelle → Verbindungen** einen neuen Provider anlegen:
    - **Protokoll**: `Tinfoil (vertrauliche Inferenz)`
    - **Base URL**: leer lassen (das SDK ermittelt und verifiziert den Endpunkt selbst); nur bei eigenem Proxy setzen
    - **API-Key**: der erstellte Tinfoil-Key
 3. Verbindung prüfen und speichern — die verfügbaren Modelle werden automatisch synchronisiert.
-4. Synchronisierte Modelle den Standard-Slots zuweisen (siehe [KI-Provider](/providers)).
+4. Synchronisierte Modelle als Standardmodelle zuweisen (siehe [KI-Provider](/providers)).
 
 ### Verfügbare Modelle
 
 Tinfoil betreibt ausschließlich offene Modelle, deren Code und Gewichte einsehbar sind. Der Katalog ändert sich; ein manueller Modell-Refresh in der Verbindungskarte holt den aktuellen Stand. Reasoning-Fähigkeit wird bei der Synchronisierung aus dem Tinfoil-Modellkatalog übernommen.
 
-Wird ein Tinfoil-Modell im Speech-to-Text-Slot gewählt, läuft auch die Transkription diktierter Notizen über die verschlüsselte Enclave-Verbindung (`/v1/audio/transcriptions`). Audiodaten verlassen MDScribe damit ausschließlich Ende-zu-Ende-verschlüsselt.
+Wird ein Tinfoil-Modell als **Audio-Modell** gewählt, läuft auch die Transkription diktierter Notizen über die verschlüsselte Enclave-Verbindung (`/v1/audio/transcriptions`). Audiodaten verlassen MDScribe damit ausschließlich Ende-zu-Ende-verschlüsselt.
 
 ### Hinweise
 
@@ -67,15 +67,15 @@ Wird ein Tinfoil-Modell im Speech-to-Text-Slot gewählt, läuft auch die Transkr
    ```
 
    Der Proxy prüft per Remote Attestation die Integrität des Dienstes und verschlüsselt alle Anfragen clientseitig, bevor sie das eigene Netz verlassen.
-3. In MDScribe unter `Admin → Einstellungen → Modelle → Verbindungen` einen neuen Provider anlegen:
-   - **Protokoll**: `OpenAI-kompatibel`
+3. In MDScribe unter **Admin → Systemeinstellungen → KI-Provider & Modelle → Verbindungen** einen neuen Provider anlegen:
+   - **Protokoll**: `OpenAI-kompatibel (llama.cpp / vLLM / LM Studio)`
    - **Base URL**: `http://localhost:8080/v1` (bzw. die Adresse des Proxys)
    - **API-Key**: beliebiger Platzhalter (der echte Key steckt im Proxy; das Feld darf nur nicht leer sein, falls der Server einen Wert verlangt)
 4. Verbindung prüfen und speichern — die Modelle werden über `GET /v1/models` synchronisiert.
 
 ### Verfügbare Modelle
 
-Privatemode betreibt einen kuratierten Katalog offener Modelle, darunter Chat-Modelle (z. B. `gpt-oss-120b`, `kimi-latest` mit Bildverständnis) und Speech-to-Text-Modelle (`whisper-large-v3`, `voxtral-mini-3b`). Letztere können den Speech-to-Text-Slot belegen; MDScribe spricht dafür den `/v1/audio/transcriptions`-Endpoint des Proxys an. Der aktuelle Katalog steht in der [Privatemode-Modellübersicht](https://docs.privatemode.ai/models/overview/).
+Privatemode betreibt einen kuratierten Katalog offener Modelle, darunter Chat-Modelle (z. B. `gpt-oss-120b`, `kimi-latest` mit Bildverständnis) und Speech-to-Text-Modelle (`whisper-large-v3`, `voxtral-mini-3b`). Letztere können als **Audio-Modell** dienen; MDScribe spricht dafür den `/v1/audio/transcriptions`-Endpoint des Proxys an. Der aktuelle Katalog steht in der [Privatemode-Modellübersicht](https://docs.privatemode.ai/models/overview/).
 
 Wie bei allen OpenAI-kompatiblen Providern werden Modell-Fähigkeiten nicht automatisch abgeleitet: Der Administrator wählt selbst, welches Modell welchen Slot belegt.
 

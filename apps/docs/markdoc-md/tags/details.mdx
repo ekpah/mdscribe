@@ -1,0 +1,82 @@
+---
+title: details
+description: Aufklappbare Abschnitte, wie die eingeklappten Abschnitte auf GitHub.
+---
+
+import { Rendered } from "/snippets/markdoc.jsx";
+
+```markdown
+{% details summary="Laborwerte" %}
+**CRP** 12 mg/l
+
+- Leukozyten 9,8/nl
+{% /details %}
+```
+
+<Rendered>
+  <div><details><summary>Laborwerte</summary><p><strong>CRP</strong> 12 mg/l</p><ul><li>Leukozyten 9,8/nl</li></ul></details></div>
+</Rendered>
+
+`details` rendert native `<details>`- und `<summary>`-Elemente und lässt sich deshalb ohne
+JavaScript auf- und zuklappen. Klicken Sie zum Ausprobieren auf die Beschriftung oben.
+
+## Attribute
+
+| Attribut | Standard | Bedeutung |
+| --- | --- | --- |
+| `summary` | `"Details"` | Beschriftung des Abschnitts |
+| `open` | `false` | Aufgeklappt beginnen |
+
+## Nur als Block
+
+Schreiben Sie öffnendes und schließendes Tag jeweils in eine eigene Zeile. Die Inline-Form
+`{% details %}Text{% /details %}` wird als `tag-placement-invalid` abgelehnt, weil Markdoc den
+Abschnitt sonst in einen Absatz setzen würde.
+
+## Normale und aufklappbare Zeilen mischen
+
+Die Beschriftung liest sich wie eine weitere Textzeile. Steht ein Abschnitt direkt über oder unter
+einer anderen Zeile, ohne Leerzeile dazwischen, setzt er diese Zeilen ohne Absatzabstand fort. Eine
+Leerzeile erhält den üblichen Abstand. So kann eine Liste von Ereignissen Details pro Zeile
+verbergen:
+
+```markdown
+**Therapieverlauf:**
+01/24 Erstdiagnose, Staging ohne Fernmetastasen
+{% details summary="02/24 – 04/24 Neoadjuvante Chemotherapie, gut vertragen" %}
+02/24 Zyklus 1, Neutropenie Grad 2
+04/24 Zwischenstaging mit partieller Remission
+{% /details %}
+05/24 Gastrektomie, R0
+```
+
+<Rendered>
+  <div><strong>Therapieverlauf:</strong></div>
+  <div>01/24 Erstdiagnose, Staging ohne Fernmetastasen</div>
+  <div><details><summary>02/24 – 04/24 Neoadjuvante Chemotherapie, gut vertragen</summary><div>02/24 Zyklus 1, Neutropenie Grad 2<br />04/24 Zwischenstaging mit partieller Remission</div></details></div>
+  <div>05/24 Gastrektomie, R0</div>
+</Rendered>
+
+<Note>
+  Dieses Beispiel setzt voraus, dass Zeilenumbrüche erhalten bleiben. MDScribe rendert Vorlagen mit
+  `layout="template"`, das jede Zeile beibehält. Mit dem Standardlayout fasst Markdown
+  aufeinanderfolgende Zeilen zu einem Absatz zusammen, sofern eine Zeile nicht mit zwei Leerzeichen
+  endet.
+</Note>
+
+## Inhalt
+
+Abschnitte akzeptieren reichhaltiges Markdown, andere Tags und verschachtelte `details`. Eingaben in
+einem eingeklappten Abschnitt findet `analyzeMarkdocTemplate` trotzdem, denn die Analyse liest die
+Vorlage, nicht die gerenderte Seite.
+
+<Warning>
+  Eingeklappter Inhalt ist im gerenderten Layout verborgen. Wenn Ihre Anwendung Text aus dem
+  gerenderten HTML kopiert oder druckt, klappen Sie die Abschnitte vorher auf, sonst geht
+  eingeklappter Inhalt verloren. MDScribe tut das beim Kopieren eines Dokuments.
+</Warning>
+
+## Hin und zurück im Editor
+
+`renderTipTapHTML` zeigt jede Leerzeile neben einem Abschnitt als leeren Absatz, und
+`htmlToMarkdoc` macht daraus wieder eine Leerzeile. So übersteht das Layout die Bearbeitung.

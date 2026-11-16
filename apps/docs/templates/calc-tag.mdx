@@ -1,139 +1,114 @@
 ---
 title: Calc-Tag
-description: Dokumentation zum Calc-Tag für automatische Berechnungen in Templates
+description: Scores und abgeleitete Werte automatisch berechnen.
 ---
 
-## Calc-Tag
-
-Das Calc-Tag führt automatische Berechnungen basierend auf Formeln durch.
-
-### Syntax
+import { Field } from "/snippets/markdoc.jsx";
 
 ```markdown
-{% calc "Ergebnis" formula="[Variable1] + [Variable2]" %}
-{% info "Variable1" type="number" /%}
-{% info "Variable2" type="number" /%}
-{% /calc %}
+**BMI:** {% calc "BMI" formula="[Gewicht] / ([Groesse] / 100) ^ 2" unit="kg/m²" round=1 renderUnit=true %}{% info "Gewicht" type="number" unit="kg" /%}{% info "Groesse" type="number" unit="cm" /%}{% /calc %}
 ```
 
-Jeder Calc benötigt einen nicht leeren Ergebnisnamen (`primary`). Der Editor ergänzt für jede Formelvariable einen enthaltenen Info-, Switch- oder Condition-Tag: vorhandene Deklarationen werden übernommen, andernfalls wird ein numerischer Info-Tag angelegt. Ein kategorialer Switch und ein numerischer Info-Tag mit demselben Namen widersprechen sich und führen zu einem Validierungsfehler. Info-Tags, die eine Formel verwendet, brauchen `type="number"`: Ein Text- oder Datumsfeld in einer Formel ist ein Validierungsfehler, weil sein Wert sonst unbemerkt als 0 zählen würde.
+<Columns cols={2}>
+  <div>
+    **Gewicht 82, Größe 178**
 
-### Parameter
+    **BMI:** <Field kind="calc">25.9 kg/m²</Field>
+  </div>
+  <div>
+    **Größe fehlt noch**
 
-| Parameter | Typ | Pflicht | Beschreibung |
-|-----------|-----|---------|--------------|
-| `primary` | String | Ja | Nicht leerer Name für das gemeinsame Ergebnis; auch als erstes Positionsargument möglich |
-| `formula` | String | Ja | Die mathematische Formel |
-| `unit` | String | Nein | Einheit für das Ergebnis |
-| `round` | Number oder `false` | Nein | Anzahl der Nachkommastellen (Standard: `2`); `false` deaktiviert die Rundung |
-| `renderUnit` | Boolean | Nein | Ob die Einheit angezeigt werden soll |
+    **BMI:** <Field kind="calc">…</Field>
+  </div>
+</Columns>
 
-### Formel-Syntax
+Der Calc-Tag rechnet eine Formel aus den Werten anderer Felder aus. Die Tags in seinem Inneren legen
+fest, welche Felder die Formel braucht; sie werden nicht selbst angezeigt.
 
-Variablen werden in **eckigen Klammern** referenziert: `[Variablenname]`
+## Einstellungen
 
-**Unterstützte Operatoren:**
-- Addition: `+`
-- Subtraktion: `-`
-- Multiplikation: `*`
-- Division: `/`
-- Potenz: `^`
-- Klammern: `()`
+| Einstellung | Standard | Bedeutung |
+| --- | --- | --- |
+| Name (`primary`) | – | Name des Ergebnisses, Pflicht |
+| `formula` | – | Die Formel, Pflicht |
+| `round` | `2` | Nachkommastellen (0–100); `false` = ungerundet |
+| `unit` | – | Einheit des Ergebnisses |
+| `renderUnit` | `false` | Einheit hinter dem Ergebnis anzeigen |
 
-### Beispiele
+## Formeln
 
-**Body-Mass-Index (BMI):**
+| Schreibweise | Bedeutung |
+| --- | --- |
+| `[Gewicht]` | Wert des Felds `Gewicht` |
+| `+ - * /` | Grundrechenarten |
+| `^` | Potenz, z. B. `[Groesse] ^ 2` |
+| `( )` | Klammern |
+| `>=`, `>`, `<=`, `<`, `=` | Vergleich: 1 wenn wahr, sonst 0 |
+| `sqrt()`, `round()`, `log()`, … | Mathematische Funktionen |
+
+Vergleiche machen aus Schwellenwerten Punkte: `([Alter] >= 65) + ([Alter] >= 75)` ergibt 0, 1 oder 2.
+
+### Woher die Zahlen kommen
+
+| Feld | Wert in der Formel |
+| --- | --- |
+| Info mit `type="number"` | Die eingetragene Zahl |
+| Ja/Nein-Switch | 1 für Ja, 0 für Nein |
+| Switch mit Optionen | Das `value` der gewählten Option |
+| Anderer Calc | Dessen gerundetes Ergebnis |
+| Name ohne eigenes Tag | Wird automatisch ein Zahlenfeld |
+
+Ein Text- oder Datumsfeld in einer Formel lehnt der Editor ab, weil es sonst unbemerkt als 0 zählen
+würde.
+
+## Beispiel: CHA₂DS₂-VA-Score
+
 ```markdown
-**BMI**:
-
-{% calc "BMI" formula="[Gewicht] / ([Groesse] / 100) ^ 2" unit="kg/m²" renderUnit=true %}
-{% info "Gewicht" type="number" unit="kg" /%}
-{% info "Groesse" type="number" unit="cm" /%}
-{% /calc %}
+- **CHA₂DS₂-VA:**
+  {% calc "CHA2DS2_VA" formula="[Herzinsuffizienz] + [Hypertonie] + ([Alter] >= 65) + ([Alter] >= 75) + [Diabetes] + 2 * [Schlaganfall] + [Gefaesserkrankung]" unit="Punkte" renderUnit=true %}
+  {% info "Alter" type="number" unit="Jahre" /%}
+  {% switch "Herzinsuffizienz" type="checkbox" /%}
+  {% switch "Hypertonie" type="checkbox" /%}
+  {% switch "Diabetes" type="checkbox" /%}
+  {% switch "Schlaganfall" type="checkbox" description="Schlaganfall, TIA oder arterielle Thromboembolie" /%}
+  {% switch "Gefaesserkrankung" type="checkbox" /%}
+  {% /calc %}
 ```
 
-**Mittlerer arterieller Druck (MAP):**
-```markdown
-**MAP**:
+> - **CHA₂DS₂-VA:** <Field kind="calc">3 Punkte</Field> *(68 Jahre, Hypertonie, Diabetes)*
 
-{% calc "MAP" formula="([RR_sys] + 2 * [RR_dia]) / 3" unit="mmHg" renderUnit=true %}
-{% info "RR_sys" type="number" unit="mmHg" /%}
-{% info "RR_dia" type="number" unit="mmHg" /%}
-{% /calc %}
-```
+Die Ja/Nein-Felder im Calc brauchen keine Fälle: Sie liefern nur 1 oder 0 und erscheinen als Felder.
 
-**Einfache Summe:**
-```markdown
-**Gesamtscore**:
+<Warning>
+  Ein mehrzeiliger Calc darf nicht hinter Text in derselben Zeile beginnen. Schreiben Sie ihn wie
+  oben eingerückt unter einen Listenpunkt, in eigene Zeilen nach einer Leerzeile, oder komplett in
+  eine Zeile.
+</Warning>
 
-{% calc "Gesamtscore" formula="[Score1] + [Score2] + [Score3]" %}
-{% info "Score1" type="number" /%}
-{% info "Score2" type="number" /%}
-{% info "Score3" type="number" /%}
-{% /calc %}
-```
+## Wann ein Ergebnis erscheint
 
-**Vier Nachkommastellen:**
-```markdown
-{% calc "Quotient" formula="[Zaehler] / [Nenner]" round=4 %}
-{% info "Zaehler" type="number" /%}
-{% info "Nenner" type="number" /%}
-{% /calc %}
-```
+Bis **alle** Werte der Formel eingetragen sind, steht `…`. Nicht gesetzte Ja/Nein-Felder zählen
+dabei als Nein, also als ausgefüllt. Auch ein ungültiges Ergebnis wie eine Division durch 0 zeigt
+`…`.
 
-Mit `round=false` wird das Ergebnis ohne Rundung dargestellt.
+## Ergebnis überschreiben
 
-Bei benannten Berechnungen gilt die Rundung für den **gemeinsamen Ergebniswert**, auch für
-manuelle Überschreibungen: `1/3` mit `round=2` veröffentlicht 0,33; ein abhängiger Calc mal 100
-erhält 33 und eine Condition vergleicht ebenfalls 0,33. Wiederholte benannte Calcs müssen dieselbe
-Formel und Rundung verwenden. `round` auf einem Info-Tag bleibt dagegen reine Darstellung.
+Ein Klick auf das Ergebnis zeigt Formel und beteiligte Felder. Dort können Sie einen eigenen Wert
+eintragen. Der Status zeigt, woher der Wert stammt: **Berechnet**, **KI-Vorschlag** oder
+**Überschrieben**. Ein manueller Wert hat Vorrang vor einem KI-Vorschlag; **Überschreibung
+entfernen** rechnet wieder aus der Formel.
 
-Calcs werden global ausgewertet; auch nicht sichtbare Calcs berechnen ihr Ergebnis. Ein manuell
-eingegebener Wert hat Vorrang vor einem KI-Vorschlag, beide überschreiben den berechneten Wert.
-Wird die Überschreibung zurückgesetzt, gilt wieder der KI-Vorschlag bzw. die Berechnung.
-Kategoriale Zahlenzuordnungen werden global nach Variablenname und Case-Key zusammengeführt.
+## Rundung gilt für den Wert
 
-**CHA₂DS₂-VASc-Score (vereinfacht):**
-```markdown
-**CHA₂DS₂-VASc-Score**:
+`round` rundet nicht nur die Anzeige, sondern den Wert selbst. Andere Calcs, Info-Tags und
+Conditions mit demselben Namen verwenden das gerundete Ergebnis: Mit `round=2` wird aus `1/3` der
+Wert 0,33, und ein abhängiger Calc mal 100 ergibt 33. Gleichnamige Calcs müssen deshalb dieselbe
+Formel und Rundung haben. Wer nur die Anzeige runden will, setzt `round` an einem
+[Info-Tag](/templates/info-tag#einen-berechneten-wert-anzeigen).
 
-{% calc "CHA2DS2_VASc" formula="[Herzinsuffizienz] + [Hypertonie] + [Alter75] * 2 + [Diabetes] + [Schlaganfall] * 2 + [Gefaesserkrankung] + [Alter65] + [Geschlecht]" %}
-{% info "Herzinsuffizienz" type="number" /%}
-{% info "Hypertonie" type="number" /%}
-{% info "Alter75" type="number" /%}
-{% info "Diabetes" type="number" /%}
-{% info "Schlaganfall" type="number" /%}
-{% info "Gefaesserkrankung" type="number" /%}
-{% info "Alter65" type="number" /%}
-{% info "Geschlecht" type="number" /%}
-{% /calc %}
+Calcs werden immer berechnet, auch wenn sie in einem gerade nicht gewählten Fall stehen.
 
-<!-- Dabei sind die Variablen: -->
-<!-- Herzinsuffizienz: 0 oder 1 -->
-<!-- Hypertonie: 0 oder 1 -->
-<!-- Alter75: 0 oder 1 (≥75 Jahre) -->
-<!-- etc. -->
-```
-
-### Funktionsweise
-
-1. Das Calc-Tag enthält und referenziert seine Variablen als Info- oder Switch-Tags
-2. Die Formel wird automatisch berechnet, wenn Werte eingegeben werden
-3. Das Ergebnis wird standardmäßig auf **2 Dezimalstellen** gerundet; `round` passt dies an
-4. Berechnet wird erst, wenn alle Werte der Formel ausgefüllt sind (ein nicht angehakter Haken zählt als „nein“). Bis dahin – und bei ungültigen Ergebnissen wie einer Division durch 0 – wird `…` angezeigt. Davon abhängige Calcs zeigen ebenfalls `…`, und Conditions auf den Wert nutzen ihren Standardfall
-5. Das Ergebnis erscheint als **orangener Badge** im Dokument
-
-### Best Practices
-
-- ✅ Stellen Sie sicher, dass alle **referenzierten Variablen existieren**
-- ✅ Verwenden Sie **klare Variablennamen** ohne Leerzeichen
-- ✅ Verwenden Sie **Unterstriche** statt Leerzeichen: `RR_sys` statt `RR sys`
-- ✅ Testen Sie Ihre Formeln mit verschiedenen Werten
-- ❌ Vermeiden Sie **Division durch Null** (prüfen Sie Ihre Formeln)
-- ✅ Dokumentieren Sie komplexe Berechnungen mit Kommentaren
-
-### Tooltip-Funktion
-
-Calc-Tags zeigen beim Hovern ein Tooltip mit der verwendeten Formel an. Dies hilft Benutzern zu verstehen, wie der Wert berechnet wurde.
-
-Die frühere Syntax `{% score ... %}` bleibt als Alias kompatibel. Neue Templates und der Editor verwenden `{% calc ... %}`.
+<Note>
+  Die frühere Schreibweise `{% score … %}` funktioniert weiter. Der Editor speichert sie als
+  `{% calc … %}`.
+</Note>

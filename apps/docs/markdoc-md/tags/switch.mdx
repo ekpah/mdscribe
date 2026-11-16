@@ -1,0 +1,117 @@
+---
+title: switch und case
+description: Text aus benannten Optionen oder per Checkbox wählen.
+---
+
+import { Rendered, Value } from "/snippets/markdoc.jsx";
+
+```markdown
+Der Patient wurde {% switch "entlassung" %}{% case "zuhause" %}nach Hause entlassen{% /case %}{% case "reha" %}in die Rehabilitation verlegt{% /case %}{% /switch %}.
+```
+
+<Columns cols={2}>
+  <Rendered title='entlassung = "zuhause"'>
+    Der Patient wurde <Value kind="switch">nach Hause entlassen</Value>.
+  </Rendered>
+  <Rendered title='entlassung = "reha"'>
+    Der Patient wurde <Value kind="switch">in die Rehabilitation verlegt</Value>.
+  </Rendered>
+</Columns>
+
+Ein `switch` rendert den `case`, dessen Schlüssel dem Wert der Variable entspricht. Die Analyse macht
+daraus eine Auswahl mit einer Option pro Fall. Für Zahlenschwellen verwenden Sie
+[`condition`](/markdoc-md/tags/condition).
+
+## Checkboxen
+
+Mit `type="checkbox"` oder `type="boolean"` sind die Optionen `"true"` und `"false"`, und ein
+Formular zeigt eine Checkbox. Boolesche Werte, `1`/`0` und die Zeichenketten `"true"`/`"false"` oder
+`"1"`/`"0"` wählen jeweils den passenden Fall. Ein nicht gesetzter Wert wählt `"false"`.
+
+```markdown
+{% switch "raucher" type="checkbox" %}{% case "true" %}Aktiver Raucher{% /case %}{% case "false" %}Nichtraucher{% /case %}{% /switch %}
+```
+
+<Columns cols={2}>
+  <Rendered title="raucher = true">
+    <Value kind="switch">Aktiver Raucher</Value>
+  </Rendered>
+  <Rendered title="raucher nicht gesetzt">
+    <Value kind="switch">Nichtraucher</Value>
+  </Rendered>
+</Columns>
+
+## Attribute von `switch`
+
+| Attribut | Standard | Bedeutung |
+| --- | --- | --- |
+| `primary` | Pflicht | Name der Variable; kann als erster Wert in Anführungszeichen stehen |
+| `type` | `"string"` | `"string"`, `"boolean"` oder `"checkbox"`. `"number"` und Listen von Namen werden abgelehnt |
+| `description` | – | Hinweis für alle, die auswählen. Gemeinsam für alle Erwähnungen |
+| `unit` | – | Einheit als Metadatum. Gemeinsam für alle Erwähnungen |
+| `source` | – | Woher sich der Wert abrufen lässt; der Renderer ruft ihn nicht ab |
+
+## Attribute von `case`
+
+| Attribut | Bedeutung |
+| --- | --- |
+| `primary` | Schlüssel der Option, als erster Wert in Anführungszeichen. Pflicht, außer beim Standardfall |
+| `value` | Zahl, die diese Option zu [Berechnungen](/markdoc-md/tags/calc) beiträgt |
+| `default` | `true` macht diesen Fall zum Rückfall, wenn kein anderer passt. Kein `value` erlaubt |
+
+## Rückfall mit `default`
+
+Passt kein Fall, rendert ein Switch nichts. Ergänzen Sie `default=true`, damit stattdessen etwas
+erscheint:
+
+```markdown
+{% switch "allergien" %}{% case "keine" %}Keine bekannten Allergien.{% /case %}{% case default=true %}Allergien: siehe Medikationsliste.{% /case %}{% /switch %}
+```
+
+<Columns cols={2}>
+  <Rendered title='allergien = "keine"'>
+    <Value kind="switch">Keine bekannten Allergien.</Value>
+  </Rendered>
+  <Rendered title='allergien = "penicillin" oder nicht gesetzt'>
+    <Value kind="switch">Allergien: siehe Medikationsliste.</Value>
+  </Rendered>
+</Columns>
+
+## Zahlen für Berechnungen
+
+Optionen können ein `value` tragen, damit eine Formel die Auswahl verwenden kann. Checkbox-Switches
+zählen als 1 und 0, sofern Sie einem Fall nicht ausdrücklich einen Wert zuordnen.
+
+```markdown
+{% calc "curb65" formula="[verwirrt] + [harnstoff_hoch] + [af_hoch] + [rr_niedrig] + [altersgruppe]" %}{% /calc %}
+{% switch "altersgruppe" %}{% case "unter-65" value=0 %}unter 65{% /case %}{% case "ab-65" value=1 %}65 oder älter{% /case %}{% /switch %}
+```
+
+Verwendet eine Formel einen Text-Switch, braucht jede seiner Optionen ein `value`; sonst meldet die
+Validierung `calc-case-values-missing`. Die Zuordnungen gelten überall, wo die Variable verwendet
+wird, auch außerhalb des `calc`.
+
+Ein Switch innerhalb eines `calc` kann selbstschließend sein. Dann deklariert er nur die Eingabe,
+ohne Text:
+
+```markdown
+{% calc "punkte" formula="[diabetes] + [hypertonie]" %}
+{% switch "diabetes" type="boolean" /%}
+{% switch "hypertonie" type="boolean" /%}
+{% /calc %}
+```
+
+## Wiederholte Switches
+
+Switches mit demselben Namen teilen sich eine Auswahl, die alle Optionen aus allen Vorkommen anbietet.
+Jedes Vorkommen rendert nur seine eigenen Fälle. Siehe
+[Zusammenführen von Switch-Optionen](/markdoc-md/concepts/variables#switch-options-merge).
+
+## Was die Validierung prüft
+
+| Regel | Prüfmeldung |
+| --- | --- |
+| Jeder Optionsschlüssel kommt pro Switch nur einmal vor | `case-condition-invalid`, Grund `duplicate-predicate` |
+| Derselbe Optionsschlüssel hat nirgends zwei verschiedene `value`s | `case-value-conflict` |
+| Ein `case` steht nur innerhalb von `switch` oder `condition` | `orphan-case` |
+| Vergleiche wie `gt` gehören in `condition`, nicht in `switch` | `comparison-in-switch` |

@@ -1,0 +1,145 @@
+---
+title: Eigene Komponenten
+description: Ändern Sie, wie Tags aussehen, bearbeiten Sie Werte direkt im Dokument und reagieren Sie auf Klicks, ohne die Bedeutung der Tags neu zu implementieren.
+---
+
+import { Flow, Value } from "/snippets/markdoc.jsx";
+
+Die Standardkomponenten zeichnen farbige Badges wie <Value>82 kg</Value>. Sie können jede davon
+ersetzen. Zu jedem eingebauten Tag gibt es einen **Headless-Hook**, der die Regeln des Pakets
+anwendet: Werte nachschlagen, runden, Platzhalter setzen und den passenden Fall wählen. Ihre
+Komponente entscheidet nur über das Markup.
+
+<Flow
+  steps={[
+    { title: "Tag in der Vorlage", text: "{% info \"gewicht\" /%}", tone: "neutral" },
+    { title: "Hook", text: "useInfoTag(props): Wert, Rundung, Platzhalter", tone: "info" },
+    { title: "Ihre Komponente", text: "entscheidet nur über das Markup", tone: "switch" },
+  ]}
+/>
+
+## Hooks
+
+| Hook | Verwenden in | Liefert |
+| --- | --- | --- |
+| `useInfoTag(props)` | `Info` | `name`, den Rohwert `value`, den formatierten Wert `display`, `isPending`, `isComputed`, `contract` |
+| `useCalcTag(props)` | `Calc` | Dasselbe, zusätzlich `formulaLabel` (zum Beispiel `Formula: [a] + [b]`) |
+| `useBranchTag(props, "switch")` | `Switch` | `name`, `cases` in Quelltextreihenfolge, `selectedIndex` und `selected`, den Inhalt des passenden Falls |
+| `useBranchTag(props, "condition")` | `Condition` | Dasselbe für Zahlenbedingungen |
+| `useMarkdocInteraction()` | überall | `onVariableChange`, `onTagSelect`, `onCitationSelect`, `activeTagName`, `areCitationsHighlighted` |
+
+Alle Hooks werden aus `markdoc-md/react` exportiert. Die Standardkomponenten verwenden dieselben
+Hooks, daher verhält sich ein Ersatz genauso.
+
+## Klartext statt Badges
+
+```tsx
+import { DynamicMarkdocRenderer, useCalcTag, useInfoTag, type MarkdocComponentMap } from "markdoc-md/react";
+
+const plain: MarkdocComponentMap = {
+  Info: (props) => <>{useInfoTag(props).display}</>,
+  Calc: (props) => {
+    const { display, formulaLabel } = useCalcTag(props);
+    return <abbr title={formulaLabel}>{display}</abbr>;
+  },
+};
+
+<DynamicMarkdocRenderer components={plain} markdocContent={template} variables={values} />;
+```
+
+<Warning>
+  Definieren Sie die Map außerhalb der Komponente oder memoisieren Sie sie. Sie ist eine
+  Abhängigkeit des Memos im Renderer; ein neues Objekt bei jedem Rendern rendert das gesamte
+  Dokument neu.
+</Warning>
+
+`MarkdocComponentMap` typisiert die eingebauten Render-Namen (`Info`, `Calc`, `Switch`, `Condition`,
+`Case`, `Cite`, `Details`). Ein Ersatz muss daher die Props des jeweiligen Tags akzeptieren:
+`InfoProps`, `CalcProps`, `SwitchProps` und so weiter.
+
+## Eingaben direkt im Dokument
+
+Übergeben Sie `onVariableChange` an den Renderer, dann können Komponenten Werte direkt im Dokument
+bearbeiten. Ohne diese Prop ist `onVariableChange` `undefined`; dieselben Komponenten können in
+schreibgeschützten Ansichten also auf Text zurückfallen.
+
+```tsx
+import { useState } from "react";
+import {
+  DynamicMarkdocRenderer,
+  useBranchTag,
+  useInfoTag,
+  useMarkdocInteraction,
+  type MarkdocComponentMap,
+} from "markdoc-md/react";
+
+const inlineInputs: MarkdocComponentMap = {
+  Info: (props) => {
+    const { name, value, display } = useInfoTag(props);
+    const { onVariableChange } = useMarkdocInteraction();
+    if (!name || !onVariableChange) return <>{display}</>;
+    return <input value={String(value ?? "")} onChange={(e) => onVariableChange(name, e.target.value)} />;
+  },
+  Switch: (props) => {
+    const { name, cases, selectedIndex, selected } = useBranchTag(props, "switch");
+    const { onVariableChange } = useMarkdocInteraction();
+    if (!name || !onVariableChange) return <>{selected}</>;
+    return (
+      <select
+        value={String(cases[selectedIndex ?? -1]?.primary ?? "")}
+        onChange={(e) => onVariableChange(name, e.target.value)}
+      >
+        {cases.map((c) => (
+          <option key={c.index} value={c.primary}>{c.primary}</option>
+        ))}
+      </select>
+    );
+  },
+};
+
+export function Editable({ template }: { template: string }) {
+  const [values, setValues] = useState<Record<string, unknown>>({});
+  return (
+    <DynamicMarkdocRenderer
+      components={inlineInputs}
+      markdocContent={template}
+      onVariableChange={(name, value) => setValues((v) => ({ ...v, [name]: value }))}
+      variables={values}
+    />
+  );
+}
+```
+
+<Tip>
+  `selected` enthält den vollständigen Inhalt des passenden Falls, einschließlich verschachtelter
+  Tags. Ein eigener Switch rendert daher auch Eingaben innerhalb des gewählten Falls.
+</Tip>
+
+## Klick auf ein Tag
+
+Übergeben Sie `onTagSelect`, um zu erfahren, welche Variable angeklickt wurde, etwa um ihr Feld in
+einem seitlichen Formular zu fokussieren. `activeTagName` hebt die Tags einer Variable hervor.
+MDScribe nutzt beides, um das Dokument mit seinem Eingabebereich zu verknüpfen.
+
+```tsx
+<DynamicMarkdocRenderer
+  activeTagName={focused}
+  markdocContent={template}
+  onTagSelect={(name) => setFocused(name)}
+  variables={values}
+/>
+```
+
+## Vorlagen-Layout
+
+`layout="template"` übernimmt jeden Zeilenumbruch und jede Leerzeile aus dem Quelltext als echtes
+HTML und setzt Typografie und Tabellenformatierung als portable Inline-Styles. Verwenden Sie es,
+wenn das gerenderte Dokument in ein anderes Programm kopiert wird, etwa in ein
+Krankenhausinformationssystem. Ohne diese Option folgt die Ausgabe den normalen Absatzregeln von
+Markdown.
+
+## Rendern auf niedrigerer Ebene
+
+`renderMarkdocAsReact(source, { components, config, layout })` liefert React-Knoten ohne die
+Provider für Variablen und Interaktion. Die Funktion eignet sich auch für Server-Rendering.
+Verwenden Sie `DynamicMarkdocRenderer`, sobald Werte oder Berechnungen beteiligt sind.

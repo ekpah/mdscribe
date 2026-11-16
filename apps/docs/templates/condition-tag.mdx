@@ -1,0 +1,85 @@
+---
+title: Condition-Tag
+description: Formulierungen abhängig von Zahlen wählen, zum Beispiel nach Grenzwerten.
+---
+
+import { CaseLadder, Field } from "/snippets/markdoc.jsx";
+
+```markdown
+Die Nierenfunktion ist {% condition "eGFR" %}{% case gte=90 %}normal{% /case %}{% case gte=60 %}leicht eingeschränkt{% /case %}{% case gte=30 %}mittelgradig eingeschränkt{% /case %}{% case default=true %}hochgradig eingeschränkt{% /case %}{% /condition %}.
+```
+
+> Die Nierenfunktion ist <Field kind="condition">leicht eingeschränkt</Field>. *(eGFR = 72)*
+
+Der Condition-Tag vergleicht eine Zahl mit den Fällen **von oben nach unten** und zeigt den
+**ersten** passenden Fall:
+
+<CaseLadder
+  value="eGFR = 72"
+  noMatch="passt nicht"
+  highlight={1}
+  cases={[
+    { when: "gte=90", renders: "normal" },
+    { when: "gte=60", renders: "leicht eingeschränkt" },
+    { when: "gte=30", renders: "mittelgradig eingeschränkt" },
+    { when: "default=true", renders: "hochgradig eingeschränkt" },
+  ]}
+/>
+
+Wegen der Reihenfolge bedeutet `gte=60` hier „60 bis 89“. Die Zahl ist ein eigenes Eingabefeld; ein
+`type` ist weder nötig noch erlaubt.
+
+## Vergleiche
+
+| Schreibweise | Passt, wenn der Wert … |
+| --- | --- |
+| `eq=5` | gleich 5 ist |
+| `gt=5` | größer als 5 ist |
+| `gte=5` | mindestens 5 ist |
+| `lt=5` | kleiner als 5 ist |
+| `lte=5` | höchstens 5 ist |
+| `default=true` | immer, auch ohne Wert. Muss der letzte Fall sein |
+
+Mehrere Vergleiche in einem Fall müssen **alle** zutreffen: `gte=18 lt=65` heißt 18 ≤ Wert < 65.
+
+<Warning>
+  Fehlt der Wert, passt kein Vergleich und der `default`-Fall erscheint. Der Standardfall bedeutet
+  also nicht „normal“, sondern auch „nicht gemessen“. Formulieren Sie ihn entsprechend.
+</Warning>
+
+## Mehrere Werte gleichzeitig
+
+Eine Liste von Namen vergleicht mehrere Zahlen in einem Fall. Jeder Vergleich enthält dann einen
+Eintrag pro Name in derselben Reihenfolge; `null` überspringt einen Namen.
+
+```markdown
+{% condition ["IVSd", "LVPWd"] %}
+{% case gt=[11,null] %}Septum verdickt.{% /case %}
+{% case gt=[null,14] %}Hinterwand verdickt.{% /case %}
+{% case gte=[8,7] lte=[11,14] %}Normale Wanddicken.{% /case %}
+{% case default=true %}Wanddicken nicht beurteilbar.{% /case %}
+{% /condition %}
+```
+
+| IVSd / LVPWd | Ergebnis |
+| --- | --- |
+| 13 / 10 | Septum verdickt. |
+| 10 / 15 | Hinterwand verdickt. |
+| 9 / 10 | Normale Wanddicken. |
+| 9 / – | Wanddicken nicht beurteilbar. |
+
+Jeder Name wird ein eigenes Zahlenfeld. Im Bereich **Eigenschaften** werden die Einträge aller
+Vergleiche gemeinsam verschoben, wenn Sie die Reihenfolge der Namen ändern.
+
+## Mit Berechnungen
+
+Condition prüft jede Zahl, auch das Ergebnis eines [Calc-Tags](/templates/calc-tag) oder ein
+Zahlenfeld, das an anderer Stelle steht. Solange die Berechnung noch `…` zeigt, gilt der
+Standardfall.
+
+## Was der Editor ablehnt
+
+- Grenzwerte in Anführungszeichen (`gt="5"`): Grenzwerte sind Zahlen.
+- Zwei Fälle mit identischen Vergleichen, oder ein Fall, in dem alles `null` ist.
+- Fälle nach dem `default`-Fall, weil sie nie erscheinen würden.
+- `value` an einem Fall: Zahlenzuordnungen gehören zum [Switch](/templates/switch-case-tags).

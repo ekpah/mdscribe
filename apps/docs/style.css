@@ -64,3 +64,48 @@ body,
 #table-of-contents a {
   color: var(--mdscribe-text);
 }
+
+/* Rendered template previews (snippets/markdoc.jsx) opt out of prose styles, so restore lists. */
+.mdscribe-rendered ul {
+  list-style: disc;
+  margin: 0.25rem 0;
+  padding-left: 1.4rem;
+}
+
+.mdscribe-rendered ol {
+  list-style: decimal;
+  margin: 0.25rem 0;
+  padding-left: 1.4rem;
+}
+
+.mdscribe-rendered p,
+.mdscribe-rendered [data-as="p"] {
+  display: block;
+  margin: 0.35rem 0;
+}
+
+.mdscribe-rendered summary {
+  cursor: pointer;
+}
+
+/* Live demo (snippets/live-template.jsx): flash a rendered value when its input changes. */
+@keyframes mdscribe-flash {
+  0% {
+    box-shadow: 0 0 0 0 rgba(181, 137, 0, 0.9);
+    transform: scale(1.12);
+  }
+  100% {
+    box-shadow: 0 0 0 0.5rem rgba(181, 137, 0, 0);
+    transform: scale(1);
+  }
+}
+
+.mdscribe-flash {
+  animation: mdscribe-flash 700ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mdscribe-flash {
+    animation: none;
+  }
+}

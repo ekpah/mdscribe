@@ -1,48 +1,90 @@
 ---
 title: KI-Provider
-description: Welche KI-Provider MDScribe unterstützt und wie Verbindungen, Modelle und Standard-Slots zusammenspielen.
+description: Welche KI-Provider MDScribe anbindet und wie Verbindungen und Standardmodelle zusammenspielen.
 ---
 
-## KI-Provider
+import { Flow, Stack } from "/snippets/markdoc.jsx";
 
-MDScribe spricht nicht mit einem fest verdrahteten KI-Dienst, sondern mit **Providern**, die der Administrator der Instanz konfiguriert. Jeder Provider ist eine Verbindung zu einem Inferenz-Dienst (Cloud-API oder lokaler Server), aus der MDScribe die verfügbaren Modelle synchronisiert.
+MDScribe hat keinen fest eingebauten KI-Dienst. Der Administrator verbindet die Instanz mit einem
+oder mehreren **Providern** (Cloud-API, vertraulicher Dienst oder lokaler Server) und wählt daraus
+die Modelle, die MDScribe verwendet. Ohne Verbindung findet keine Generierung statt.
 
-Administratoren können einzelne bestehende Verbindungen außerdem für
-[nutzereigene API-Schlüssel (BYOK)](/providers/byok) freigeben. Nutzer wählen
-dabei keinen beliebigen Provider: Protokoll, Base URL und Modelle bleiben
-vollständig durch die konfigurierte Verbindung vorgegeben.
+<Flow
+  steps={[
+    { title: "Verbindung anlegen", text: "Protokoll, ggf. Base URL, API-Key", tone: "neutral" },
+    { title: "Modelle synchronisieren", text: "MDScribe liest die Modellliste ein", tone: "info" },
+    { title: "Standardmodelle wählen", text: "pro Aufgabe ein Modell", tone: "switch" },
+    { title: "Optional: BYOK", text: "Nutzer bringen eigene Schlüssel mit", tone: "calc" },
+  ]}
+/>
 
-## Unterstützte Provider
+Alles geschieht unter **Admin → Systemeinstellungen → KI-Provider & Modelle**, mit den Reitern
+**Verbindungen**, **Modelle**, **AI Vorlagen** und **Brief-Baukasten**.
 
-| Provider | Typ | Besonderheit |
-|----------|-----|--------------|
-| [OpenRouter](/providers/openrouter) | Cloud (Aggregator) | Ein API-Key für viele Modelle, Reasoning-Steuerung |
-| [OpenAI-kompatibel](/providers/openai-compatible) | Beliebig | Generisches Protokoll für jeden Server mit OpenAI-Chat-Completions-API |
-| [Private Provider](/providers/private) | Cloud (vertraulich) | Tinfoil und Privatemode: Ende-zu-Ende-Verschlüsselung in attestierte Secure Enclaves |
-| [Lokale Modelle](/providers/local) | Self-Hosted | Ollama, vLLM und llama.cpp in eigener Infrastruktur |
-| [OpenAI](/providers/openai) | Cloud | GPT-Modelle und Whisper-Transkription |
-| [Anthropic](/providers/anthropic) | Cloud | Claude-Modelle |
-| [Cloudflare Workers AI](/providers/workers-ai) | Cloud | Open-Weight-Modelle im Cloudflare-Netzwerk |
+## Welcher Provider passt?
 
-Welcher Provider passt, ist vor allem eine Datenschutz-Abwägung: maximale Modellauswahl über [OpenRouter](/providers/openrouter), technisch erzwungene Vertraulichkeit über [private Provider](/providers/private), volle Eigenkontrolle über [lokale Modelle](/providers/local).
+Die Wahl ist vor allem eine Datenschutz-Abwägung:
 
-## So funktioniert die Konfiguration
+| Wenn Sie … | … nutzen Sie | Datenweg |
+| --- | --- | --- |
+| Daten nicht aus dem eigenen Netz lassen wollen | [Lokale Modelle](/providers/local) | MDScribe → eigener Server |
+| Cloud-GPUs mit technisch erzwungener Vertraulichkeit wollen | [Private Provider](/providers/private) (Tinfoil, Privatemode) | MDScribe → verschlüsselt in eine attestierte Enclave |
+| viele Modellfamilien vergleichen wollen | [OpenRouter](/providers/openrouter) | MDScribe → OpenRouter → Modellanbieter |
+| einen bestimmten Anbieter vertraglich nutzen | [OpenAI](/providers/openai), [Anthropic](/providers/anthropic), [Workers AI](/providers/workers-ai) | MDScribe → Anbieter |
+| einen anderen Dienst mit OpenAI-Schnittstelle anbinden | [OpenAI-kompatibel](/providers/openai-compatible) | MDScribe → frei gewählter Endpunkt |
 
-1. **Verbindung anlegen**: Unter `Admin → Einstellungen → Modelle → Verbindungen` einen Provider mit Protokoll, optionaler Base URL und API-Key anlegen. Vor dem Speichern prüft MDScribe die Verbindung.
-2. **Modelle synchronisieren**: Beim Anlegen (und bei jedem manuellen Refresh) liest MDScribe die Modellliste des Providers ein. Die Datenbank ist dabei die maßgebliche Quelle — Modelle werden nicht zur Laufzeit live abgefragt.
-3. **Standard-Slots belegen**: Aus den synchronisierten Modellen wählt der Administrator globale Standardmodelle für vier Slots:
+### Alle Protokolle
 
-| Slot | Verwendung |
-|------|-----------|
-| Standard-Modell | Erzeugt immer die finale Antwort; Fähigkeiten (Dokumente, Audio) wählt der Administrator per Checkbox |
-| Audio-Modell | Transkribiert Audioaufnahmen, wenn die Fähigkeit Audio nicht angehakt ist |
-| Dokumenten-Modell | Extrahiert PDF- und Bildinhalte, wenn die Fähigkeit Dokumente nicht angehakt ist |
+| Protokoll im Dialog | Zweck |
+| --- | --- |
+| `OpenAI-kompatibel (llama.cpp / vLLM / LM Studio)` | Jeder Server mit OpenAI-Chat-Completions-API; auch Ollama und der Privatemode-Proxy |
+| `OpenRouter` | Aggregator für viele Anbieter |
+| `Vercel AI Gateway` | Gateway für viele Anbieter; mit Plus fordert MDScribe hier Zero Data Retention an |
+| `OpenAI`, `Anthropic` | Direkte Anbieter-APIs |
+| `Tinfoil (vertrauliche Inferenz)` | Vertrauliche Inferenz mit Attestierung |
+| `Cloudflare Workers AI` | Open-Weight-Modelle im Cloudflare-Konto |
+| `OCR HTTP (selbst gehostet)`, `Mistral OCR (native Dokumenten-API)`, `Privatemode OCR (verschlüsselt, DeepSeek OCR 2)` | Nur für das Dokumenten-Modell: Text aus PDFs und Bildern |
 
-Das Standard-Modell beantwortet jede Anfrage. Sind seine Fähigkeiten Dokumente bzw. Audio angehakt, erhält es diese Eingaben direkt als multimodalen Input. Nicht angehakte Eingaben werden zuerst vom jeweiligen Slot-Modell vorverarbeitet — wahlweise **direkt** (Transkriptions-Endpoint bzw. Dokument ohne Prompt, z. B. für dedizierte OCR-Modelle) oder **multimodal** (Prompt + Eingabe an ein Chat-Modell) — und das Ergebnis fließt als Text in die Generierung ein.
+## Standardmodelle
 
-## API-Keys und Sicherheit
+Im Reiter **Modelle** legt die Karte **Standardmodelle** fest, welches Modell welche Aufgabe
+übernimmt:
 
-- API-Keys werden verschlüsselt in der Datenbank gespeichert und nie an den Browser ausgeliefert.
-- Das gilt sowohl für Betreiber- als auch für nutzereigene BYOK-Schlüssel.
-- Es gibt keine hartkodierten Fallback-Provider: Ohne konfigurierte Verbindung findet keine Generierung statt.
-- Welche Datenschutz-Eigenschaften eine Generierung hat, hängt vom gewählten Provider ab — siehe die einzelnen Provider-Seiten und [KI-Datenfluss](/privacy/ki-datenfluss).
+| Rolle | Aufgabe |
+| --- | --- |
+| **Standard-Modell** | Erzeugt immer die finale Antwort |
+| **MDScribe Agent (Beta)** | Steuert den Agent im Brief-Baukasten, wenn das Standard-Modell das nicht übernimmt |
+| **Dokumenten-Modell** | Liest PDFs und Bilder zu Text aus (OCR-Dienst oder Vision-Modell) |
+| **Audio-Modell** | Transkribiert Audioaufnahmen zu Text |
+| **Entscheidungsmodell** (optional) | Beantwortet beim Ausfüllen einfache Fragen (Ja/Nein, Auswahl, Datum, Zahl) vor dem Standard-Modell; unsichere Fälle gehen weiter an das Standard-Modell |
+
+Unter **Fähigkeiten des Standard-Modells** haken Sie an, was das Standard-Modell selbst kann:
+`Text` (immer), `Dokumente`, `Audio`, `Agent (Beta)`. Angehakte Eingaben gehen direkt an das
+Standard-Modell; die anderen werden vorher vom zuständigen Modell zu Text verarbeitet:
+
+<Stack
+  layers={[
+    { title: "Eingaben", text: "Text, Audioaufnahmen, PDFs und Bilder", tone: "info", edge: "nicht angehakte Fähigkeiten" },
+    { title: "Audio-Modell / Dokumenten-Modell", text: "Audio → Transkript, Dokument → Text", tone: "switch", edge: "Text" },
+    { title: "Standard-Modell", text: "erzeugt die Antwort; erhält angehakte Eingaben direkt", tone: "calc" },
+  ]}
+/>
+
+Das Audio-Modell arbeitet wahlweise **Direkt** (Aufnahme ohne Prompt an den
+Transkriptions-Endpunkt) oder **Multimodal mit Prompt** (Aufnahme plus Transkriptions-Prompt an ein
+audiofähiges Chat-Modell).
+
+Für Modelle mit Reasoning-Unterstützung lässt sich pro Standardmodell die Reasoning-Stufe setzen.
+
+## Modelle synchronisieren
+
+Beim Anlegen einer Verbindung und bei jedem manuellen Aktualisieren liest MDScribe die Modellliste
+des Providers ein und speichert sie. Zur Laufzeit wird die Liste nicht live abgefragt.
+
+## Schlüssel und Sicherheit
+
+- API-Schlüssel werden mit `BETTER_AUTH_SECRET` verschlüsselt in der Datenbank gespeichert und nie
+  an den Browser ausgeliefert, auch [nutzereigene BYOK-Schlüssel](/providers/byok).
+- Es gibt keinen eingebauten Ersatz-Provider.
+- Welche Datenschutz-Eigenschaften eine Generierung hat, hängt vom Provider ab; siehe die einzelnen
+  Seiten und [KI-Datenfluss](/privacy/ki-datenfluss).

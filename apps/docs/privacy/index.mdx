@@ -1,40 +1,75 @@
 ---
 title: Datenschutz
-description: Praktische Datenschutz-Leitplanken fuer den Einsatz von MDScribe.
+description: Welche Daten wohin gehören, was MDScribe speichert und wer verantwortlich ist.
 ---
 
-## Datenschutz bei MDScribe
+import { Stack } from "/snippets/markdoc.jsx";
 
-Diese Seite fasst die wichtigsten Leitplanken fuer den Launch zusammen.
+## Die Kurzfassung
 
-## Kurzposition (Cloud vs. Self-Hosting)
+<Columns cols={2}>
+  <Card title="MDScribe-Cloud" icon="cloud">
+    Nur **erfundene** oder **nachweislich anonymisierte** Inhalte. Keine echten und keine bloß
+    pseudonymisierten Patientendaten.
+  </Card>
+  <Card title="Selbst betriebene Instanz" icon="server">
+    Echte Patientendaten sind möglich, wenn die betreibende Einrichtung Infrastruktur, KI-Provider
+    und Prozesse selbst geprüft und freigegeben hat.
+  </Card>
+</Columns>
 
-- Cloud-gehostete Nutzung sollte derzeit nicht als sicher fuer sensible Patienten-PII/PHI betrachtet werden.
-- Wenn sensible Daten verarbeitet werden muessen, ist Self-Hosting der empfohlene Weg.
-- Diese Hinweise sind technisch-praktische Leitplanken und keine Rechtsberatung.
+Was „anonymisiert“ im klinischen Alltag bedeutet, zeigt
+[Private vs. anonyme Daten](/privacy/private-vs-anonyme-daten) mit Beispielen.
+
+## Wohin Ihre Eingaben gehen
+
+<Stack
+  layers={[
+    { title: "Ihr Browser", text: "Eingaben, Audioaufnahmen, Dateien", tone: "info", edge: "TLS" },
+    { title: "MDScribe-Server", text: "kombiniert Eingaben mit Vorlage und Prompt; protokolliert die Nutzung", tone: "switch", edge: "TLS" },
+    { title: "KI-Provider", text: "vom Betreiber konfiguriert: Cloud-API, vertraulicher Dienst oder lokales Modell", tone: "calc", edge: "je nach Provider" },
+    { title: "Modellanbieter", text: "z. B. hinter einem Aggregator wie OpenRouter" },
+  ]}
+  caption="Die Antwort läuft denselben Weg zurück."
+/>
+
+Welche Provider beteiligt sind, entscheidet der Betreiber der Instanz. Details:
+[KI-Datenfluss](/privacy/ki-datenfluss).
+
+## Was MDScribe speichert
+
+| Daten | Gespeichert |
+| --- | --- |
+| Konto, Textbausteine, Dokument-PDFs, Einstellungen | Ja, in der Datenbank der Instanz |
+| Nutzungsereignisse (Modell, Tokens, Kosten, Dauer) | Ja, für Statistik und Kontingent |
+| Eingaben und KI-Ausgaben im Nutzungsereignis, **ohne** Plus | **Ja, im Volltext** |
+| Eingaben und KI-Ausgaben im Nutzungsereignis, **mit** Plus | Nein, Ausgaben werden als „redacted“ ersetzt |
+| Audio- und Datei-Inhalte | Nein, nur Metadaten. Transkripte und ausgelesener Text werden wie Ausgaben behandelt: ohne Plus im Volltext |
+| Ausgefüllte PDFs | Nein |
+| Weiterverwenden-Transfers | Verschlüsselt, höchstens 10 Minuten |
+| Eigene API-Schlüssel (BYOK) | Verschlüsselt, nie wieder an den Browser ausgeliefert |
+
+<Warning>
+  Ohne Plus-Abonnement bleiben Eingaben und KI-Ausgaben in den Nutzungsdaten der Instanz gespeichert.
+  Auf einer selbst betriebenen Instanz ohne Stripe-Konfiguration gilt das für **alle** Nutzer; siehe
+  [Self-Hosting](/self-hosting#abonnements-und-kontingente).
+</Warning>
+
+## Plus und Zero Data Retention
+
+Mit Plus speichert MDScribe keine Eingaben und Ausgaben in den Nutzungsdaten. Zusätzlich fordert
+MDScribe bei Verbindungen über **Vercel AI Gateway** Zero Data Retention beim Provider an. Bei allen
+anderen Protokollen (OpenRouter, OpenAI, Anthropic, OpenAI-kompatibel, Tinfoil, Workers AI) hängt die
+Aufbewahrung allein von den Bedingungen des Providers ab.
+
+ZDR senkt das Aufbewahrungsrisiko, ersetzt aber keine eigene Prüfung des gesamten Datenwegs.
 
 ## Grundprinzipien
 
-- **Datenminimierung:** Nur eingeben, was fuer das konkrete Dokument noetig ist.
-- **Betreiberverantwortung:** Compliance-Verantwortung liegt beim Betreiber der jeweiligen Instanz.
-- **Transportschutz:** Datenuebertragung erfolgt TLS-verschluesselt.
+- **Datenminimierung**: nur eingeben, was das konkrete Dokument braucht.
+- **Transportverschlüsselung**: alle Verbindungen laufen über TLS.
+- **Betreiberverantwortung**: Die Compliance-Verantwortung liegt beim Betreiber der jeweiligen
+  Instanz.
 
-## Plus-Abonnement (ZDR-Kontext)
-
-Bei Plus kann Zero Data Retention (ZDR) je nach konfiguriertem Provider genutzt werden:
-
-- OpenRouter-Anfragen werden nicht mit ZDR erzwungen geroutet; die Retention-Eigenschaften des gewählten Modells und Anbieters müssen separat geprüft werden.
-- Inhalte werden serverseitig nicht als Volltext protokolliert.
-- ZDR reduziert Retention-Risiken, ersetzt aber keine eigene Compliance-Pruefung.
-
-## Weiterfuehrende Seiten
-
-| Thema | Beschreibung |
-|-------|-------------|
-| [Private vs. anonyme Daten](/privacy/private-vs-anonyme-daten) | Praktische Beispiele fuer geeignete und ungeeignete Eingaben |
-| [KI-Datenfluss](/privacy/ki-datenfluss) | Technischer Datenpfad bei einer KI-Generierung |
-| [Self-Hosting](/self-hosting) | Betrieb in eigener Infrastruktur mit voller Verantwortung |
-
-## Rechtliches
-
-Die vollstaendige Datenschutzerklaerung und AGB finden Sie unter [mdscribe.de/legal](https://mdscribe.de/legal).
+Diese Seite beschreibt technische Leitplanken und ist keine Rechtsberatung. Datenschutzerklärung und
+AGB der MDScribe-Cloud: [mdscribe.de/legal](https://mdscribe.de/legal).

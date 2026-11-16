@@ -1,147 +1,119 @@
 ---
 title: Tags
-description: Übersicht über alle verfügbaren Template-Tags in MDScribe
+description: Übersicht über alle Tags in Textbausteinen, mit Vorschau und Beispielen.
 ---
 
-## Einführung in Tags
+import { Field, FieldLegend } from "/snippets/markdoc.jsx";
 
-Tags sind spezielle Markierungen in Ihren Templates, die dynamische und interaktive Inhalte ermöglichen. Mit Tags können Sie:
-
-- Variable Informationen einfügen (Patientennamen, Daten, Werte)
-- Bedingte Inhalte basierend auf verschiedenen Szenarien anzeigen
-- Automatische Berechnungen durchführen
-- Strukturierte, wiederverwendbare Templates erstellen
-
-MDScribe bietet vier Haupttypen von Tags: **Info**, **Switch/Case**, **Calc** und **Details**.
-
-## Verfügbare Tags
-
-### 🔵 Info-Tag
-
-Das Info-Tag ist das am häufigsten verwendete Tag und dient zur Darstellung variabler Informationen. Es erstellt Eingabefelder für einzelne Werte mit verschiedenen Datentypen.
-
-[→ Zur vollständigen Info-Tag Dokumentation](/templates/info-tag)
-
-### 🟢 Switch/Case-Tags
-
-Switch/Case-Tags ermöglichen bedingte Inhalte basierend auf verschiedenen Optionen oder Szenarien. Sie erstellen Dropdown-Menüs für die Auswahl zwischen verschiedenen Optionen.
-
-[→ Zur vollständigen Switch/Case-Tags Dokumentation](/templates/switch-case-tags)
-
-### 🟠 Calc-Tag
-
-Das Calc-Tag führt automatische Berechnungen basierend auf mathematischen Formeln durch. Es referenziert andere Variablen und berechnet Werte in Echtzeit.
-
-[→ Zur vollständigen Calc-Tag Dokumentation](/templates/calc-tag)
-
-### 🟣 Details-Tag
-
-Das Details-Tag fasst Inhalt in einem aufklappbaren Abschnitt zusammen, wie die aufklappbaren Bereiche in GitHub. Die Beschriftung ist optional, und Abschnitte können ineinander verschachtelt werden.
-
-[→ Zur vollständigen Details-Tag Dokumentation](/templates/details-tag)
-
-## Tags kombinieren
-
-Tags können miteinander kombiniert werden für komplexe Szenarien:
-
-### Tags mit demselben Namen wiederverwenden
-
-Ein Info- oder Switch-Tag kann an mehreren Stellen eines Templates denselben Namen verwenden. Alle Vorkommen greifen dann auf dasselbe Eingabefeld zu. Die gemeinsamen Einstellungen müssen zueinander passen:
-
-- Info-Tags benötigen denselben Typ. Unterschiedliche, ausdrücklich angegebene Einheiten oder Beschreibungen sind nicht erlaubt.
-- Switch-Tags benötigen denselben Typ. Fälle aus mehreren Vorkommen werden zu einer gemeinsamen Auswahlliste zusammengeführt.
-- Calc-Tags mit demselben Namen benötigen dieselbe Formel.
-- `renderUnit` gilt nur für das jeweilige Vorkommen und darf unterschiedlich sein.
-- Ein Name kann nicht gleichzeitig für ein Info- und ein Switch-Tag verwendet werden.
-
-Fehlende optionale Angaben dürfen an einem anderen Vorkommen ergänzt werden. Dieses Beispiel ist gültig:
+Tags sind die variablen Stellen eines Textbausteins. Im Editor fügen Sie sie über die
+Werkzeugleiste ein; im gespeicherten Text stehen sie in geschweiften Klammern mit Prozentzeichen.
 
 ```markdown
-{% info "Gewicht" type="number" /%}
-Das aktuelle Gewicht beträgt {% info "Gewicht" type="number" unit="kg" renderUnit=true /%}.
+Der Patient wurde am {% info "Aufnahmedatum" type="date" /%} {% switch "Aufnahmeart" %}{% case "stationär" %}stationär aufgenommen{% /case %}{% case "ambulant" %}ambulant vorgestellt{% /case %}{% /switch %}.
 ```
 
-Dieses Beispiel wird beim Speichern abgelehnt, weil derselbe Wert nicht gleichzeitig eine Zahl und ein Datum sein kann:
+<Columns cols={2}>
+  <div>
+    **Im Textbaustein**
+
+    Der Patient wurde am <Field>14.03.2026</Field> <Field kind="select">stationär aufgenommen</Field>.
+  </div>
+  <div>
+    **Kopierter Text**
+
+    Der Patient wurde am 14.03.2026 stationär aufgenommen.
+  </div>
+</Columns>
+
+<FieldLegend />
+
+## Die Tags
+
+| Tag | Wofür | Im Textbaustein | Seite |
+| --- | --- | --- | --- |
+| `info` | Einen Wert eintragen: Text, Zahl oder Datum | <Field>82 kg</Field> | [Info-Tag](/templates/info-tag) |
+| `switch` / `case` | Zwischen festen Formulierungen wählen, auch Ja/Nein | <Field kind="select">nach Hause entlassen</Field> | [Switch-Tag](/templates/switch-case-tags) |
+| `condition` | Text abhängig von Zahlen wählen, etwa Schwellenwerten | <Field kind="condition">leicht eingeschränkt</Field> | [Condition-Tag](/templates/condition-tag) |
+| `calc` | Scores und abgeleitete Werte berechnen | <Field kind="calc">25.9</Field> | [Calc-Tag](/templates/calc-tag) |
+| `details` | Aufklappbarer Abschnitt | ▸ Laborwerte | [Details-Tag](/templates/details-tag) |
+
+Alles andere ist normaler Text mit Markdown: Überschriften, **fett**, Listen und Tabellen.
+
+## Der Name verbindet
+
+Jedes Tag hat einen Namen, zum Beispiel `"Gewicht"`. **Tags mit demselben Namen teilen sich einen
+Wert.** Sie füllen ihn einmal aus, und er erscheint an jeder Stelle.
+
+```markdown
+**Gewicht:** {% info "Gewicht" type="number" unit="kg" renderUnit=true /%}
+
+… Bei Entlassung wog der Patient {% info "Gewicht" type="number" /%} kg.
+```
+
+Damit das funktioniert, müssen die gemeinsamen Einstellungen zusammenpassen:
+
+| Muss gleich sein | Darf sich unterscheiden |
+| --- | --- |
+| Typ (`type`), Einheit (`unit`), Beschreibung (`description`), Formel und Rundung eines Calc | `renderUnit` und die Rundung eines Info-Tags: sie betreffen nur die Anzeige an dieser Stelle |
+
+Fehlt eine Angabe an einer Stelle, gilt die einer anderen. Widersprechen sich zwei Stellen, blockiert
+der Editor das Speichern:
 
 ```markdown
 {% info "Gewicht" type="number" /%}
 {% info "Gewicht" type="date" /%}
 ```
 
-### Beispiel: Bedingte Berechnung
+### Welche Tags sich einen Namen teilen können
+
+- Zahlen-Infos, Conditions und Calcs: ja. So zeigen Sie einen berechneten Wert im Text an und
+  formulieren abhängig davon.
+- Mehrere Switches mit demselben Namen: ja. Ihre Optionen ergeben eine gemeinsame Auswahl.
+- Ein Switch und ein Zahlenfeld: nein. Für Zahlen-Schwellen nutzen Sie Condition.
+
+## Tags kombinieren
+
+Tags lassen sich verschachteln. Ein Feld innerhalb eines Falls erscheint nur, wenn dieser Fall
+gewählt ist:
 
 ```markdown
-## Nierenfunktion
-
-**eGFR**: {% info "eGFR" type="number" unit="ml/min/1.73m²" renderUnit=true /%}
-
-{% switch "Nierenfunktion" %}
-{% case "Normal" %}Die Nierenfunktion ist normal.{% /case %}
-{% case "Eingeschränkt" %}Die Nierenfunktion ist eingeschränkt (Stadium {% info "CKD_Stadium" type="number" /%}).{% /case %}
-{% case "Dialyse" %}Der Patient ist dialysepflichtig.{% /case %}
+{% switch "Raucher" %}
+{% case "aktiv" %}Aktiver Raucher, {% info "Packyears" type="number" /%} Packungsjahre.{% /case %}
+{% case "ex" %}Ex-Raucher seit {% info "RaucherSeit" /%}.{% /case %}
+{% case "nie" %}Nichtraucher.{% /case %}
 {% /switch %}
 ```
 
-### Beispiel: Calc mit Info-Tags
+Ein berechneter Wert steuert eine Formulierung:
 
 ```markdown
-**Gewicht**: {% info "Gewicht" type="number" unit="kg" renderUnit=true /%}
-
-**Größe**: {% info "Groesse" type="number" unit="cm" renderUnit=true /%}
-
-**BMI**:
-
-{% calc "BMI" formula="[Gewicht] / ([Groesse] / 100) ^ 2" unit="kg/m²" renderUnit=true %}
-{% info "Gewicht" type="number" unit="kg" /%}
-{% info "Groesse" type="number" unit="cm" /%}
-{% /calc %}
-
-{% switch "BMI_Kategorie" %}
-{% case "Untergewicht" %}Der Patient ist untergewichtig.{% /case %}
-{% case "Normalgewicht" %}Der Patient hat Normalgewicht.{% /case %}
-{% case "Übergewicht" %}Der Patient ist übergewichtig.{% /case %}
-{% case "Adipositas" %}Der Patient hat Adipositas.{% /case %}
-{% /switch %}
+{% calc "BMI" formula="[Gewicht] / ([Groesse] / 100) ^ 2" %}{% /calc %}
+Der BMI beträgt {% info "BMI" type="number" round=1 /%} ({% condition "BMI" %}{% case lt=18.5 %}Untergewicht{% /case %}{% case lt=25 %}Normalgewicht{% /case %}{% case lt=30 %}Übergewicht{% /case %}{% case default=true %}Adipositas{% /case %}{% /condition %}).
 ```
 
-## Häufige Fehler und Lösungen
+## Häufige Probleme
 
-### Calc zeigt "…" an
+<AccordionGroup>
+  <Accordion title="Ein Calc zeigt „…“">
+    Noch nicht alle Werte der Formel sind ausgefüllt, oder das Ergebnis ist nicht definiert (etwa
+    Division durch 0). Prüfen Sie, ob die Namen in der Formel exakt den Feldnamen entsprechen,
+    einschließlich Groß- und Kleinschreibung.
+  </Accordion>
+  <Accordion title="Ein Switch zeigt nichts an">
+    Der gewählte Wert passt zu keinem Fall. Ergänzen Sie einen Fall mit `default=true`, wenn dann
+    trotzdem etwas stehen soll.
+  </Accordion>
+  <Accordion title="Ein Tag erscheint als normaler Text">
+    Die Schreibweise stimmt nicht. Richtig ist `{% info "Name" /%}`: geschweifte Klammer und
+    Prozentzeichen, gerade Anführungszeichen, und `/%}` am Ende von Tags ohne Inhalt.
+  </Accordion>
+  <Accordion title="Speichern ist gesperrt">
+    Der Editor hat einen Widerspruch gefunden, meist zwei gleichnamige Tags mit verschiedenem Typ
+    oder ein Textfeld in einer Formel. Die Liste unter dem Editor nennt die Stelle.
+  </Accordion>
+</AccordionGroup>
 
-**Ursache**: Noch nicht alle Werte der Formel sind ausgefüllt, oder das Ergebnis ist nicht definiert (z. B. Division durch 0). Ein Calc rechnet erst, wenn alle Werte vorhanden sind.
-
-**Lösung**:
-
-- Füllen Sie alle Werte aus, die die Formel verwendet
-- Überprüfen Sie, dass alle Variablen in der Formel auch als Info-Tags existieren
-- Stellen Sie sicher, dass die Variablennamen exakt übereinstimmen (inkl. Groß-/Kleinschreibung)
-
-### Fehler: Switch zeigt nichts an
-
-**Problem**: Der ausgewählte Wert passt zu keinem Case.
-
-**Lösung**:
-
-- Überprüfen Sie, dass alle möglichen Optionen als Case definiert sind
-- Achten Sie auf exakte Schreibweise (inkl. Leerzeichen und Groß-/Kleinschreibung)
-
-### Fehler: Tag wird als Text angezeigt
-
-**Problem**: Die Tag-Syntax ist fehlerhaft.
-
-**Lösung**:
-
-- Überprüfen Sie die Syntax: `{% info "Name" /%}` nicht `{info "Name"}`
-- Prüfen Sie, ob alle Anführungszeichen korrekt gesetzt sind
-- Self-closing Tags benötigen `/%}` am Ende
-
-## Zusammenfassung
-
-| Tag             | Farbe     | Verwendung       | Syntax-Beispiel                                                |
-| --------------- | --------- | ---------------- | -------------------------------------------------------------- |
-| **Info**        | 🔵 Blau   | Variable Daten   | `{% info "Name" /%}`                                           |
-| **Switch/Case** | 🟢 Grün   | Bedingte Inhalte | `{% switch "Var" %}{% case "A" %}Text{% /case %}{% /switch %}` |
-| **Calc**        | 🟠 Orange | Berechnungen     | `{% calc "Ergebnis" formula="[A]" %}{% info "A" type="number" /%}{% /calc %}` |
-| **Details**     | 🟣 Violett | Aufklappbare Abschnitte | `{% details summary="Titel" %}Text{% /details %}` |
-
-Mit diesen Tags können Sie flexible, wiederverwendbare Templates erstellen, die sich automatisch an verschiedene Situationen anpassen!
+<Tip>
+  Die vollständige, technische Beschreibung der Tag-Sprache steht im Bereich
+  [markdoc-md](/markdoc-md) (englisch).
+</Tip>

@@ -3,6 +3,8 @@
 	"ignoreIssues": {
 		"packages/design-system/styles/globals.css": ["unresolved"],
 	},
+	// Mintlify imports these from MDX pages, which Knip does not parse.
+	"ignoreFiles": ["apps/docs/snippets/**"],
 	"workspaces": {
 		"apps/app": {
 			"entry": [

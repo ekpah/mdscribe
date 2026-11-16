@@ -1,0 +1,109 @@
+---
+title: condition
+description: Text anhand von Zahlenschwellen wählen, für einen Wert oder mehrere zugleich.
+---
+
+import { CaseLadder, Rendered, Value } from "/snippets/markdoc.jsx";
+
+```markdown
+{% condition "egfr" %}{% case gte=90 %}Normale Nierenfunktion{% /case %}{% case gte=60 %}Leicht eingeschränkte Nierenfunktion{% /case %}{% case gte=30 %}Mäßig eingeschränkte Nierenfunktion{% /case %}{% case default=true %}Schwer eingeschränkte Nierenfunktion{% /case %}{% /condition %}
+```
+
+<Columns cols={2}>
+  <Rendered title="egfr = 72">
+    <Value kind="condition">Leicht eingeschränkte Nierenfunktion</Value>
+  </Rendered>
+  <Rendered title="egfr = 18">
+    <Value kind="condition">Schwer eingeschränkte Nierenfunktion</Value>
+  </Rendered>
+</Columns>
+
+`condition` vergleicht eine Zahl **von oben nach unten** mit jedem Fall und rendert den **ersten**
+passenden Fall. Durch die Reihenfolge oben bedeutet `gte=60` „60 bis 89“, denn Werte ab 90 haben
+bereits beim ersten Fall gepasst.
+
+Die Variable wird automatisch zu einer Zahleneingabe; ein `type` ist weder nötig noch erlaubt.
+
+## Vergleiche
+
+| Attribut | Passt, wenn der Wert … ist |
+| --- | --- |
+| `eq=5` | gleich 5 |
+| `gt=5` | größer als 5 |
+| `gte=5` | 5 oder größer |
+| `lt=5` | kleiner als 5 |
+| `lte=5` | 5 oder kleiner |
+| `default=true` | beliebig, auch fehlend. Muss der letzte Fall sein und hat keine Vergleiche |
+
+Mehrere Vergleiche an einem Fall müssen **alle** passen: `gte=18 lt=65` bedeutet 18 ≤ Wert < 65.
+Alternativen schreiben Sie als getrennte Fälle.
+
+<CaseLadder
+  value="egfr = 72: von oben geprüft, der erste Treffer gewinnt"
+  highlight={1}
+  cases={[
+    { when: "gte=90", renders: "Normale Nierenfunktion" },
+    { when: "gte=60", renders: "Leicht eingeschränkte Nierenfunktion" },
+    { when: "gte=30", renders: "Mäßig eingeschränkte Nierenfunktion" },
+    { when: "default=true", renders: "Schwer eingeschränkte Nierenfunktion" },
+  ]}
+/>
+
+Ohne passenden Fall und ohne `default=true` rendert eine Condition nichts.
+
+<Warning>
+  Ein fehlender Wert passt zu keinem Vergleich und landet deshalb bei `default=true`. Ein
+  Standardfall bedeutet also **nicht**, dass der Wert normal ist; er kann auch einfach unbekannt sein.
+</Warning>
+
+## Mehrere Werte zugleich
+
+Übergeben Sie eine Liste von Namen, um in einem Fall mehrere Zahlen zu vergleichen. Jeder Vergleich
+erwartet dann eine Liste derselben Länge, mit einem Eintrag pro Name in derselben Reihenfolge.
+`null` überspringt diesen Namen.
+
+```markdown
+{% condition ["ivsd", "lvpwd"] unit="mm" %}
+{% case gt=[11,null] %}Septum verdickt.{% /case %}
+{% case gt=[null,14] %}Hinterwand verdickt.{% /case %}
+{% case gte=[8,7] lte=[11,14] %}Wanddicke normal.{% /case %}
+{% case default=true %}Wanddicke nicht beurteilbar.{% /case %}
+{% /condition %}
+```
+
+| ivsd / lvpwd | Ergebnis | Warum |
+| --- | --- | --- |
+| 13 / 10 | <Value kind="condition">Septum verdickt.</Value> | 13 > 11; lvpwd übersprungen |
+| 10 / 15 | <Value kind="condition">Hinterwand verdickt.</Value> | 15 > 14 |
+| 9 / 10 | <Value kind="condition">Wanddicke normal.</Value> | Beide im Bereich |
+| 9 / – | <Value kind="condition">Wanddicke nicht beurteilbar.</Value> | lvpwd fehlt |
+
+Jeder Name ist eine eigene Zahleneingabe; eine kombinierte Eingabe gibt es nicht. Ein übersprungener
+Name darf fehlen.
+
+## Attribute
+
+| Attribut | Bedeutung |
+| --- | --- |
+| `primary` | Ein Variablenname oder eine Liste von Namen wie `["ivsd", "lvpwd"]` |
+| `description` | Hinweis. Bei einer Liste beschreibt er dieses Vorkommen, nicht jedes einzelne Element |
+| `unit` | Einheit als Metadatum. Bei einer Liste beschreibt sie dieses Vorkommen, nicht jedes einzelne Element |
+| `source` | Nur bei einem einzelnen Namen. Quellen für Listenelemente gehören an deren eigene `info`-Tags |
+
+## Zusammenspiel mit anderen Tags
+
+Eine Condition kann jede numerische Variable prüfen, auch das Ergebnis eines
+[`calc`](/markdoc-md/tags/calc) oder ein numerisches [`info`](/markdoc-md/tags/info), das an anderer
+Stelle steht. Sie teilen sich eine Zahlenvariable. Solange eine Berechnung keinen Wert hat, rendert
+die Condition ihren Standardfall.
+
+Fälle dürfen andere Tags enthalten. Eingaben innerhalb eines Falls tragen `visibility`, sodass ein
+Formular sie nur zeigen kann, wenn dieser Fall gewählt ist.
+
+## Was die Validierung prüft
+
+- Grenzwerte sind Zahlen, nie Zeichenketten, und eine Liste hat einen Eintrag pro Name.
+- Zwei benachbarte Fälle mit identischen Vergleichen sind ein Fehler, ebenso Fälle, in denen jeder
+  Eintrag `null` ist. Überlappende, aber verschiedene Fälle sind erlaubt; der erste gewinnt.
+- Ein Fall nach `default=true` kann nie gerendert werden (`case-unreachable`).
+- Fälle in einer Condition dürfen kein `value` haben. Zahlenzuordnungen gehören zu `switch`.

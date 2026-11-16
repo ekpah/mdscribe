@@ -1,0 +1,95 @@
+---
+title: cite
+description: Text mit den Quellen verknüpfen, die ihn belegen.
+---
+
+import { Cited, Rendered } from "/snippets/markdoc.jsx";
+
+```markdown
+{% cite source="mdscribe://input/anamnese" quote="keine bekannten Allergien" %}Keine Allergien{% /cite %} angegeben.
+```
+
+<Columns cols={2}>
+  <Rendered title="Normal">
+    Keine Allergien angegeben.
+  </Rendered>
+  <Rendered title="Hover oder Strg/Cmd gedrückt">
+    <Cited>Keine Allergien</Cited> angegeben.
+  </Rendered>
+</Columns>
+
+Eine Quellenangabe liest sich wie normaler Text. Beim Überfahren mit der Maus wird sie
+hervorgehoben; solange <kbd>Strg</kbd> (<kbd>Cmd</kbd> unter macOS) gedrückt ist, werden alle
+Quellenangaben der Seite hervorgehoben. Ein Klick oder die Eingabetaste ruft `onCitationSelect` des
+Renderers mit den Quellen der Quellenangabe auf. **Wie eine Quelle gefunden und angezeigt wird,
+entscheidet die Host-Anwendung**; siehe [Quellenangaben auflösen](/markdoc-md/guides/citations).
+
+## Attribute
+
+Verwenden Sie entweder `source` mit optionalem `quote` oder eine `citations`-Liste, nicht beides.
+
+| Attribut | Bedeutung |
+| --- | --- |
+| `source` | Woher der Text stammt; siehe die Formen unten. Höchstens 8.192 Zeichen |
+| `quote` | Eine Formulierung, die in der Quelle gesucht und hervorgehoben wird. Höchstens 4.000 Zeichen |
+| `citations` | Mehrere Auszüge, die denselben Text belegen: `citations=[{source: "…", quote: "…"}, …]` |
+
+```markdown
+{% cite citations=[{source: "mdscribe://file/echo-2024", quote: "LVEF 35 %"}, {source: "mdscribe://file/mrt-2025", quote: "LVEF 33 %"}] %}reduzierte Ejektionsfraktion{% /cite %}
+```
+
+Der zitierte Text darf einfachen Text, Fett- und Kursivschrift sowie Inline-Code enthalten. Links,
+andere Tags, verschachtelte Quellenangaben und Blockinhalte werden abgelehnt.
+
+<div id="source-forms" style={{ scrollMarginTop: "7rem" }} />
+
+## Formen der Quelle
+
+| Quelle | Verweist auf |
+| --- | --- |
+| `mdscribe://file/<id>` | Eine Datei im Dateikontext der Anwendung, etwa ein hochgeladenes PDF |
+| `mdscribe://input/<id>` | Ein Textfeld oder einen festen Schnappschuss davon |
+| `https://…` | Eine externe Seite. `http://` und URLs mit Benutzername oder Passwort werden abgelehnt |
+| `fhir://<FHIRPath>` | Das Ergebnis eines FHIRPath-Ausdrucks auf einem FHIR-Bundle |
+
+Das Schema `mdscribe` ist ein neutrales Namensformat; Ihre Anwendung ordnet die IDs ihrem eigenen
+Speicher zu. Erzeugen Sie diese Quellen mit `createMdscribeSource("file", id)` statt von Hand, damit
+die IDs korrekt kodiert werden. Schemata lösen nie von sich aus eine Navigation im Browser aus.
+
+```markdown
+{% cite source="https://www.mdcalc.com/calc/10583/cha2ds2-va-score-atrial-fibrillation-stroke-risk" %}CHA₂DS₂-VA{% /cite %}
+{% cite source="fhir://Observation.where(code.coding.code='718-7').last().value" %}letzter Hämoglobinwert{% /cite %}
+```
+
+<Warning>
+  Eine Quelle muss sich als URI parsen lassen, daher darf ein FHIRPath-Ausdruck in `cite` keine
+  Leerzeichen enthalten. Schreiben Sie `code='718-7'`, nicht `code = '718-7'`, oder kodieren Sie
+  Leerzeichen als `%20`.
+</Warning>
+
+## Eine Textstelle finden
+
+`quote` ist derzeit der verlässliche Weg, auf eine Textstelle zu verweisen. Die eingebauten Text- und
+Datei-Resolver suchen danach ohne Rücksicht auf Groß- und Kleinschreibung, Akzente und Leerraum und
+erkennen auch Wörter, die über einen Zeilenumbruch getrennt sind. Wird die Formulierung nicht
+gefunden, öffnet sich die Quelle trotzdem, nur ohne Hervorhebung.
+
+Ein `#fragment` hinter der Quelle kann eine genaue Position für Resolver speichern, die es verstehen:
+
+| Fragment | Für | Bedeutung |
+| --- | --- | --- |
+| `#page=2&bbox=10,20,300,80` | `mdscribe://file/…` | Rechteck auf einer Seite; Seiten beginnen bei 1 |
+| `#char=120,182` | `mdscribe://input/…` | Zeichenbereich, Anfang einschließlich, Ende ausschließlich |
+| `#path=name.family` | `fhir://…` | Unterpfad für einen eigenen FHIR-Resolver |
+| Beliebig, etwa `#results` | `https://…` | Wird an die Seite weitergegeben |
+
+<Note>
+  Die eingebauten Resolver behalten diese Fragmente, wenden `page`/`bbox` oder `char` aber noch nicht
+  an; sie verwenden `quote`. Zeichenpositionen bleiben nur gültig, solange sich der referenzierte Text
+  nie ändert. Zitieren Sie deshalb unveränderliche Schnappschüsse oder Revisionen.
+</Note>
+
+## Ungültige Quellenangaben
+
+Die Validierung meldet `citation-source-invalid`, `citation-malformed` und `citation-quote-too-long`.
+Das Rendern bleibt tolerant: Eine ungültige Quellenangabe zeigt ihren Text, ist aber nicht anklickbar.

@@ -1,0 +1,169 @@
+---
+title: Variablen und Verträge
+description: Wie Tags mit demselben Namen einen Wert teilen und welche Regeln ihre Einstellungen konsistent halten.
+---
+
+import { Rendered, Value } from "/snippets/markdoc.jsx";
+
+Jedes benannte `info`-, `switch`-, `condition`- und `calc`-Tag verweist auf eine **Variable**, die
+über ihren `primary`-Namen identifiziert wird. Wird derselbe Name zweimal verwendet, entstehen
+nicht zwei Eingaben: Beide Tags lesen und zeigen denselben Wert.
+
+```markdown
+**Gewicht:** {% info "gewicht" type="number" unit="kg" renderUnit=true /%}
+
+… später im Brief …
+
+Bei Entlassung wiegt der Patient {% info "gewicht" type="number" /%} kg.
+```
+
+<Rendered>
+  **Gewicht:** <Value>82 kg</Value>
+
+  … später im Brief …
+
+  Bei Entlassung wiegt der Patient <Value>82</Value> kg.
+</Rendered>
+
+Das Formular zeigt ein einziges Feld `gewicht`. Jede Verwendung bestimmt nur, wie der Wert an
+dieser Stelle angezeigt wird.
+
+## Ein Vertrag pro Variable
+
+Alle Verwendungen eines Namens werden zu einem **Vertrag** (`VariableContract`) zusammengeführt.
+Er hält fest:
+
+| Bestandteil | Bedeutung |
+| --- | --- |
+| `domain` | Die Art des Werts: `text`, `number`, `date`, `enum` (die Optionen eines Switch) oder `boolean` |
+| Identitätseinstellungen | `unit`, `description`, `source`, `formula` und das `round` eines Calc. Sie beschreiben den Wert selbst, deshalb müssen alle Verwendungen übereinstimmen |
+| `roles` | Wie die Vorlage die Variable nutzt: `field` (ein `info`), `selector` (ein `switch` oder `condition`), `computed` (ein `calc`) |
+
+`analyzeMarkdocTemplate(source).variables` liefert die Verträge. Die Validierung meldet eine
+Vorlage, deren Verwendungen sich nicht zu einem Vertrag vereinen lassen.
+
+### Was sich zwischen Verwendungen unterscheiden darf
+
+<Columns cols={2}>
+  <Card title="Muss übereinstimmen" icon="lock">
+    `type` (über die Domain), `unit`, `description`, `source`, `formula` und das `round` eines
+    benannten `calc`. Fehlt eine Einstellung an einer Verwendung, wird sie von einer anderen
+    übernommen.
+  </Card>
+  <Card title="Darf sich unterscheiden" icon="lock-open">
+    `renderUnit` und das `round` eines `info`. Sie ändern nur, wie ein einzelnes Vorkommen den
+    Wert anzeigt.
+  </Card>
+</Columns>
+
+```markdown
+{% info "gewicht" type="number" /%}
+{% info "gewicht" type="number" unit="kg" renderUnit=true /%}
+```
+
+Gültig: Die erste Verwendung lässt `unit` weg und übernimmt daher `kg`.
+
+```markdown
+{% info "gewicht" type="number" unit="kg" /%}
+{% info "gewicht" type="number" unit="g" /%}
+```
+
+Ungültig: `variable-settings-conflict`, denn ein Wert kann nicht zugleich in Kilogramm und Gramm
+angegeben sein.
+
+```markdown
+{% info "gewicht" type="number" /%}
+{% info "gewicht" type="date" /%}
+```
+
+Ungültig: `variable-domain-conflict`, denn ein Wert kann nicht zugleich eine Zahl und ein Datum
+sein.
+
+## Welche Tags sich eine Variable teilen können
+
+| | `info` Text/Datum | `info` Zahl | `switch` | `condition` | `calc` |
+| --- | --- | --- | --- | --- | --- |
+| **`info` Text/Datum** | gleicher `type` | — | — | — | — |
+| **`info` Zahl** | — | ✓ | — | ✓ | ✓ |
+| **`switch`** | — | — | ✓ Optionen werden zusammengeführt | — | — |
+| **`condition`** | — | ✓ | — | ✓ | ✓ |
+| **`calc`** | — | ✓ | — | ✓ | ✓ gleiche Formel |
+
+Zahlen-`info`, `condition` und `calc` haben alle die Domain `number` und lassen sich daher frei
+kombinieren. So können Sie einen berechneten Wert im Fließtext anzeigen und dann abhängig davon
+verzweigen:
+
+```markdown
+{% calc "bmi" formula="[gewicht] / ([groesse] / 100) ^ 2" %}{% /calc %}
+
+BMI {% info "bmi" type="number" round=1 /%}:
+{% condition "bmi" %}{% case lt=18.5 %}Untergewicht{% /case %}{% case gte=30 %}Adipositas{% /case %}{% case default=true %}keine Adipositas{% /case %}{% /condition %}
+```
+
+Ein kategorialer `switch` kann sich keinen Namen mit einer Zahlenvariable teilen. Für
+Zahlenschwellen verwenden Sie `condition`.
+
+## Switch-Optionen werden zusammengeführt {#switch-options-merge}
+
+Mehrere `switch`-Tags mit demselben Namen bilden eine gemeinsame Auswahl, die alle Optionen aus
+allen Tags enthält. Jedes Vorkommen rendert trotzdem nur seine eigenen Fälle:
+
+```markdown
+Therapie: {% switch "therapie" %}{% case "konservativ" %}konservativ{% /case %}{% case "operativ" %}operativ{% /case %}{% /switch %}
+
+{% switch "therapie" %}{% case "operativ" %}Wundkontrolle am 3. postoperativen Tag.{% /case %}{% /switch %}
+```
+
+<Columns cols={2}>
+  <Rendered title='therapie = "konservativ"'>
+    Therapie: <Value kind="switch">konservativ</Value>
+  </Rendered>
+  <Rendered title='therapie = "operativ"'>
+    Therapie: <Value kind="switch">operativ</Value>
+
+    <Value kind="switch">Wundkontrolle am 3. postoperativen Tag.</Value>
+  </Rendered>
+</Columns>
+
+Bei `therapie = "konservativ"` rendert der zweite Switch nichts, weil er weder einen passenden Fall
+noch einen Fall mit `default=true` hat. Numerische `value`-Zuordnungen für Berechnungen werden
+ebenfalls pro Optionsschlüssel zusammengeführt; zwei unterschiedliche Werte für dieselbe Option
+ergeben einen `case-value-conflict`.
+
+## Berechnungen sind global
+
+Ein benannter `calc` wird immer berechnet, auch wenn er in einem Fall steht, der nicht ausgewählt
+ist. Jede andere Verwendung seines Namens sieht dasselbe, bereits gerundete Ergebnis.
+
+<Steps>
+  <Step title="Werte kommen an">
+    Manuelle Eingaben, KI-Vorschläge oder FHIR-Werte treffen als ein gemeinsames
+    `variables`-Objekt ein.
+  </Step>
+  <Step title="Berechnungen werden in Abhängigkeitsreihenfolge aufgelöst">
+    `resolveCalculatedValues` wertet jeden benannten `calc` aus. Ein Calc, der einen anderen Calc
+    verwendet, wartet auf diesen. Jedes Ergebnis wird mit seinem `round` (Standard: 2
+    Nachkommastellen) gerundet, bevor etwas davon abhängt.
+  </Step>
+  <Step title="Tags werden gerendert">
+    `info`-, `condition`- und abhängige `calc`-Tags lesen die veröffentlichten, gerundeten Werte.
+  </Step>
+</Steps>
+
+Weil zuerst gerundet wird, veröffentlicht `1/3` mit `round=2` den Wert `0.33`; ein abhängiges
+`[q] * 100` ergibt `33`, und eine Condition vergleicht mit `0.33`.
+
+### Eine Berechnung überschreiben
+
+Ein nicht leerer Wert unter dem Namen einer Berechnung ersetzt das Ergebnis ihrer Formel und wird
+genauso gerundet. Ein leerer Wert setzt die Berechnung wieder in Kraft. Wie manuelle und
+KI-Werte kombiniert werden, entscheidet Ihre Anwendung; in MDScribe hat eine manuelle Eingabe
+Vorrang vor einem KI-Vorschlag.
+
+### Fehlende Eingaben
+
+Eine Berechnung bleibt ungesetzt, bis jede Variable ihrer Formel einen Wert hat. Nicht angehakte
+Checkboxen zählen als `false` und sind damit immer ausgefüllt. Nicht endliche Ergebnisse wie bei
+einer Division durch null bleiben ebenfalls ungesetzt. Ungesetzte Berechnungen zeigen `…`
+(`CALC_PLACEHOLDER`), davon abhängige Berechnungen bleiben ungesetzt, und Conditions auf ihnen
+fallen auf ihren Fall mit `default=true` zurück.

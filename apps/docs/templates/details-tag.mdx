@@ -1,101 +1,72 @@
 ---
 title: Details-Tag
-description: Dokumentation zum Details-Tag für aufklappbare Abschnitte in Templates
+description: Aufklappbare Abschnitte für Zusatzinformationen.
 ---
 
-## Details-Tag
-
-Das Details-Tag fasst Inhalt in einem aufklappbaren Abschnitt zusammen – wie die aufklappbaren
-Bereiche in GitHub. Der Abschnitt wird im Dokument als natives Aufklapp-Element gerendert und
-funktioniert ohne JavaScript.
-
-### Syntax
+import { Rendered } from "/snippets/markdoc.jsx";
 
 ```markdown
 {% details summary="Laborwerte" %}
 **CRP** 12 mg/l
-
 - Leukozyten 9,8/nl
 {% /details %}
 ```
 
+<Rendered title="Vorschau (zum Aufklappen anklicken)">
+  <details>
+    <summary>Laborwerte</summary>
+    <p><strong>CRP</strong> 12 mg/l</p>
+    <ul><li>Leukozyten 9,8/nl</li></ul>
+  </details>
+</Rendered>
+
+Der Details-Tag fasst Inhalt in einem aufklappbaren Abschnitt zusammen, wie die aufklappbaren
+Bereiche auf GitHub.
+
+## Einstellungen
+
+| Einstellung | Standard | Bedeutung |
+| --- | --- | --- |
+| `summary` | „Details“ | Beschriftung des Abschnitts |
+| `open` | `false` | Abschnitt ist von Anfang an aufgeklappt |
+
 Öffnungs- und Schluss-Tag stehen jeweils in einer eigenen Zeile. Die einzeilige Schreibweise
-(`{% details %}Text{% /details %}`) wird beim Speichern abgelehnt, weil Markdoc den Abschnitt dann
-innerhalb eines Absatzes einfügt.
+`{% details %}Text{% /details %}` lehnt der Editor ab.
 
-### Als Zeile im Text
+## Zeilen mit aufklappbaren Details
 
-Die Beschriftung sieht aus wie eine normale Textzeile; nur der Pfeil zeigt, dass sich darunter
-weitere Angaben aufklappen lassen. Steht der Abschnitt ohne Leerzeile direkt unter oder über einer
-Textzeile, setzt er diese Zeilen ohne Absatzabstand fort. So lassen sich einfache Zeilen und
-aufklappbare Zeilen mischen:
+Die Beschriftung sieht aus wie eine normale Textzeile; nur der Pfeil zeigt, dass sich darunter mehr
+verbirgt. Ohne Leerzeile davor oder danach setzt der Abschnitt die Zeilen ohne Absatzabstand fort.
+So lassen sich einfache und aufklappbare Zeilen mischen:
 
 ```markdown
-**Therapie und Verlauf:**  
+**Therapie und Verlauf:**
 01/24 Erstdiagnose, Staging ohne Fernmetastasen
 {% details summary="02/24 – 04/24 Neoadjuvante Chemotherapie, gute Verträglichkeit" %}
-02/24 Zyklus 1, Neutropenie Grad 2  
+02/24 Zyklus 1, Neutropenie Grad 2
 04/24 Zwischenstaging mit partieller Remission
 {% /details %}
 05/24 Gastrektomie, R0
-
-**Nebendiagnosen:**  
-…
 ```
 
-Eine Leerzeile vor oder nach dem Abschnitt erzeugt wie gewohnt einen Absatzabstand. Im Editor
-erscheint diese Leerzeile als leere Zeile neben dem Abschnitt: Mit Enter fügen Sie sie ein, mit
-der Rücktaste entfernen Sie sie. Die Beschriftung tippen Sie im Editor direkt in die erste Zeile des
-Abschnitts; Enter springt in den Inhalt.
+<Rendered title="Vorschau">
+  <div><strong>Therapie und Verlauf:</strong></div>
+  <div>01/24 Erstdiagnose, Staging ohne Fernmetastasen</div>
+  <details>
+    <summary>02/24 – 04/24 Neoadjuvante Chemotherapie, gute Verträglichkeit</summary>
+    <div>02/24 Zyklus 1, Neutropenie Grad 2<br />04/24 Zwischenstaging mit partieller Remission</div>
+  </details>
+  <div>05/24 Gastrektomie, R0</div>
+</Rendered>
 
-### Parameter
+Eine Leerzeile vor oder nach dem Abschnitt erzeugt den gewohnten Absatzabstand. Im Editor erscheint
+sie als leere Zeile neben dem Abschnitt: Enter fügt sie ein, die Rücktaste entfernt sie. Die
+Beschriftung tippen Sie direkt in die erste Zeile des Abschnitts; Enter springt in den Inhalt.
 
-| Parameter | Typ | Pflicht | Beschreibung |
-|-----------|-----|---------|--------------|
-| `summary` | String | Nein | Beschriftung des Abschnitts. Ohne Beschriftung wird „Details“ angezeigt. |
-| `open` | Boolean | Nein | Ob der Abschnitt standardmäßig geöffnet ist (Standard: `false`) |
+## Was Sie wissen sollten
 
-### Beispiele
-
-**Aufgeklappter Abschnitt mit Berechnung:**
-
-```markdown
-{% details summary="Nierenfunktion" open=true %}
-Die Nierenfunktion ist {% switch "Nierenfunktion" %}{% case "normal" %}normal{% /case %}{% case "eingeschränkt" %}eingeschränkt (eGFR {% info "eGFR" type="number" unit="ml/min" renderUnit=true /%}){% /case %}{% /switch %}.
-{% /details %}
-```
-
-**Verschachtelte Abschnitte:**
-
-```markdown
-{% details summary="Vorbefunde" %}
-Auswärtige Befunde vom {% info "Vorbefunddatum" type="date" /%}.
-
-{% details summary="Radiologie" %}
-Röntgen-Thorax ohne Infiltrat.
-{% /details %}
-{% /details %}
-```
-
-**Ohne Beschriftung:**
-
-```markdown
-{% details %}
-Zusätzliche Angaben, die erst auf Wunsch sichtbar sein sollen.
-{% /details %}
-```
-
-### Funktionsweise
-
-1. Der Abschnitt wird als aufklappbares Element gerendert; die Beschriftung ist anklickbar
-2. Mit `open=true` ist der Abschnitt im Dokument von Anfang an geöffnet
-3. Variablen innerhalb eines zugeklappten Abschnitts erscheinen trotzdem als Eingabefelder
-4. Abschnitte können beliebig ineinander verschachtelt werden
-5. Beim Kopieren eines Dokuments wird der Inhalt zugeklappter Abschnitte mit übernommen
-
-### Best Practices
-
-- ✅ Verwenden Sie **aussagekräftige Beschriftungen**, damit klar ist, was im Abschnitt steht
-- ✅ Klappen Sie **Zusatzinformationen** zu, die den Textfluss sonst unterbrechen
-- ✅ Legen Sie Abschnitte, die im Ausdruck erscheinen müssen, mit `open=true` an
-- ❌ Verstecken Sie keine **medizinisch notwendigen Angaben** in zugeklappten Abschnitten
+- Abschnitte dürfen Tags und weitere Abschnitte enthalten.
+- Felder in einem zugeklappten Abschnitt erscheinen trotzdem und werden von der KI ausgefüllt.
+- **Kopieren** übernimmt auch den Inhalt zugeklappter Abschnitte.
+- Verstecken Sie keine medizinisch notwendigen Angaben in zugeklappten Abschnitten. Was im Ausdruck
+  sichtbar sein muss, legen Sie mit `open=true` an.

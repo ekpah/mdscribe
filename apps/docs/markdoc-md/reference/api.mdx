@@ -1,0 +1,130 @@
+---
+title: API-Referenz
+description: Die öffentlichen Einstiegspunkte des Pakets markdoc-md und was jeder davon exportiert.
+---
+
+Öffentlich sind nur die folgenden Einstiegspunkte.
+
+<Warning>
+  Importe aus paketinternen Pfaden werden nicht unterstützt und können in jedem Release brechen.
+</Warning>
+
+| Import | Zweck | Läuft in |
+| --- | --- | --- |
+| `markdoc-md` | Analyse, Validierung, Quellen und Hilfsfunktionen für Quellenangaben | Node oder Browser |
+| `markdoc-md/config` | Das Markdoc-Schema | Node oder Browser |
+| `markdoc-md/parse` | Analyse, Validierung, Formeln, Bedingungen, Tabellen | Node oder Browser |
+| `markdoc-md/react` | Renderer, Provider, Hooks, Standardkomponenten | React-Client oder SSR |
+| `markdoc-md/editor` | HTML-Konvertierung für Rich-Text-Editoren | Node; `htmlToMarkdoc` benötigt einen Browser |
+| `markdoc-md/sources` | Auswertung von FHIRPath-Quellen | Node oder Browser |
+| `markdoc-md/citations` | Zerlegen und Auflösen von Quellenangaben | Browser; HTTPS und FHIR auch in Node |
+
+## `markdoc-md`
+
+| Export | Beschreibung |
+| --- | --- |
+| `analyzeMarkdocTemplate(source, config?)` | `{ inputs, variables, diagnostics }` in einem Durchlauf |
+| `parseMarkdocToInputs(source, config?)` | Nur `inputs` |
+| `validateMarkdocTemplate(source, config?)` | Alle [Prüfmeldungen](/markdoc-md/reference/diagnostics) |
+| `validateMarkdocTagContracts`, `buildVariableContracts`, `deriveSwitchDomain` | Vertragsprüfungen auf einem geparsten AST |
+| `markdocConfig` | Das Standard-Schema |
+| `resolveMarkdocSources(source, contexts)`, `inspectMarkdocSources(source, contexts)` | [Werte aus FHIR-Quellen](/markdoc-md/guides/fhir-sources) |
+| `resolveCalculatedValues(inputs, values)` | Alle benannten Berechnungen, aufgelöst und gerundet |
+| `calculateCalcValue(input, values, inputs?)` | Eine einzelne Berechnung |
+| `evaluateFormula`, `getFormulaVariables`, `isValidFormula`, `renameFormulaVariable` | Hilfsfunktionen für Formeln |
+| `isBranchVisible(visibility, values)`, `selectedSwitchCases(input, values)` | Welche Eingaben und Fälle gerade angezeigt werden |
+| `parseConditionCase`, `selectConditionCase`, `matchesCaseCondition`, `toNumericValue`, `CASE_CONDITION_OPERATORS` | Die gemeinsame Auswertung von Bedingungen |
+| `toBooleanValue`, `normalizeBooleanToString`, `toFormulaValue`, `toVoiceBooleanValue` | Umwandlung in Booleans, wie Switches und Formeln sie verwenden |
+| `sanitizeMarkdocForRendering` | Tolerantes Bereinigen defekter `cite`-Begrenzer |
+| `resolveCitation`, `parseCitationSource`, `createMdscribeSource`, `parseExternalCitationUrl` | [Quellenangaben](/markdoc-md/guides/citations) |
+| `findQuoteInInputText`, `normalizeCitationSearchText` | Zitatsuche |
+| `MAX_CITATION_SOURCE_LENGTH` (8.192), `MAX_CITATION_QUOTE_LENGTH` (4.000), `MAX_CITATION_TEXT_LENGTH` (2 MiB) | Grenzwerte |
+
+<Accordion title="Exportierte Typen">
+  `InputTagType` und seine Varianten (`InfoInputTagType`, `SwitchInputTagType`,
+  `CaseInputTagType`, `CalcInputTagType`), `MarkdocTemplateAnalysis`, `VariableContract`,
+  `VariableDomain`, `VariableRoles`, `MarkdocTemplateDiagnostic`, `MarkdocTagDiagnostic`,
+  `BranchVisibility`, die Typen für Quellenangaben und die Typen für Quellen.
+</Accordion>
+
+## `markdoc-md/config`
+
+| Export | Beschreibung |
+| --- | --- |
+| `markdocConfig` (auch als Default-Export) | Das Schema |
+| `tags` | Nur die Tag-Definitionen |
+| `CALC_PLACEHOLDER` | `"…"`, wird für nicht gesetzte Berechnungen angezeigt |
+| `DEFAULT_DETAILS_SUMMARY` | `"Details"` |
+
+## `markdoc-md/parse`
+
+Alles zur Analyse aus dem Root-Einstiegspunkt, dazu `serializeMarkdocTable(rows, hasHeader)` und der
+Typ `MarkdocTableCell`.
+
+## `markdoc-md/react`
+
+| Export | Beschreibung |
+| --- | --- |
+| `DynamicMarkdocRenderer` | Rendert eine Vorlage mit Werten; Props siehe unten |
+| `renderMarkdocAsReact(source, options)` | Renderer auf niedrigerer Ebene, ohne Provider für Werte |
+| `components` | Die Standard-Map der Komponenten |
+| `useInfoTag`, `useCalcTag`, `useBranchTag` | [Headless-Hooks für Tags](/markdoc-md/guides/custom-components) |
+| `useMarkdocInteraction`, `MarkdocInteractionProvider` | Callbacks für Klicks und Bearbeitung |
+| `useVariables`, `VariableProvider` | Aktuelle Werte |
+| `useVariableContract`, `VariableContractProvider` | Verträge nach Name |
+| `useResolvedVariable(name, options?)` | Der Wert einer Variable oder ihr Formelergebnis |
+| `useCitationModifier()` | Ob Strg/Cmd gedrückt ist |
+
+<Accordion title="Exportierte Typen">
+  `MarkdocComponentMap`, `InfoProps`, `CalcProps`, `SwitchProps`, `CaseProps`, `CiteProps`,
+  `DetailsProps`, `VariableMap`, `VariableValue`, `DynamicMarkdocRendererProps`.
+</Accordion>
+
+### Props von `DynamicMarkdocRenderer`
+
+<ParamField body="markdocContent" type="string" required>
+  Quelltext der Vorlage
+</ParamField>
+<ParamField body="variables" type="Record<string, unknown>">
+  Aktuelle Werte
+</ParamField>
+<ParamField body="components" type="MarkdocComponentMap">
+  Ersatzkomponenten; halten Sie das Objekt stabil
+</ParamField>
+<ParamField body="config" type="Config">
+  Eigenes Schema
+</ParamField>
+<ParamField body="layout" type={'"template"'}>
+  Zeilenstruktur und portable Styles beibehalten
+</ParamField>
+<ParamField body="className" type="string" default="prose prose-slate grow">
+  CSS-Klassen des umschließenden Elements
+</ParamField>
+<ParamField body="onVariableChange" type="(name, value) => void">
+  Ermöglicht das Bearbeiten aus Komponenten heraus
+</ParamField>
+<ParamField body="onTagSelect" type="(name) => void">
+  Ein Tag wurde angeklickt
+</ParamField>
+<ParamField body="activeTagName" type="string | null">
+  Die Tags dieser Variable hervorheben
+</ParamField>
+<ParamField body="onCitationSelect" type="(citations) => void">
+  Eine Quellenangabe wurde angeklickt
+</ParamField>
+
+## `markdoc-md/editor`
+
+`renderTipTapHTML`, `htmlToMarkdoc`, `isHtmlToMarkdocSupported`, `sanitizeMarkdocForRendering`.
+Siehe [Editor-Anbindung](/markdoc-md/guides/editor).
+
+## `markdoc-md/sources`
+
+`resolveMarkdocSources`, `inspectMarkdocSources`, `evaluateFhirSource(bundle, expression)`.
+
+## `markdoc-md/citations`
+
+`resolveCitation`, die einzelnen Resolver (`resolveHttpsCitation`, `resolveFileCitation`,
+`resolveInputCitation`, `resolveFhirCitation`, `resolveInvalidCitation`), `parseCitationSource`,
+`createMdscribeSource`, `parseExternalCitationUrl`, `readCiteCitations`, `serializeCiteCitations`,
+Hilfsfunktionen für die Zitatsuche und die Grenzwerte.

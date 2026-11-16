@@ -1,0 +1,104 @@
+---
+title: Prüfmeldungen
+description: Alle Validierungscodes, jeweils mit einer Vorlage, die sie auslöst.
+---
+
+Alle Prüfmeldungen von `validateMarkdocTemplate` und `analyzeMarkdocTemplate` haben einen stabilen
+`code` und eine `severity`; die meisten haben außerdem eine `location`.
+
+```ts
+const diagnostics = validateMarkdocTemplate(source);
+// [{ code: "variable-domain-conflict", severity: "error", location: { … }, message: "…", … }]
+```
+
+<Tip>
+  `message` ist englisch. Für Meldungen in anderen Sprachen übersetzen Sie anhand von `code` (und bei
+  `case-condition-invalid` zusätzlich anhand von `reason`).
+</Tip>
+
+Die Codes sind in fünf Gruppen geordnet:
+
+| Gruppe | Codes |
+| --- | --- |
+| Variablenverträge | `variable-domain-conflict`, `variable-settings-conflict`, `case-value-conflict` |
+| Fälle | `case-condition-invalid`, `case-unreachable`, `orphan-case` |
+| Berechnungen | `calc-variable-not-numeric`, `calc-case-values-missing`, `calc-cycle` |
+| Quellenangaben | `citation-source-invalid`, `citation-malformed`, `citation-quote-too-long` |
+| Markdoc-Schema | `markdoc-schema` mit Markdocs eigener `id` |
+
+## Variablenverträge
+
+Alle Vorkommen eines Namens müssen denselben [Vertrag](/markdoc-md/concepts/variables) erfüllen.
+
+| Code | Beispiel, das ihn auslöst | Behebung |
+| --- | --- | --- |
+| `variable-domain-conflict` | `{% info "w" type="number" /%}{% info "w" type="date" /%}` | Einen einzigen `type` verwenden oder zwei Namen |
+| `variable-settings-conflict` | `{% info "w" type="number" unit="kg" /%}{% info "w" type="number" unit="g" /%}` | `unit`, `description`, `source`, `formula` und `round` eines Calc angleichen |
+| `case-value-conflict` | Die Option `"a"` hat in einem Switch `value=1` und in einem anderen `value=2` | Pro Option einen einzigen Wert verwenden |
+
+## Fälle
+
+### `case-condition-invalid`
+
+Diese Prüfmeldung trägt einen `reason`:
+
+| Grund (`reason`) | Beispiel |
+| --- | --- |
+| `duplicate-predicate` | Zwei Fälle `"a"` in einem Switch oder zwei identische `gt=1`-Fälle in einer Condition |
+| `missing-condition` | `{% case gt=[null,null] %}` in einer Condition |
+| `invalid-literal` | `{% case gt="1" %}` oder eine Liste mit falscher Länge |
+| `conflicting-operators` | Überlappende Grenzen in einem Fall, etwa `gt=1 gte=2` oder `eq=1 gt=3` |
+| `empty-range` | `gt=10 lt=5` |
+| `primary-and-condition` | Ein Condition-Fall mit Optionsschlüssel und Vergleichen zugleich |
+| `invalid-members` | Eine Namensliste einer Condition, die leer ist oder etwas anderes als Namen enthält |
+| `group-source-unsupported` | `source` an einer Array-`condition` |
+| `condition-case-value` | `value` an einem Condition-Fall |
+| `invalid-case-value` | `value` an einem Default-Fall oder ein nicht endlicher Wert |
+| `comparison-in-switch` | `{% case gt=1 %}` innerhalb eines `switch` |
+| `missing-option` | Ein Switch-Fall ohne Schlüssel und ohne `default=true` |
+| `number-switch-unsupported` | `{% switch "x" type="number" %}`; verwenden Sie `condition` |
+| `array-switch-unsupported` | `{% switch ["a", "b"] %}`; verwenden Sie `condition` |
+
+### Weitere Fall-Codes
+
+| Code | Beispiel | Behebung |
+| --- | --- | --- |
+| `case-unreachable` | Ein Condition-Fall nach `default=true` | Den Default-Fall ans Ende stellen |
+| `orphan-case` | `{% case "a" %}x{% /case %}` außerhalb eines `switch` oder einer `condition` | Den Fall in eines davon einschließen |
+
+## Berechnungen
+
+| Code | Beispiel | Behebung |
+| --- | --- | --- |
+| `calc-variable-not-numeric` | `{% calc "x" formula="[a] + 1" %}{% info "a" /%}{% /calc %}` | `a` mit `type="number"` versehen |
+| `calc-case-values-missing` | Eine Formel verwendet einen Text-Switch, dessen Fälle kein `value` haben | Jedem Fall ein `value` geben |
+| `calc-cycle` | `a` verwendet `b`, und `b` verwendet `a` | Die zirkuläre Abhängigkeit auflösen |
+
+## Quellenangaben
+
+| Code | Beispiel |
+| --- | --- |
+| `citation-source-invalid` | `source="http://…"`, eine HTTPS-URL mit Zugangsdaten oder eine Quelle, die keine URI ist |
+| `citation-malformed` | Keine Quelle, `source` und `citations` zugleich oder ein fehlerhafter Eintrag in `citations` |
+| `citation-quote-too-long` | Ein `quote` mit mehr als 4.000 Zeichen |
+
+## Markdoc-Schema
+
+Syntax- und Schemafehler haben den Code `markdoc-schema` sowie Markdocs eigene `id`, `message` und
+`severity` (`error` oder `warning`). Häufige `id`s:
+
+| `id` | Ursache |
+| --- | --- |
+| `calc-formula-invalid` | Die Formel lässt sich nicht parsen, zum Beispiel `[a] +` |
+| `calc-primary-invalid` | Ein `calc` ohne nicht leeren Namen |
+| `round-value-invalid` | `round` ist weder eine Zahl von 0 bis 100 noch `false` |
+| `attribute-value-invalid` | Zum Beispiel `type="number"` an einem Switch |
+| `attribute-missing-required` | Zum Beispiel ein `calc` ohne `formula` |
+| `tag-placement-invalid` | `details` inline geschrieben |
+| `child-invalid` | Zum Beispiel ein Link innerhalb von `cite` |
+
+<Note>
+  Ein Block-`calc`, der in derselben Zeile nach Text beginnt, erzeugt mehrere
+  `markdoc-schema`-Fehler auf einmal; siehe
+  [Calc platzieren](/markdoc-md/tags/calc#placing-a-calc-with-declarations).
+</Note>

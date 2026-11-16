@@ -1,0 +1,74 @@
+---
+title: Tabellen
+description: Native Markdoc-Tabellen mit verbundenen Zellen und Vorlagen-Tags darin.
+---
+
+import { Rendered, Value } from "/snippets/markdoc.jsx";
+
+markdoc-md verwendet die eingebauten Listentabellen von Markdoc. Jedes `*` beginnt eine Zelle, und
+`---` trennt die Zeilen.
+
+<Tabs>
+  <Tab title="Vorlage">
+
+```markdown
+{% table %}
+* Parameter
+* Wert
+---
+* Hämoglobin
+* {% info "hb" type="number" unit="g/dl" renderUnit=true /%}
+---
+* Beurteilung{% colspan=2 %}
+{% /table %}
+```
+
+  </Tab>
+  <Tab title="Ergebnis">
+
+<Rendered title="hb = 13.2">
+  <table>
+    <thead>
+      <tr><th style={{ border: "1px solid rgba(147,161,161,.55)", padding: "0.25rem 0.6rem", textAlign: "left" }}>Parameter</th><th style={{ border: "1px solid rgba(147,161,161,.55)", padding: "0.25rem 0.6rem", textAlign: "left" }}>Wert</th></tr>
+    </thead>
+    <tbody>
+      <tr><td style={{ border: "1px solid rgba(147,161,161,.55)", padding: "0.25rem 0.6rem" }}>Hämoglobin</td><td style={{ border: "1px solid rgba(147,161,161,.55)", padding: "0.25rem 0.6rem" }}><Value>13.2 g/dl</Value></td></tr>
+      <tr><td colSpan={2} style={{ border: "1px solid rgba(147,161,161,.55)", padding: "0.25rem 0.6rem" }}>Beurteilung</td></tr>
+    </tbody>
+  </table>
+</Rendered>
+
+  </Tab>
+</Tabs>
+
+## Verbundene Zellen
+
+Versehen Sie eine Zelle mit `{% colspan=2 %}` oder `{% rowspan=2 %}`, um sie mit ihren Nachbarn zu
+verbinden. Dafür sind weder eigene Tags noch Layout-Metadaten nötig, sodass jeder Markdoc-Renderer
+diese Tabellen lesen kann.
+
+## Tabellen ohne Kopfzeile
+
+Beginnen Sie den Tabellenkörper mit `---` direkt nach `{% table %}`:
+
+```markdown
+{% table %}
+---
+* Gewicht
+* {% info "gewicht" type="number" unit="kg" renderUnit=true /%}
+{% /table %}
+```
+
+## Im MDScribe-Editor
+
+Der Editor speichert Tabellen genau in dieser Form, nie als HTML oder als Markdown-Pipe-Tabellen.
+Jede Zelle bleibt ein einzelner Absatz mit Inline-Formatierung, Zeilenumbrüchen und Tags. Beim
+Verbinden gefüllter Zellen werden deren Inhalte mit Zeilenumbrüchen zusammengefügt. Eigene
+Spaltenbreiten oder Kopfspalten bietet der Editor nicht an.
+
+## Rendern
+
+Mit `layout="template"` ergänzt der React-Renderer portable Rahmen, Innenabstände und
+Kopfzeilen-Formatierung, die auch beim Kopieren in andere Programme erhalten bleiben.
+`serializeMarkdocTable` (aus `markdoc-md/parse`) erzeugt diese Syntax aus Zeilen von Zellen, falls
+Sie Tabellen selbst generieren.

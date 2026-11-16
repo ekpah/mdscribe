@@ -1,37 +1,46 @@
 ---
-title: Text Snippets
-description: Kurze Aliase fuer haeufige Textbausteine in MDScribe.
+title: Text-Snippets
+description: Kürzel, die sich per Tastendruck in längeren Text verwandeln.
 ---
 
-## Was sind Text Snippets?
+Text-Snippets ersetzen ein kurzes Kürzel durch einen hinterlegten Text. Sie sparen Tipparbeit bei
+wiederkehrenden Formulierungen in AI Scribe.
 
-Text Snippets ersetzen ein kurzes Kuerzel durch einen laengeren Textbaustein. Damit sparen Sie Zeit bei wiederkehrenden Formulierungen.
+## Verwenden
 
-## Verwendung
+1. Kürzel in ein Eingabefeld von [AI Scribe](/ai) tippen, z. B. `mfg`.
+2. <kbd>Shift</kbd>+<kbd>F2</kbd> drücken.
+3. Das Kürzel wird durch den Text ersetzt.
 
-1. Kuerzel in ein Eingabefeld schreiben (z. B. `mfg`)
-2. `Shift + F2` druecken
-3. Kuerzel wird durch den hinterlegten Text ersetzt
+```text
+Vorher:  Mit Dank für die Zuweisung, mfg|
+Nachher: Mit Dank für die Zuweisung, Mit freundlichen kollegialen Grüßen|
+```
 
-## Gute Beispiele
+Als Kürzel gilt der Text zwischen dem letzten Leerzeichen und dem Cursor. Steht das Kürzel direkt
+nach einem Zeilenumbruch, setzen Sie ein Leerzeichen davor.
 
-| Kuerzel | Ergebnis |
-|---|---|
-| `anam` | `Anamnese: ...` |
-| `bef` | `Befunde: ...` |
-| `proc` | `Procedere: ...` |
-| `mfg` | `Mit freundlichen Gruessen` |
+<Note>
+  Snippets funktionieren in den Eingabefeldern von AI Scribe, noch nicht in Textbausteinen,
+  Dokumenten oder Brief-Baukästen.
+</Note>
 
-## Best Practices
+## Verwalten
 
-- Kuerzel kurz und eindeutig halten (2-5 Zeichen)
-- Einheitliche Namenslogik verwenden (z. B. `diag`, `ther`, `proc`)
-- Kollisionen mit normalen Woertern vermeiden
-- Veraltete Snippets regelmaessig entfernen
+Unter **Einstellungen → Texteditor** (`/profile/texteditor`) legen Sie in der Karte
+**Text-Snippets** Paare aus **Kürzel** und **Text** an, ändern oder löschen sie.
 
-## Unterschied zu Templates
+| Kürzel | Text |
+| --- | --- |
+| `anam` | `Anamnese: ` |
+| `oB` | `ohne pathologischen Befund` |
+| `ezaz` | `in gutem Allgemein- und Ernährungszustand` |
+| `mfg` | `Mit freundlichen kollegialen Grüßen` |
 
-- **Text Snippets:** reine Textersetzung fuer einzelne Bausteine
-- **Templates:** komplette Dokumentstruktur mit dynamischen Tags
+## Tipps
 
-Wenn Sie strukturierte klinische Dokumente erzeugen wollen, nutzen Sie primaer [Templates](/templates).
+- Kurze, eindeutige Kürzel (2–5 Zeichen), die kein normales Wort sind.
+- Eine einheitliche Logik, etwa `diag`, `ther`, `proc`.
+- Veraltete Snippets regelmäßig löschen.
+
+Für ganze Abschnitte mit Feldern und Auswahlen nutzen Sie [Textbausteine](/templates).

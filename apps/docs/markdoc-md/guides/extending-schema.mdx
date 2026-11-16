@@ -1,0 +1,66 @@
+---
+title: Schema erweitern
+description: Ergänzen Sie eigene Markdoc-Tags neben den eingebauten.
+---
+
+`markdocConfig` ist eine gewöhnliche Markdoc-`Config`. Breiten Sie sie per Spread aus, ergänzen Sie
+Ihre Tags und verwenden Sie das Ergebnis gleichermaßen für Validierung und Rendern.
+
+<Steps>
+  <Step title="Tag zur Config hinzufügen">
+    ```tsx
+    import { markdocConfig } from "markdoc-md";
+
+    const config = {
+      ...markdocConfig,
+      tags: {
+        ...markdocConfig.tags,
+        badge: {
+          attributes: { tone: { type: String } },
+          children: ["text"],
+          render: "Badge",
+        },
+      },
+    };
+    ```
+  </Step>
+  <Step title="Komponente für den Render-Namen schreiben">
+    Der Schlüssel in `components` entspricht dem `render`-Namen aus der Config.
+
+    ```tsx
+    const Badge = ({ tone, children }) => <span data-tone={tone}>{children}</span>;
+    ```
+  </Step>
+  <Step title="Mit derselben Config validieren und rendern">
+    ```tsx
+    import { validateMarkdocTemplate } from "markdoc-md";
+    import { DynamicMarkdocRenderer } from "markdoc-md/react";
+
+    const diagnostics = validateMarkdocTemplate(source, config);
+
+    <DynamicMarkdocRenderer config={config} components={{ Badge }} markdocContent={source} variables={values} />;
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+  Verwenden Sie überall **dieselbe** Config: in `validateMarkdocTemplate`, `analyzeMarkdocTemplate`,
+  `resolveMarkdocSources` (`{ config }`) und im Renderer. Bei unterschiedlichen Configs sind sich
+  Validierung und Rendern nicht einig, welche Tags es gibt.
+</Warning>
+
+## Positionsnamen
+
+Bei `info`, `switch`, `case`, `condition` und `calc` ist der erste Wert in Anführungszeichen das
+Attribut `primary`. Diese beiden Zeilen sind gleichwertig:
+
+```markdown
+{% info "patient_name" /%}
+{% info primary="patient_name" /%}
+```
+
+## Grenzen
+
+Eigene Tags werden gerendert, aber die Analyse gewinnt Eingaben nur aus den eingebauten Tags
+`info`, `switch`, `condition`, `case` und `calc`. Soll ein eigenes Tag eine Eingabe erzeugen,
+muss es eines dieser Tags umschließen oder ausgeben.
