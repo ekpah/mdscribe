@@ -9,8 +9,7 @@ import {
 import { Loader2, Menu } from "lucide-react";
 import Link from "next/link";
 
-import DarkLogo from "@/public/logo/dark";
-import LightLogo from "@/public/logo/light";
+import Logo from "@/public/logo";
 
 export default function MenubarSkeleton() {
 	return (
@@ -18,12 +17,7 @@ export default function MenubarSkeleton() {
 			<div className="flex h-16 items-center justify-between border-b bg-background px-2 py-1 sm:px-4">
 				<div className="flex items-center">
 					<Link className="mr-4" href="/">
-						<div className="dark:hidden">
-							<LightLogo />
-						</div>
-						<div className="hidden dark:block">
-							<DarkLogo />
-						</div>
+						<Logo />
 					</Link>
 
 					{/* Desktop Navigation */}

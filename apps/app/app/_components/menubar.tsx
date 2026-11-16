@@ -29,8 +29,7 @@ import { authClient, useSession } from "@/lib/auth-client";
 import type { Session } from "@/lib/auth-types";
 import { orpc } from "@/lib/orpc";
 import { sessionQueryKey } from "@/lib/session-query";
-import DarkLogo from "@/public/logo/dark";
-import LightLogo from "@/public/logo/light";
+import Logo from "@/public/logo";
 
 // Left-aligned and full width, so the links line up with the account links below them.
 const mobileNavLinkClassName = cn(navigationMenuTriggerStyle(), "w-full justify-start px-2");
@@ -101,12 +100,7 @@ export default function TopMenuBar({
 			>
 				<div className="flex items-center">
 					<Link className="mr-4" href="/">
-						<div className="dark:hidden">
-							<LightLogo />
-						</div>
-						<div className="hidden dark:block">
-							<DarkLogo />
-						</div>
+						<Logo />
 					</Link>
 
 					{/* Desktop Navigation */}
