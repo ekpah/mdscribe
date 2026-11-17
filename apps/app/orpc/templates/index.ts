@@ -1,8 +1,6 @@
 import { ORPCError, type } from "@orpc/server";
 import {
 	aiDefaults,
-	aiScribeFormConfig,
-	aiScribeWorkspace,
 	and,
 	desc,
 	eq,
@@ -350,10 +348,6 @@ const deleteTemplateHandler = authed.input(deleteTemplateInput).handler(({ conte
 		}
 
 		await tx.delete(template).where(eq(template.id, input.id));
-		// A template converted from an AI Vorlage or Brief-Baukasten shares its id;
-		// drop the old entry too, so a later conversion cannot bring it back.
-		await tx.delete(aiScribeFormConfig).where(eq(aiScribeFormConfig.id, input.id));
-		await tx.delete(aiScribeWorkspace).where(eq(aiScribeWorkspace.id, input.id));
 		return { success: true };
 	}),
 );

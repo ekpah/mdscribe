@@ -1,6 +1,6 @@
 // Old AI Scribe URLs, kept working after AI Vorlagen and Brief-Baukästen became
-// templates. `orpc/admin/convert-ai-scribe-forms.ts` gives each converted template
-// the id of its form or workspace, so a slug resolves through the old tables.
+// templates. Each converted template kept the id of its form or workspace, so a
+// slug resolves through the old tables.
 // Only templates the caller can see resolve, so the route reveals no private
 // entry. Remove together with those tables.
 import {
