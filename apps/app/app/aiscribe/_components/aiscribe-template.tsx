@@ -8,19 +8,16 @@ import { Kbd } from "@repo/design-system/components/ui/kbd";
 import { ScrollArea } from "@repo/design-system/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
 import { FileText } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import { createMdscribeSource } from "markdoc-md/citations";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { consumeContextTransferFromFragment } from "@/app/_components/context-transfer/client";
-import {
-	createAudioRecordingsFromTransferPayload,
-	createUploadedFilesFromTransferPayload,
-} from "@/app/_components/context-transfer/hydrate";
-import { useInputContextState } from "@/app/_components/input-context/input-context-controls";
+import { useCase } from "@/app/_components/input-context/case-context";
+import { InputContextControls } from "@/app/_components/input-context/input-context-controls";
+import type { InputContextSubmission } from "@/app/_components/input-context/types";
+import { TemplateNavigation } from "@/app/templates/_components/template-navigation";
 import { CitedResponse } from "@/features/response-citations/cited-response";
 import { useTextSnippets } from "@/hooks/use-text-snippets";
 import { getAiscribeErrorMessage } from "@/lib/aiscribe-errors";
@@ -29,115 +26,38 @@ import { trackEvent } from "@/lib/analytics";
 import type { OcrResult, OcrUIMessage } from "@/lib/ocr-types";
 import { orpc } from "@/lib/orpc";
 import { USER_MESSAGES } from "@/lib/user-messages";
-import { getPromptHarnessTargetField } from "@/orpc/scribe/prompts";
-import type { AudioFile, DocumentType, FillInputsContextFile } from "@/orpc/scribe/types";
+import type { AudioFile, FillInputsContextFile } from "@/orpc/scribe/types";
 
-import { AiscribeTemplateInputSection } from "./aiscribe-template-input-section";
 import { ContextTemplateCard } from "./context-template-card";
-import { ContextTransferCard } from "./context-transfer-card";
 
-export interface AdditionalInputField {
-	name: string;
-	label: string;
-	placeholder: string;
-	required?: boolean;
-	type?: "text" | "textarea";
-	description?: string;
-}
-
-interface AiscribeContextMetadata {
+/** AI Scribe for a template with at most one section; see `/aiscribe/[id]`. */
+interface AiscribeTemplateConfig {
 	author: string;
-	harnessTitle: string;
-	template: {
-		href?: string;
-		title: string;
-	};
-}
-
-interface AiscribeTemplateBaseConfig {
-	// Page identity
+	templateId: string;
 	title: string;
-	description: string;
-	icon: LucideIcon;
-	contextMetadata: AiscribeContextMetadata;
-	promptHarness?: string;
-
-	// Tab configuration
-	inputTabTitle: string;
-	outputTabTitle: string;
-
-	// Form configuration
-	inputFieldName: string;
-	inputPlaceholder: string;
-	inputDescription: string;
-
-	// Additional input fields
-	additionalInputs?: AdditionalInputField[];
-
-	// Button text
-	generateButtonText: string;
-	regenerateButtonText: string;
-
-	// Empty state messages
-	emptyStateTitle: string;
-	emptyStateDescription: string;
-
-	// Optional custom processing
-	customPromptProcessor?: (
-		inputData: string,
-		additionalInputs: Record<string, string>,
-	) => Record<string, unknown>;
-	customApiCall?: (inputData: string, additionalInputs: Record<string, string>) => Promise<unknown>;
 }
-
-interface DocumentTypeAiscribeTemplateConfig extends AiscribeTemplateBaseConfig {
-	documentType: DocumentType;
-	formId?: never;
-}
-
-interface CustomFormAiscribeTemplateConfig extends AiscribeTemplateBaseConfig {
-	documentType?: never;
-	formId: string;
-}
-
-export type AiscribeTemplateConfig =
-	| DocumentTypeAiscribeTemplateConfig
-	| CustomFormAiscribeTemplateConfig;
 
 interface AiscribeTemplateProps {
 	config: AiscribeTemplateConfig;
-	isAdmin?: boolean;
 }
 
-export const AiscribeTemplate = ({ config, isAdmin = false }: AiscribeTemplateProps) => {
+export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 	const router = useRouter();
 	const [activeTab, setActiveTab] = useState("input");
-	const [isPreparing, setIsPreparing] = useState(false);
-	const submissionBusyRef = useRef(false);
-	const [inputData, setInputData] = useState("");
-	const [additionalInputData, setAdditionalInputData] = useState<Record<string, string>>({});
 	const [citationFiles, setCitationFiles] = useState<ReadonlyMap<string, File>>(new Map());
 	const [citationOcrResults, setCitationOcrResults] = useState<ReadonlyMap<string, OcrResult>>(
 		new Map(),
 	);
-	const inputContextController = useInputContextState();
+	const inputContextController = useCase();
 	// Use ref for audio files to avoid race condition between setState and sendMessage
 	const preparedAudioFilesRef = useRef<AudioFile[]>([]);
 	const preparedContextFilesRef = useRef<FillInputsContextFile[]>([]);
-	const mainTextareaRef = useRef<HTMLTextAreaElement>(null);
-	const { customApiCall, customPromptProcessor, inputFieldName } = config;
 
 	// Initialize text snippets hook
 	useTextSnippets();
 
-	const isCustomFormConfig = "formId" in config && typeof config.formId === "string";
-	const chatId = isCustomFormConfig
-		? `scribe-form-${config.formId}`
-		: `scribe-${config.documentType}`;
 	const handleSuccessfulGeneration = useCallback(async () => {
-		trackEvent("ai-scribe-used", {
-			source: isCustomFormConfig ? "custom-form" : "document-type",
-		});
+		trackEvent("ai-scribe-used", { source: "template" });
 		toast.success(USER_MESSAGES.aiscribeGenerationSuccess);
 
 		try {
@@ -160,11 +80,11 @@ export const AiscribeTemplate = ({ config, isAdmin = false }: AiscribeTemplatePr
 		} catch {
 			// A failed usage refresh must not turn a successful generation into an error.
 		}
-	}, [isCustomFormConfig, router]);
+	}, [router]);
 
 	// Use AI SDK useChat with custom oRPC transport
 	const { messages, sendMessage, status, setMessages } = useChat<OcrUIMessage>({
-		id: chatId,
+		id: `scribe-template-${config.templateId}`,
 		onData: (part) => {
 			if (part.type === "data-ocr-results" && Array.isArray(part.data)) {
 				inputContextController.setContextFileOcrResults(part.data);
@@ -205,21 +125,12 @@ export const AiscribeTemplate = ({ config, isAdmin = false }: AiscribeTemplatePr
 				// Read from refs to get the latest media files synchronously
 				const audioFiles = preparedAudioFilesRef.current;
 				const contextFiles = preparedContextFilesRef.current;
-				const requestInput = isCustomFormConfig
-					? {
-							audioFiles: audioFiles.length > 0 ? audioFiles : undefined,
-							contextFiles: contextFiles.length > 0 ? contextFiles : undefined,
-							formId: config.formId,
-							messages: options.messages,
-							source: "customForm" as const,
-						}
-					: {
-							audioFiles: audioFiles.length > 0 ? audioFiles : undefined,
-							contextFiles: contextFiles.length > 0 ? contextFiles : undefined,
-							documentType: config.documentType,
-							messages: options.messages,
-							source: "documentType" as const,
-						};
+				const requestInput = {
+					audioFiles: audioFiles.length > 0 ? audioFiles : undefined,
+					contextFiles: contextFiles.length > 0 ? contextFiles : undefined,
+					messages: options.messages,
+					templateId: config.templateId,
+				};
 
 				return eventIteratorToUnproxiedDataStream(
 					await orpc.scribeStream.call(requestInput, {
@@ -246,133 +157,26 @@ export const AiscribeTemplate = ({ config, isAdmin = false }: AiscribeTemplatePr
 	}, [messages]);
 
 	// Loading state from useChat status
-	const isLoading = isPreparing || status === "streaming" || status === "submitted";
+	const isLoading = status === "streaming" || status === "submitted";
 	const responseMessage = messages.findLast((m) => m.role === "assistant");
-
-	// PERF: Use useCallback with functional setState for stable callback reference
-	const handleAdditionalInputChange = useCallback((name: string, value: string) => {
-		setAdditionalInputData((prev) => ({
-			...prev,
-			[name]: value,
-		}));
-	}, []);
-
-	const handleMainInputValueChange = useCallback((value: string) => {
-		setInputData(value);
-	}, []);
 
 	const handleSwitchToInputTab = useCallback(() => {
 		setActiveTab("input");
 	}, []);
 
-	const missingRequiredFields = useMemo(() => {
-		if (!config.additionalInputs) {
-			return [];
-		}
-		const missing: string[] = [];
-		for (const field of config.additionalInputs) {
-			if (!field.required) {
-				continue;
-			}
-			const value = additionalInputData[field.name];
-			if (!value || value.trim().length === 0) {
-				missing.push(field.label);
-			}
-		}
-		return missing;
-	}, [config.additionalInputs, additionalInputData]);
-
-	const hasMissingRequiredFields = missingRequiredFields.length > 0;
-
-	const requiredFieldsMessage = useMemo(() => {
-		if (missingRequiredFields.length === 0) {
-			return "";
-		}
-		if (missingRequiredFields.length === 1) {
-			return `Bitte füllen Sie das Pflichtfeld "${missingRequiredFields[0]}" aus.`;
-		}
-		return `Bitte füllen Sie die Pflichtfelder ${missingRequiredFields.join(", ")} aus.`;
-	}, [missingRequiredFields]);
-
-	// Check if at least one input field is filled
-	const areRequiredFieldsFilled = useCallback(() => {
-		// Check if there are any audio recordings
-		const hasAudio = inputContextController.hasAudioRecordings;
-		const hasFiles = inputContextController.hasContextFiles;
-
-		// Check if main input field has content
-		const hasMainInput = inputData.trim().length > 0;
-
-		// Check if any additional input field has content
-		const hasAnyAdditionalInput = config.additionalInputs?.some(
-			(field) =>
-				additionalInputData[field.name] && additionalInputData[field.name].trim().length > 0,
-		);
-
-		// At least one field must be filled (text, audio, files, or additional input)
-		return hasAudio || hasFiles || hasMainInput || hasAnyAdditionalInput;
-	}, [
-		inputContextController.hasAudioRecordings,
-		inputContextController.hasContextFiles,
-		inputData,
-		additionalInputData,
-		config.additionalInputs,
-	]);
-
-	const handleGenerate = useCallback(async () => {
-		if (submissionBusyRef.current || isLoading) {
-			return;
-		}
-		if (hasMissingRequiredFields) {
-			toast.error(requiredFieldsMessage);
-			return;
-		}
-
-		if (!areRequiredFieldsFilled()) {
-			toast.error(USER_MESSAGES.missingInput);
-			return;
-		}
-
-		submissionBusyRef.current = true;
-		setIsPreparing(true);
-
-		try {
-			// Prepare documents before clearing the previous answer or switching tabs.
-			let inputContextPayload: Awaited<ReturnType<typeof inputContextController.prepareSubmission>>;
-			try {
-				inputContextPayload = await inputContextController.prepareSubmission();
-			} catch (error) {
-				toast.error(
-					error instanceof Error && error.message ? error.message : USER_MESSAGES.unknownError,
-				);
-				return;
-			}
+	// The input context prepares the submission (OCR, audio) before this runs.
+	const handleGenerate = useCallback(
+		async (submission: InputContextSubmission) => {
 			setMessages([]);
 			setActiveTab("output");
 
-			// Handle custom API call if provided
-			if (customApiCall) {
-				await customApiCall(inputData, additionalInputData);
-			}
-
-			// Prepare prompt
-			const prompt = customPromptProcessor
-				? customPromptProcessor(inputData, additionalInputData)
-				: JSON.stringify({
-						[inputFieldName]: inputData,
-						...additionalInputData,
-					});
-
 			// Use refs to avoid race condition - ref updates are synchronous.
-			preparedAudioFilesRef.current = inputContextPayload.audioFiles;
-			preparedContextFilesRef.current = inputContextPayload.contextFiles;
-			setIsPreparing(false);
-			setCitationFiles(
-				new Map(inputContextPayload.preparedContextFiles.map(({ file, id }) => [id, file])),
-			);
+			preparedAudioFilesRef.current = submission.audioFiles;
+			preparedContextFilesRef.current = submission.contextFiles;
+			setCitationFiles(new Map(submission.preparedContextFiles.map(({ file, id }) => [id, file])));
 			setCitationOcrResults(
 				new Map(
-					inputContextPayload.contextFiles.flatMap((file) =>
+					submission.contextFiles.flatMap((file) =>
 						file.id && file.kind === "ocr"
 							? [[createMdscribeSource("file", file.id), file.ocrResult] as const]
 							: [],
@@ -380,108 +184,34 @@ export const AiscribeTemplate = ({ config, isAdmin = false }: AiscribeTemplatePr
 				),
 			);
 
-			// Send message using AI SDK useChat
-			const promptText = typeof prompt === "string" ? prompt : JSON.stringify(prompt);
-			await sendMessage({ text: promptText });
-		} catch (error) {
-			// Catch any unexpected errors not handled by onError callback
-			const message = getAiscribeErrorMessage(error);
-			if (message) {
-				toast.error(message);
-			}
-		} finally {
-			submissionBusyRef.current = false;
-			setIsPreparing(false);
-		}
-	}, [
-		isLoading,
-		inputData,
-		additionalInputData,
-		areRequiredFieldsFilled,
-		hasMissingRequiredFields,
-		requiredFieldsMessage,
-		setMessages,
-		sendMessage,
-		customApiCall,
-		customPromptProcessor,
-		inputFieldName,
-		inputContextController,
-	]);
-
-	const IconComponent = config.icon;
-
-	const inputContextControllerRef = useRef(inputContextController);
-	inputContextControllerRef.current = inputContextController;
-	const hasHydratedTransferRef = useRef(false);
-
-	useEffect(() => {
-		if (hasHydratedTransferRef.current) {
-			return;
-		}
-		hasHydratedTransferRef.current = true;
-
-		const hydrateTransfer = async () => {
 			try {
-				const payload = await consumeContextTransferFromFragment();
-				if (!payload) {
-					return;
-				}
-
-				// AIScribe renders its own text inputs, so only audio/files go
-				// into the controller; text lands in the visible form fields.
-				const controller = inputContextControllerRef.current;
-				controller.setContextFiles(createUploadedFilesFromTransferPayload(payload));
-				controller.setAudioRecordings(createAudioRecordingsFromTransferPayload(payload));
-
-				const nextAdditionalInputData: Record<string, string> = {};
-				for (const field of config.additionalInputs ?? []) {
-					const value = payload.textContext[field.name as keyof typeof payload.textContext];
-					if (typeof value === "string") {
-						nextAdditionalInputData[field.name] = value;
-					}
-				}
-				setAdditionalInputData(nextAdditionalInputData);
-
-				// The main input is the harness target field behind the scenes.
-				const targetField = getPromptHarnessTargetField(
-					config.promptHarness ?? ("documentType" in config ? config.documentType : undefined),
-				);
-				const mainValue = payload.textContext[targetField] ?? payload.textContext.notes;
-				setInputData(mainValue ?? "");
-				toast.success("Kontext übernommen");
+				await sendMessage({ text: JSON.stringify(submission.textContext) });
 			} catch (error) {
-				console.error("Failed to hydrate context transfer:", error);
-				toast.error("Kontext konnte nicht übernommen werden.");
+				// Catch any unexpected errors not handled by onError callback
+				const message = getAiscribeErrorMessage(error);
+				if (message) {
+					toast.error(message);
+				}
 			}
-		};
-
-		void hydrateTransfer();
-	}, [config]);
+		},
+		[setMessages, sendMessage],
+	);
 
 	return (
 		<div className="container mx-auto size-full overflow-y-auto overflow-x-hidden p-4">
 			<div className="mx-auto max-w-7xl space-y-8">
-				{/* Header Section */}
-				<div className="space-y-4 text-center">
-					<div className="flex items-center justify-center gap-3">
-						<div className="rounded-full bg-solarized-blue/10 p-3">
-							<IconComponent className="h-8 w-8 text-solarized-blue" />
-						</div>
-						<div>
-							<h1 className="font-bold text-3xl text-primary">{config.title}</h1>
-							<p className="text-lg text-muted-foreground">{config.description}</p>
-						</div>
-					</div>
-				</div>
+				<TemplateNavigation
+					aiscribe
+					entry={{ id: config.templateId, kind: "text", title: config.title }}
+				/>
 
 				<div className="grid grid-cols-1 gap-8 lg:grid-cols-5 xl:grid-cols-6">
 					{/* Context Metadata Card */}
 					<div className="space-y-6 lg:col-span-2 xl:col-span-2">
 						<ContextTemplateCard
-							author={config.contextMetadata.author}
-							note="Diese Angaben zeigen, welche Vorlage und welcher Prompt für die aktuelle Generierung verwendet werden."
-							prompt={config.contextMetadata.harnessTitle}
-							template={config.contextMetadata.template}
+							author={config.author}
+							note="Der Text wird nach dieser Vorlage und ihren Anweisungen generiert."
+							template={{ href: `/templates/${config.templateId}`, title: config.title }}
 							warning={
 								<>
 									⚠️ <strong>Datenschutzhinweis:</strong> Geben Sie keine privaten Patientendaten
@@ -489,16 +219,6 @@ export const AiscribeTemplate = ({ config, isAdmin = false }: AiscribeTemplatePr
 									anonymisierte Daten.
 								</>
 							}
-						/>
-						<ContextTransferCard
-							activeTab={activeTab}
-							additionalInputData={additionalInputData}
-							additionalInputs={config.additionalInputs}
-							completion={completion}
-							config={config}
-							inputContextController={inputContextController}
-							inputValue={inputData}
-							isAdmin={isAdmin}
 						/>
 					</div>
 
@@ -512,13 +232,13 @@ export const AiscribeTemplate = ({ config, isAdmin = false }: AiscribeTemplatePr
 											className="data-active:bg-solarized-blue data-active:text-primary-foreground"
 											value="input"
 										>
-											{config.inputTabTitle}
+											Eingabe
 										</TabsTrigger>
 										<TabsTrigger
 											className="data-active:bg-solarized-blue data-active:text-primary-foreground"
 											value="output"
 										>
-											{config.outputTabTitle}
+											Ergebnis
 										</TabsTrigger>
 									</TabsList>
 								</CardHeader>
@@ -526,19 +246,14 @@ export const AiscribeTemplate = ({ config, isAdmin = false }: AiscribeTemplatePr
 								{/* Input Tab */}
 								<TabsContent className="space-y-0" value="input">
 									<CardContent>
-										<AiscribeTemplateInputSection
-											additionalInputData={additionalInputData}
-											additionalInputs={config.additionalInputs}
-											inputContextController={inputContextController}
-											inputPlaceholder={config.inputPlaceholder}
-											inputValue={inputData}
-											isLoading={isLoading}
-											onAdditionalInputChange={handleAdditionalInputChange}
-											onInputValueChange={handleMainInputValueChange}
+										<InputContextControls
+											controller={inputContextController}
+											defaultPanel="text"
+											disabled={isLoading}
 											onSubmit={handleGenerate}
-											submitDisabled={hasMissingRequiredFields || !areRequiredFieldsFilled()}
-											textareaId="input-field"
-											textareaRef={mainTextareaRef}
+											pendingLabel="Wird generiert…"
+											submitLabel="Generieren"
+											variant="tabs"
 										/>
 									</CardContent>
 									<CardFooter className="flex items-center justify-center bg-muted/20">
@@ -581,12 +296,10 @@ export const AiscribeTemplate = ({ config, isAdmin = false }: AiscribeTemplatePr
 														</div>
 														<div className="space-y-2">
 															<h3 className="font-semibold text-foreground text-lg">
-																{isPreparing ? "Eingaben werden vorbereitet…" : "Wird generiert..."}
+																Wird generiert...
 															</h3>
 															<p className="text-muted-foreground text-sm">
-																{isPreparing
-																	? "Bitte warten Sie, während Dokumente erkannt und Anhänge vorbereitet werden."
-																	: "Bitte warten Sie, während der KI-Assistent Ihren Inhalt erstellt"}
+																Bitte warten Sie, während der KI-Assistent Ihren Inhalt erstellt
 															</p>
 														</div>
 													</div>
@@ -599,7 +312,7 @@ export const AiscribeTemplate = ({ config, isAdmin = false }: AiscribeTemplatePr
 														<div className="space-y-4">
 															<h4 className="flex items-center gap-2 font-semibold text-foreground text-sm">
 																<div className="h-1.5 w-1.5 rounded-full bg-solarized-green" />
-																{config.outputTabTitle}
+																Ergebnis
 															</h4>
 															<ScrollArea className="h-[calc(100dvh-400px)] rounded-lg border border-solarized-green/20 bg-background/50 p-6">
 																<CitedResponse
@@ -622,8 +335,10 @@ export const AiscribeTemplate = ({ config, isAdmin = false }: AiscribeTemplatePr
 														<FileText className="h-16 w-16" />
 													</div>
 													<div className="space-y-2">
-														<h3 className="font-semibold text-lg">{config.emptyStateTitle}</h3>
-														<p className="max-w-md text-sm">{config.emptyStateDescription}</p>
+														<h3 className="font-semibold text-lg">Noch kein Text generiert</h3>
+														<p className="max-w-md text-sm">
+															Geben Sie Notizen, Audio oder Dateien ein, um den Text zu generieren.
+														</p>
 														<Button
 															className="mt-4"
 															onClick={handleSwitchToInputTab}

@@ -1,5 +1,5 @@
-import { ORPCError, type } from "@orpc/server";
-import { and, count, desc, documentTemplate, eq, or, usageEvent, user } from "@repo/database";
+import { ORPCError } from "@orpc/server";
+import { and, desc, documentTemplate, eq, or, usageEvent, user } from "@repo/database";
 import type { Database } from "@repo/database";
 import { generateObject } from "ai";
 import { z } from "zod";
@@ -16,14 +16,13 @@ import {
 	validateDocumentDefinitionAgainstPdfFields,
 	validateDocumentDefinitionPreservesPdfFields,
 } from "@/app/documents/_lib/pdf-definition-validation";
-import type { Session } from "@/lib/auth-types";
 import { resolveProductEntitlements } from "@/lib/product-entitlements";
 import { buildUsageEventData, extractOpenRouterUsage } from "@/lib/usage-logging";
 import type { StandardUsage } from "@/lib/usage-logging";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed, pub } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
-import { getOptionalAuthSession } from "@/orpc/middlewares/auth";
+import { getOptionalUserId } from "@/orpc/middlewares/auth";
 import { scribeEntitlementsMiddleware } from "@/orpc/middlewares/entitlements";
 import { extractContextFileText } from "@/orpc/scribe/handlers/context-file-input";
 import { enforceScribeUsageLimit } from "@/orpc/scribe/handlers/usage-limit";
@@ -59,7 +58,6 @@ const enhancedDocumentDefinitionSchema = z.object({
 });
 
 const MAX_DOCUMENT_TITLE_LENGTH = 200;
-const MAX_DOCUMENT_CATEGORY_LENGTH = 100;
 const MAX_AI_INPUT_FIELDS = 2000;
 const MAX_AI_PROMPT_CHARACTERS = 300_000;
 const BASE64_PATTERN = /^(?:[A-Za-z\d+/]{4})*(?:[A-Za-z\d+/]{2}==|[A-Za-z\d+/]{3}=)?$/;
@@ -117,35 +115,7 @@ const adminDocumentProcedure = authed.use(requiredAdminMiddleware);
 const documentTemplateVisibilitySchema = z.enum(["public", "private"]);
 type DocumentTemplateVisibility = z.infer<typeof documentTemplateVisibilitySchema>;
 
-const MAX_CATEGORY_SUGGESTIONS = 10;
-
-const addCategories = (
-	target: string[],
-	seen: Set<string>,
-	categories: string[],
-	limit: number,
-) => {
-	for (const category of categories) {
-		const normalized = category.trim();
-		if (!normalized) {
-			continue;
-		}
-
-		const key = normalized.toLowerCase();
-		if (seen.has(key)) {
-			continue;
-		}
-
-		seen.add(key);
-		target.push(normalized);
-		if (target.length >= limit) {
-			return;
-		}
-	}
-};
-
 const createDocumentTemplateInput = z.object({
-	category: z.string().min(1, "Category is required").max(MAX_DOCUMENT_CATEGORY_LENGTH),
 	fieldDefinitions: documentDefinitionSchema,
 	information: z.string().max(10_000, "Information is too long").default(""),
 	pdfBase64: pdfBase64Schema,
@@ -154,7 +124,6 @@ const createDocumentTemplateInput = z.object({
 });
 
 const updateDocumentTemplateInput = z.object({
-	category: z.string().min(1, "Category is required").max(MAX_DOCUMENT_CATEGORY_LENGTH),
 	fieldDefinitions: documentDefinitionSchema,
 	id: z.string().min(1),
 	information: z.string().max(10_000, "Information is too long").default(""),
@@ -272,11 +241,6 @@ const visibleDocumentTemplateWhere = (userId?: string | null) =>
 		? or(eq(documentTemplate.visibility, "public"), eq(documentTemplate.authorId, userId))
 		: eq(documentTemplate.visibility, "public");
 
-const getOptionalUserId = async (context: unknown) => {
-	const session = await getOptionalAuthSession((context as { session?: Session }).session);
-	return session?.user.id ?? null;
-};
-
 const ensureCanSaveDocumentVisibility = async ({
 	db,
 	userId,
@@ -302,13 +266,12 @@ const ensureCanSaveDocumentVisibility = async ({
  * Parse and enhance PDF form fields using AI.
  */
 const parseFormHandler = adminDocumentProcedure
-	.input(type<z.infer<typeof parseFormInput>>())
+	.input(parseFormInput)
 	.handler(async ({ input, context }) => {
-		const parsed = parseFormInput.parse(input);
-		const { fileBase64 } = parsed;
-		const fieldMappings = parsed.fieldMappings ?? [];
+		const { fileBase64 } = input;
+		const fieldMappings = input.fieldMappings ?? [];
 		const inputFields =
-			parsed.inputFields ??
+			input.inputFields ??
 			fieldMappings.map(
 				(mapping) =>
 					({
@@ -326,14 +289,14 @@ const parseFormHandler = adminDocumentProcedure
 		let modelSelection: Awaited<ReturnType<typeof resolveGenerationStrategy>>["generation"];
 		let ocrSelection: ResolvedOcrServiceSelection | undefined;
 		try {
-			const { providerId } = parsed;
-			if (providerId || parsed.model) {
-				if (!providerId || !parsed.model) {
+			const { providerId } = input;
+			if (providerId || input.model) {
+				if (!providerId || !input.model) {
 					throw new Error("providerId und model müssen gemeinsam angegeben werden");
 				}
 				modelSelection = {
 					defaultTemperature: null,
-					model: await resolveProviderModel(providerId, parsed.model, context.db),
+					model: await resolveProviderModel(providerId, input.model, context.db),
 					reasoningEffort: "none",
 					slot: "file-image",
 				};
@@ -426,13 +389,12 @@ const parseFormHandler = adminDocumentProcedure
 
 const enhanceDefinitionHandler = authed
 	.use(scribeEntitlementsMiddleware)
-	.input(type<z.infer<typeof enhanceDefinitionInput>>())
+	.input(enhanceDefinitionInput)
 	.handler(async ({ input, context }) => {
-		const parsed = enhanceDefinitionInput.parse(input);
 		const { normalizedFieldDefinitions: currentDefinition } = ensureValidFieldDefinitions(
-			parsed.fieldDefinitions,
+			input.fieldDefinitions,
 		);
-		const pdfBytes = decodePdfBase64(parsed.fileBase64);
+		const pdfBytes = decodePdfBase64(input.fileBase64);
 		const { fields } = await parsePDFFormFields(pdfBytes).catch((error: unknown) => {
 			const message = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
 			throw new ORPCError("BAD_REQUEST", { message });
@@ -474,7 +436,7 @@ const enhanceDefinitionHandler = authed
 			session: context.session,
 		});
 		const extractedText = await extractPdfOcrText({
-			base64: parsed.fileBase64,
+			base64: input.fileBase64,
 			bytes: pdfBytes,
 			db: context.db,
 			ocrSelection,
@@ -578,7 +540,6 @@ const listDocumentTemplatesHandler = pub.handler(async ({ context }) => {
 				name: user.name,
 			},
 			authorId: documentTemplate.authorId,
-			category: documentTemplate.category,
 			createdAt: documentTemplate.createdAt,
 			id: documentTemplate.id,
 			title: documentTemplate.title,
@@ -602,7 +563,6 @@ const getDocumentTemplateHandler = pub
 					name: user.name,
 				},
 				authorId: documentTemplate.authorId,
-				category: documentTemplate.category,
 				createdAt: documentTemplate.createdAt,
 				fieldDefinitions: documentTemplate.fieldDefinitions,
 				id: documentTemplate.id,
@@ -658,7 +618,6 @@ const createDocumentTemplateHandler = authed
 			.insert(documentTemplate)
 			.values({
 				authorId: context.session.user.id,
-				category: input.category.trim(),
 				fieldDefinitions: normalizedFieldDefinitions,
 				information: input.information.trim(),
 				pdfBytes,
@@ -668,7 +627,6 @@ const createDocumentTemplateHandler = authed
 			})
 			.returning({
 				authorId: documentTemplate.authorId,
-				category: documentTemplate.category,
 				createdAt: documentTemplate.createdAt,
 				id: documentTemplate.id,
 				title: documentTemplate.title,
@@ -725,7 +683,6 @@ const updateDocumentTemplateHandler = authed
 		const [updatedTemplate] = await context.db
 			.update(documentTemplate)
 			.set({
-				category: input.category.trim(),
 				fieldDefinitions: normalizedFieldDefinitions,
 				information: input.information.trim(),
 				pdfBytes,
@@ -741,7 +698,6 @@ const updateDocumentTemplateHandler = authed
 			)
 			.returning({
 				authorId: documentTemplate.authorId,
-				category: documentTemplate.category,
 				createdAt: documentTemplate.createdAt,
 				id: documentTemplate.id,
 				title: documentTemplate.title,
@@ -781,43 +737,6 @@ const deleteDocumentTemplateHandler = authed
 	});
 
 const getDocumentTemplateEditorContextHandler = authed.handler(async ({ context }) => {
-	const userId = context.session.user.id;
-	const limit = MAX_CATEGORY_SUGGESTIONS;
-	const categorySuggestions: string[] = [];
-	const seen = new Set<string>();
-
-	const authoredCategories = await context.db
-		.select({ category: documentTemplate.category })
-		.from(documentTemplate)
-		.where(eq(documentTemplate.authorId, userId))
-		.groupBy(documentTemplate.category)
-		.orderBy(desc(count()))
-		.limit(limit);
-
-	addCategories(
-		categorySuggestions,
-		seen,
-		authoredCategories.map((item) => item.category),
-		limit,
-	);
-
-	if (categorySuggestions.length < limit) {
-		const allCategories = await context.db
-			.select({ category: documentTemplate.category })
-			.from(documentTemplate)
-			.where(eq(documentTemplate.visibility, "public"))
-			.groupBy(documentTemplate.category)
-			.orderBy(desc(count()))
-			.limit(limit);
-
-		addCategories(
-			categorySuggestions,
-			seen,
-			allCategories.map((item) => item.category),
-			limit,
-		);
-	}
-
 	const entitlements = await resolveProductEntitlements({
 		db: context.db,
 		userId: context.session.user.id,
@@ -825,7 +744,6 @@ const getDocumentTemplateEditorContextHandler = authed.handler(async ({ context 
 
 	return {
 		canCreatePrivateDocuments: entitlements.canCreatePrivateDocuments,
-		categorySuggestions,
 	};
 });
 

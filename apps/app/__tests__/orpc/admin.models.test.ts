@@ -7,6 +7,7 @@ import {
 	ADMIN_EMAIL,
 	createTestAiDefaults,
 	createTestContext,
+	createTestDecisionModel,
 	createTestUser,
 	startTestServer,
 } from "@/__tests__/setup";
@@ -29,7 +30,8 @@ describe("Admin Models Handler", () => {
 		await server?.close();
 	});
 
-	test("list returns DB-backed models with provider metadata", async () => {
+	test("list returns DB-backed chat models with provider metadata", async () => {
+		const decisionModelId = await createTestDecisionModel(server.db, seeded.providerId);
 		const models = await call(modelsHandler.list, undefined, { context });
 		const seededModel = models.find((model) => model.id === seeded.modelRecordId);
 
@@ -39,6 +41,8 @@ describe("Admin Models Handler", () => {
 		expect(seededModel?.modelId).toBe(seeded.modelId);
 		expect(seededModel?.connectionId).toBe(seeded.providerId);
 		expect(seededModel?.supportsReasoning).toBe(true);
+		// The Playground generates text; decision and OCR models cannot answer it.
+		expect(models.some((model) => model.id === decisionModelId)).toBe(false);
 	});
 
 	test("list reflects DB model updates without provider API calls", async () => {

@@ -1,10 +1,5 @@
-import type { ContextSource, TemplateContextInput } from "@/orpc/scribe/context/types";
-
-import { parseSelectedTemplateReference } from "./compose";
-import { resolveFallbackTemplateByContextKey } from "./fallbacks";
-
-const hasContent = (value: string | undefined): value is string =>
-	typeof value === "string" && value.trim().length > 0;
+import { hasContent, toTrimmedString } from "@/orpc/scribe/_lib/text";
+import type { TemplateContextInput } from "@/orpc/scribe/context/types";
 
 const TEMPLATE_CONTEXT_USAGE = `Nutze diese Vorlage als primäre Zielstruktur und stilistische Orientierung.
 - Befolge <information> als verbindliche Zusatzanweisungen für das Ausfüllen der Vorlage.
@@ -13,15 +8,14 @@ const TEMPLATE_CONTEXT_USAGE = `Nutze diese Vorlage als primäre Zielstruktur un
 - Inhalte dürfen AUSSCHLIEßLICH aus den bereitgestellten Eingaben und dem Patientenkontext stammen.
 - Übernimm nicht den Titel aus <title>; nutze ihn nur als Kontext und gib keine XML-Tags zurück.`;
 
-const MARKDOC_TAG_GUIDANCE = `Markdoc-Tags in der Vorlage sind nur Platzhalterlogik.
+export const MARKDOC_TAG_GUIDANCE = `Markdoc-Tags in der Vorlage sind nur Platzhalterlogik.
 - Gib in der finalen Ausgabe niemals Markdoc-Syntax aus (kein {% ... %}).
+- {% ai %}...{% /ai %} und ((...)): Anweisung zum Formulieren; befolgen, aber nie selbst ausgeben.
 - {% info ... /%}: durch passenden Wert ersetzen; falls unbekannt: [nicht dokumentiert].
 - {% switch ... %}{% case ... %}{% /switch %}: nur Text des passenden case ausgeben; passt keine Option, den default-Fall (falls vorhanden); falls unklar: [nicht dokumentiert].
 - Bei {% switch ... type="boolean" %} oder type="checkbox": case "true" für wahr, case "false" für falsch verwenden.
 - {% condition ... %}{% case ... %}{% /condition %}: Zahlenvergleich (eq =, gt >, gte ≥, lt <, lte ≤); nur den Text des ersten Falls ausgeben, dessen Vergleiche alle zutreffen, sonst den default-Fall. Bei einer Feldliste gilt je Feld ein Wert, null bedeutet beliebig. Fehlen die verglichenen Werte: [nicht dokumentiert].
 - {% calc ... /%} oder {% calc ... %}...{% /calc %}: Formel mit belegten Angaben berechnen ([Name] ist der Wert des gleichnamigen Felds, bei einer Auswahl der value= der gewählten Option, Checkbox 1/0) und wie angegeben runden (round, Standard 2 Stellen); enthaltene Tags sind nur Berechnungskomponenten; falls nicht sicher berechenbar: [nicht berechenbar].`;
-
-const toTrimmedString = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
 
 const toExamples = (value: unknown): string[] => {
 	if (!Array.isArray(value)) {
@@ -31,7 +25,8 @@ const toExamples = (value: unknown): string[] => {
 	return value.map((entry) => toTrimmedString(entry)).filter((entry) => entry.length > 0);
 };
 
-const renderTemplateContext = (template?: TemplateContextInput | null): string => {
+/** A template, its fill hints and examples as `<template_context>`, or "" when all are empty. */
+export const renderTemplateContext = (template?: TemplateContextInput | null): string => {
 	if (!template) {
 		return "";
 	}
@@ -57,70 +52,4 @@ const renderTemplateContext = (template?: TemplateContextInput | null): string =
 	}
 
 	return `<template_context>\n<usage>\n${TEMPLATE_CONTEXT_USAGE}\n</usage>\n<markdoc_tag_guidance>\n${MARKDOC_TAG_GUIDANCE}\n</markdoc_tag_guidance>\n<template>\n${blocks.join("\n")}\n</template>\n</template_context>`;
-};
-
-export const buildTemplateFallbackContext = (
-	template?: TemplateContextInput | null,
-): string | undefined => {
-	if (!template) {
-		return undefined;
-	}
-
-	const templateContext = renderTemplateContext(template);
-	return hasContent(templateContext) ? templateContext : undefined;
-};
-
-export const resolveSelectedTemplateContext = (
-	selectedTemplateReference?: string,
-): TemplateContextInput | undefined => {
-	if (!hasContent(selectedTemplateReference)) {
-		return undefined;
-	}
-
-	const parsedTemplate = parseSelectedTemplateReference(selectedTemplateReference);
-	return hasContent(parsedTemplate.content) ? parsedTemplate : undefined;
-};
-
-const toTemplateContextInput = (data: Record<string, unknown>): TemplateContextInput => ({
-	content: toTrimmedString(data.content),
-	examples: toExamples(data.examples),
-	information: toTrimmedString(data.information),
-	title: toTrimmedString(data.title),
-});
-
-const resolveTemplateContextFromSources = (sources: ContextSource[]): string | undefined => {
-	for (const source of sources) {
-		if (source.kind !== "template") {
-			continue;
-		}
-
-		const templateContext = buildTemplateFallbackContext(toTemplateContextInput(source.data));
-		if (templateContext) {
-			return templateContext;
-		}
-	}
-
-	return undefined;
-};
-
-interface ComposeTemplateContextInput {
-	promptContextKey?: string;
-	selectedTemplateReference?: string;
-	sources: ContextSource[];
-}
-
-export const composeTemplateContext = (input: ComposeTemplateContextInput): string | undefined => {
-	const selectedTemplateContext = buildTemplateFallbackContext(
-		resolveSelectedTemplateContext(input.selectedTemplateReference),
-	);
-	if (selectedTemplateContext) {
-		return selectedTemplateContext;
-	}
-
-	const sourceTemplateContext = resolveTemplateContextFromSources(input.sources);
-	if (sourceTemplateContext) {
-		return sourceTemplateContext;
-	}
-
-	return buildTemplateFallbackContext(resolveFallbackTemplateByContextKey(input.promptContextKey));
 };

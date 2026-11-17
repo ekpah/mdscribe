@@ -19,9 +19,7 @@ import { toast } from "sonner";
 import { trackEvent } from "@/lib/analytics";
 import { signUp } from "@/lib/auth-client";
 import { USER_MESSAGES } from "@/lib/user-messages";
-
-const USERNAME_PATTERN = /^[a-zA-Z0-9._]+$/;
-const MIN_USERNAME_LENGTH = 3;
+import { MIN_USERNAME_LENGTH, USERNAME_PATTERN } from "@/lib/username";
 
 export default function SignUp() {
 	const [username, setUsername] = useState("");

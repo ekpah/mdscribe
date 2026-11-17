@@ -1,12 +1,4 @@
-import {
-	aiScribeFormConfig,
-	aiScribeWorkspace,
-	desc,
-	isNotNull,
-	sql,
-	subscription,
-	user,
-} from "@repo/database";
+import { desc, sql, subscription, user } from "@repo/database";
 
 import { subscriptionsEnabled } from "@/lib/stripe-config";
 import { resolveMonthlyUsagePeriod } from "@/lib/usage-period";
@@ -18,22 +10,6 @@ import { resolveScribeEntitlements } from "@/orpc/scribe/handlers/usage-limit";
 const adminUsersHandler = authed.use(requiredAdminMiddleware).handler(async ({ context }) => {
 	const now = new Date();
 
-	const aiScribeFormsQuery = context.db
-		.select({
-			count: sql<number>`count(*)::int`,
-			userId: aiScribeFormConfig.authorId,
-		})
-		.from(aiScribeFormConfig)
-		.where(isNotNull(aiScribeFormConfig.authorId))
-		.groupBy(aiScribeFormConfig.authorId);
-	const aiScribeWorkspacesQuery = context.db
-		.select({
-			count: sql<number>`count(*)::int`,
-			userId: aiScribeWorkspace.authorId,
-		})
-		.from(aiScribeWorkspace)
-		.where(isNotNull(aiScribeWorkspace.authorId))
-		.groupBy(aiScribeWorkspace.authorId);
 	const subscriptionsQuery = context.db
 		.select({
 			plan: subscription.plan,
@@ -67,9 +43,7 @@ const adminUsersHandler = authed.use(requiredAdminMiddleware).handler(async ({ c
 		})
 		.from(user)
 		.orderBy(desc(user.createdAt));
-	const [aiScribeFormRows, aiScribeWorkspaceRows, subscriptions, users] = await Promise.all([
-		aiScribeFormsQuery,
-		aiScribeWorkspacesQuery,
+	const [subscriptions, users] = await Promise.all([
 		subscriptionsEnabled ? subscriptionsQuery : [],
 		usersQuery,
 	]);
@@ -104,12 +78,6 @@ const adminUsersHandler = authed.use(requiredAdminMiddleware).handler(async ({ c
 			}),
 		),
 	);
-	const aiScribeFormsByUserId = new Map(
-		aiScribeFormRows.map((row) => [row.userId, Number(row.count ?? 0)]),
-	);
-	const aiScribeWorkspacesByUserId = new Map(
-		aiScribeWorkspaceRows.map((row) => [row.userId, Number(row.count ?? 0)]),
-	);
 	const subscriptionByUserId = new Map<string, (typeof subscriptions)[number]>();
 	for (const currentSubscription of subscriptions) {
 		if (!subscriptionByUserId.has(currentSubscription.referenceId)) {
@@ -127,8 +95,6 @@ const adminUsersHandler = authed.use(requiredAdminMiddleware).handler(async ({ c
 			...currentUser,
 			_count: {
 				...currentUser._count,
-				aiScribeForms: aiScribeFormsByUserId.get(currentUser.id) ?? 0,
-				aiScribeWorkspaces: aiScribeWorkspacesByUserId.get(currentUser.id) ?? 0,
 				usageEvents: usage?.count ?? 0,
 			},
 			hasActiveSubscription,

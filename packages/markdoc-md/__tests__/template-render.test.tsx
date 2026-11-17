@@ -7,9 +7,9 @@ import renderMarkdocAsReact from "../render/utils/render-markdoc-as-react";
 const render = (source: string) =>
 	renderToStaticMarkup(renderMarkdocAsReact(source, { layout: "template" }));
 
-test("template soft breaks are real breaks, while adjacent paragraphs are single line blocks", () => {
+test("template soft breaks are real breaks, and a paragraph break is one empty line", () => {
 	expect(render("Alpha\nBeta\n\nGamma")).toContain(
-		'<div data-template-line="" style="margin:0">Alpha<br/>Beta</div><div data-template-line="" style="margin:0">Gamma</div>',
+		'<div data-template-line="" style="margin:0">Alpha<br/>Beta</div><div data-template-line="" style="margin:0">\u00A0</div><div data-template-line="" style="margin:0">Gamma</div>',
 	);
 	expect(renderToStaticMarkup(renderMarkdocAsReact("Alpha\nBeta"))).toBe(
 		"<article><p>Alpha Beta</p></article>",

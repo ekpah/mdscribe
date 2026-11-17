@@ -1,18 +1,15 @@
 import { render } from "@react-email/components";
 import type { ReactElement } from "react";
 
-import { AiTextsAnnouncementTemplate } from "./templates/ai-texts-announcement";
 import { ByokAnnouncementTemplate } from "./templates/byok-announcement";
 import { EmailChangeTemplate } from "./templates/change-email";
 import { ColdOutreachTemplate } from "./templates/cold-outreach";
-import { ContextTransferAnnouncementTemplate } from "./templates/context-transfer-announcement";
 import { DocumentsAnnouncementTemplate } from "./templates/documents-announcement";
 import { OTPLoginTemplate } from "./templates/otp-login";
 import { ResetPasswordTemplate } from "./templates/reset-password";
 import { TemplateInformationAnnouncementTemplate } from "./templates/template-information-announcement";
 import { EmailVerificationTemplate } from "./templates/verify";
 import { WelcomeTemplate } from "./templates/welcome";
-import { WorkspacesAnnouncementTemplate } from "./templates/workspaces-announcement";
 
 type EmailDraftCategory = "authentication" | "marketing" | "transactional";
 
@@ -86,44 +83,6 @@ const emailDrafts: readonly EmailDraftDefinition[] = [
 	},
 	{
 		category: "marketing",
-		description: "Marketingmail zur Weiterverwenden-Funktion für sichere Kontextübergabe.",
-		id: "context-transfer-announcement",
-		previewProps: {
-			actionUrl: "https://mdscribe.de/aiscribe",
-			buttonText: "AIScribe öffnen",
-		},
-		render: () => (
-			<ContextTransferAnnouncementTemplate
-				actionUrl="https://mdscribe.de/aiscribe"
-				buttonText="AIScribe öffnen"
-			/>
-		),
-		subject: "Neu: Kontext in MDScribe weiterverwenden",
-		title: "AIScribe: Weiterverwenden",
-	},
-	{
-		category: "marketing",
-		description: "Marketingmail zu AI Textbausteinen als anpassbare AIScribe-Vorlagen.",
-		id: "ai-texts-announcement",
-		previewProps: {
-			actionUrl: "https://mdscribe.de/profile/ai-scribe",
-			buttonText: "AI Textbaustein erstellen",
-			templateButtonText: "Template erstellen",
-			templateUrl: "https://mdscribe.de/templates/create",
-		},
-		render: () => (
-			<AiTextsAnnouncementTemplate
-				actionUrl="https://mdscribe.de/profile/ai-scribe"
-				buttonText="AI Textbaustein erstellen"
-				templateButtonText="Template erstellen"
-				templateUrl="https://mdscribe.de/templates/create"
-			/>
-		),
-		subject: "Neu: AI Textbausteine für spezialisierte Vorlagen",
-		title: "AI-Scribe: AI Textbausteine",
-	},
-	{
-		category: "marketing",
 		description: "Marketingmail zur Dokumente-Funktion mit Rehaantrag-Fokus.",
 		id: "documents-announcement",
 		previewProps: {
@@ -139,25 +98,6 @@ const emailDrafts: readonly EmailDraftDefinition[] = [
 		),
 		subject: "Neu: Rehaanträge schneller mit MDScribe vorbereiten",
 		title: "Dokumente: Rehaantrag",
-	},
-	{
-		category: "marketing",
-		description:
-			"Marketingmail zum Brief-Baukasten: eigene Editoren aus AI Vorlagen plus Überarbeitung mit dem KI-Agenten.",
-		id: "workspaces-announcement",
-		previewProps: {
-			actionUrl: "https://mdscribe.de/aiscribe",
-			buttonText: "Brief-Baukasten erstellen",
-		},
-		render: (context) => (
-			<WorkspacesAnnouncementTemplate
-				actionUrl="https://mdscribe.de/aiscribe"
-				buttonText="Brief-Baukasten erstellen"
-				userName={getRecipientName(context)}
-			/>
-		),
-		subject: "Neu: Eigene Brief-Baukästen mit KI-Agent",
-		title: "Brief-Baukasten & Agent",
 	},
 	{
 		category: "marketing",

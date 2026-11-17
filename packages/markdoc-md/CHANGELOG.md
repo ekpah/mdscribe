@@ -4,6 +4,7 @@
 
 ### Added
 
+- `htmlToMarkdoc(html, { renderers })` writes the elements of tags a host adds to the config, keyed by lowercase element name, also inside `switch` and `condition` cases. `HtmlToMarkdocRenderer` is exported from `markdoc-md/editor`.
 - Headless tag hooks `useInfoTag`, `useCalcTag`, and `useBranchTag` (from `markdoc-md/react`) expose each built-in tag's resolved value, display formatting, and case selection, so custom components can change only the markup. The default components use the same hooks. A custom `Switch` or `Condition` renders its selected case, including nested tags, through `selected`.
 - `DynamicMarkdocRenderer` accepts `onVariableChange(name, value)`, available to tag components via `useMarkdocInteraction()`, so custom components such as inline inputs can edit variables.
 - `cite` accepts `citations=[{source: "…", quote: "…"}, …]`, a list of excerpts that support the same marked text. The old `source`/`quote` pair stays readable as a single citation. `onCitationSelect` now receives the list. A malformed list, or one mixed with `source`/`quote`, renders the mark inert and reports the new `citation-malformed` diagnostic. The rich editor round-trips the list unchanged. `readCiteCitations` and `serializeCiteCitations` are exported from `markdoc-md/citations`.
@@ -15,9 +16,12 @@
 - Update Markdoc to 0.5.11 and FHIRPath to 5.2.3 without changing the public template or variable contracts.
 - `MarkdocComponentMap` types the built-in render names, so a replacement `Info`, `Switch`, `Calc`, … must accept that tag's props. Custom render names still accept any component.
 - Remove unused internal calculation-prop exports and the duplicate Score component export. The default component map still renders legacy `score` tags through Calc; public package entrypoints remain unchanged.
+- **Breaking:** the template layout and editor HTML follow Markdown's paragraph semantics. A single line break continues the paragraph on the next line, and a blank line between two paragraphs or `details` sections shows as one empty line, in both `renderTipTapHTML` and `layout="template"` (previously, only `&nbsp;` lines and blank lines beside a section did). `htmlToMarkdoc` writes adjacent editor lines as one paragraph with hard breaks, one empty line as a paragraph break, and longer or boundary runs of empty lines as `&nbsp;` paragraphs. Content stored for the previous layout, where each paragraph rendered as one line, now shows an empty line between those paragraphs.
 
 ### Fixed
 
+- `htmlToMarkdoc` keeps nested lists and multi-paragraph list items inside their item: continuation lines are indented to the marker instead of starting a new top-level list.
+- `renderMarkdocAsReact` with a custom `config` and `layout="template"` keeps soft breaks as line breaks, like the package config.
 - Input extraction drops a branch-guarded `info` when the same input list already has an unguarded input of that variable, so fields mentioned inside `condition` cases are no longer listed repeatedly.
 
 ## [0.2.0] - 2026-10-18

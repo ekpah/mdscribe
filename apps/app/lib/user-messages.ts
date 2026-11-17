@@ -79,6 +79,13 @@ const MARKDOC_SCHEMA_MESSAGES: Record<
 			: "Ein schließender Tag hat keinen passenden öffnenden Tag.",
 	"parse-error": () => "Ein Tag ist nicht korrekt geschrieben ({% … %}).",
 	"round-value-invalid": () => "„round“ muss false oder eine ganze Zahl von 0 bis 100 sein.",
+	"section-content-outside": () =>
+		"Text außerhalb der Abschnitte wird nie erzeugt. Bitte in einen Abschnitt verschieben.",
+	"section-duplicate-id": (name) => `Die Abschnitts-ID „${name}“ ist mehrfach vergeben.`,
+	"section-id-invalid": () =>
+		"Die ID eines Abschnitts darf nur Buchstaben, Ziffern, Bindestriche und Unterstriche enthalten.",
+	"section-nested": () =>
+		"Abschnitte stehen auf oberster Ebene, nicht in anderen Tags, Listen oder Abschnitten.",
 	"tag-placement-invalid": (name) =>
 		`Tag „${name}“ steht an einer ungültigen Stelle (eigene Zeile oder innerhalb einer Zeile).`,
 	"tag-selfclosing-has-children": (name) => `Tag „${name}“ muss selbstschließend sein (mit /%}).`,
@@ -200,7 +207,7 @@ export const USER_MESSAGES = {
 		of: "von",
 		overviewDescription: "Filterbar nach Autor",
 		overviewTitle: "Template-Übersicht",
-		searchPlaceholder: "Vorlage, Kategorie oder Autor suchen...",
+		searchPlaceholder: "Vorlage oder Autor suchen...",
 		template: "Vorlage",
 		templates: "Vorlagen",
 		title: "Vorlagenverwaltung",
@@ -209,8 +216,6 @@ export const USER_MESSAGES = {
 		updated: "Aktualisiert",
 	},
 	adminUsers: {
-		aiScribeForms: "AI Vorlagen",
-		aiScribeWorkspaces: "Brief-Baukästen",
 		monthlyAiUsage: "KI-Nutzung",
 	},
 	aiscribeGenerationSuccess: "Erfolgreich generiert",
@@ -565,10 +570,6 @@ RR 110/80 mmHg, Puls 96/min, Temperatur 38,9 °C, SpO₂ 99 %.`,
 	missingInput: "Bitte füllen Sie mindestens ein Pflichtfeld aus.",
 	modelUnavailable:
 		"Kein geeignetes KI-Modell verfügbar. Bitte konfigurieren Sie ein Modell in den Einstellungen.",
-	privateAiScribeFormRequiresPlus:
-		"Private AI Vorlagen sind für Ihr Konto nicht verfügbar. Speichern Sie die AI Vorlage öffentlich.",
-	privateAiScribeWorkspaceRequiresPlus:
-		"Private Brief-Baukästen sind für Ihr Konto nicht verfügbar. Speichern Sie den Brief-Baukasten öffentlich.",
 	privateDocumentRequiresPlus:
 		"Private Dokumente sind für Ihr Konto nicht verfügbar. Speichern Sie das Dokument öffentlich.",
 	privateTemplateRequiresPlus:
@@ -576,10 +577,6 @@ RR 110/80 mmHg, Puls 96/min, Temperatur 38,9 °C, SpO₂ 99 %.`,
 	providerAuthFailed:
 		"Der API-Schlüssel wurde vom Anbieter abgelehnt. Bitte prüfen Sie die Konfiguration.",
 	providerUnavailable: "Der KI-Anbieter ist nicht erreichbar. Bitte prüfen Sie die Verbindung.",
-	publicAiScribeFormVisibilityWarning:
-		"Öffentlich: Alle Nutzer können diese AI Vorlage sehen und verwenden.",
-	publicAiScribeWorkspaceVisibilityWarning:
-		"Öffentlich: Alle Nutzer können diesen Brief-Baukasten sehen und verwenden.",
 	publicDocumentVisibilityWarning:
 		"Öffentlich: Alle Nutzer können dieses Dokument sehen, verwenden und kopieren.",
 	publicTemplateVisibilityWarning:
@@ -610,8 +607,7 @@ RR 110/80 mmHg, Puls 96/min, Temperatur 38,9 °C, SpO₂ 99 %.`,
 	templateSearch: {
 		badge: "Vorlagenbibliothek",
 		description: "Durchsuchen Sie alle für Sie verfügbaren Textbausteine.",
-		emptyDescription:
-			"Probieren Sie einen allgemeineren Begriff oder suchen Sie nach einem Titel oder einer Kategorie.",
+		emptyDescription: "Probieren Sie einen allgemeineren Begriff oder einen anderen Titel.",
 		emptyTitle: "Noch kein passender Textbaustein",
 		label: "Textbausteine durchsuchen",
 		placeholder: "Zum Beispiel Entlassungsbrief oder Hypertonie",
@@ -624,7 +620,7 @@ RR 110/80 mmHg, Puls 96/min, Temperatur 38,9 °C, SpO₂ 99 %.`,
 		results: "Treffer",
 		resultsFor: "für",
 		searchAction: "Suchen",
-		searchScope: "Titel und Kategorien",
+		searchScope: "Titel",
 		title: "Textbaustein finden",
 	},
 	unauthorized: "Bitte melden Sie sich an, um diese Funktion zu nutzen.",

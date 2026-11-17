@@ -8,7 +8,6 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { useIsMobile } from "@repo/design-system/hooks/use-mobile"
 import { cn } from "@repo/design-system/lib/utils"
 import { Button } from "@repo/design-system/components/ui/button"
-import { Input } from "@repo/design-system/components/ui/input"
 import { Separator } from "@repo/design-system/components/ui/separator"
 import {
   Sheet,
@@ -303,20 +302,6 @@ function SidebarRail({ className, ...props }: React.ComponentProps<"button">) {
 }
 
 
-function SidebarInput({
-  className,
-  ...props
-}: React.ComponentProps<typeof Input>) {
-  return (
-    <Input
-      data-slot="sidebar-input"
-      data-sidebar="input"
-      className={cn("h-8 w-full bg-background shadow-none focus-visible:ring-2 focus-visible:ring-sidebar-ring", className)}
-      {...props}
-    />
-  )
-}
-
 function SidebarHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -538,7 +523,6 @@ export {
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
-  SidebarInput,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,

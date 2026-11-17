@@ -7,6 +7,57 @@ import { serializeCiteCitations } from "../citations/cite-attributes";
 import type { CitationRequest } from "../citations/resolvers/types";
 import { serializeMarkdocTable } from "./serialize-markdoc-table";
 
+// Entity-only lines survive Markdown parsing, unlike empty lines and padding
+// before/after consecutive or boundary hard breaks.
+const EMPTY_LINE = "&nbsp;";
+const HARD_BREAK = "  \n";
+
+type LineFlowItem =
+	| { kind: "line" | "details"; text: string }
+	| { kind: "empty" }
+	| { kind: "block"; text: string };
+
+/**
+ * Inverse of the rendered line flow, which shows a blank source line between two
+ * line blocks as one empty line. Adjacent lines form one paragraph (sections
+ * join without a blank line), a single empty line is a paragraph break, and
+ * every line of longer or boundary runs stays an explicit `&nbsp;` paragraph.
+ */
+const serializeLineFlow = (items: LineFlowItem[]): string => {
+	let markdoc = "";
+	let previous: "line" | "details" | undefined;
+	let emptyLines = 0;
+	const emptyParagraphs = () => `${EMPTY_LINE}\n\n`.repeat(emptyLines);
+	for (const item of items) {
+		if (item.kind === "empty") {
+			emptyLines += 1;
+			continue;
+		}
+		if (item.kind === "block") {
+			// Block tags such as a top-level switch end on their closing tag.
+			markdoc += `${previous ? "\n\n" : ""}${emptyParagraphs()}${item.text.replace(/\n*$/u, "\n\n")}`;
+			previous = undefined;
+			emptyLines = 0;
+			continue;
+		}
+		if (!previous) {
+			// A section's opening tag follows a preceding block with one line break.
+			markdoc =
+				item.kind === "details" && emptyLines === 0 && markdoc
+					? markdoc.replace(/\n+$/u, "\n")
+					: markdoc + emptyParagraphs();
+		} else if (emptyLines === 0) {
+			markdoc += previous === "line" && item.kind === "line" ? HARD_BREAK : "\n";
+		} else {
+			markdoc += `\n\n${emptyLines === 1 ? "" : emptyParagraphs()}`;
+		}
+		markdoc += item.text;
+		previous = item.kind;
+		emptyLines = 0;
+	}
+	return `${markdoc}${previous ? "\n\n" : ""}${emptyParagraphs()}`;
+};
+
 const headingPrefixes: Record<string, string> = {
 	h1: "#",
 	h2: "##",
@@ -22,18 +73,15 @@ const inlineRenderers: Partial<Record<string, (innerContent: string) => string>>
 	em: (innerContent) => `*${innerContent}*`,
 	hr: () => "\n---\n\n",
 	i: (innerContent) => `*${innerContent}*`,
-	ol: (innerContent) => `${innerContent}\n`,
-	// Entity-only lines survive Markdown parsing, including empty paragraphs
-	// and padding before/after consecutive or boundary hard breaks.
-	p: (innerContent) => `${preserveEmptyLines(innerContent)}\n\n`,
 	strong: (innerContent) => `**${innerContent}**`,
-	ul: (innerContent) => `${innerContent}\n`,
 };
 
 const preserveEmptyLines = (content: string): string => {
 	const lines = content.split("\n");
 	return lines
-		.map((line, index) => (line.trim() ? line : `&nbsp;${index < lines.length - 1 ? "  " : ""}`))
+		.map((line, index) =>
+			line.trim() ? line : `${EMPTY_LINE}${index < lines.length - 1 ? "  " : ""}`,
+		)
 		.join("\n");
 };
 
@@ -121,9 +169,13 @@ const containsBlockTag = (content: string): boolean => /\{% (?:details|table)\b/
 const caseListContent = (innerContent: string): string =>
 	containsBlockTag(innerContent) ? `\n${innerContent.trim()}\n` : innerContent;
 
-const customMarkdocRenderers: Partial<
-	Record<string, (element: Element, innerContent: string) => string>
-> = {
+/** Writes one editor element, given its already converted content, as Markdoc. */
+export type HtmlToMarkdocRenderer = (element: Element, innerContent: string) => string;
+
+/** Renderers for a host's own tags, keyed by lowercase element name; set for one conversion. */
+let hostRenderers: Partial<Record<string, HtmlToMarkdocRenderer>> = {};
+
+const customMarkdocRenderers: Partial<Record<string, HtmlToMarkdocRenderer>> = {
 	calc: (element, innerContent) => {
 		const formula = readAttribute(element, "formula") || "";
 		const primaryAttribute = serializeStringAttribute("primary", readAttribute(element, "primary"));
@@ -236,13 +288,23 @@ const customMarkdocRenderers: Partial<
 	},
 };
 
+/**
+ * An item's paragraphs and nested lists stay inside it: continuation lines are
+ * indented to the content of the marker, without blank lines between them.
+ */
 const renderListItem = (element: Element, innerContent: string): string => {
-	const parentTagName = element.parentElement?.tagName.toLowerCase();
-	if (parentTagName === "ol") {
-		return `1. ${innerContent.trim()}\n`;
-	}
-	return `- ${innerContent.trim()}\n`;
+	const marker = element.parentElement?.tagName.toLowerCase() === "ol" ? "1. " : "- ";
+	const indent = " ".repeat(marker.length);
+	const lines = innerContent
+		.trim()
+		.replaceAll(/\n{2,}/gu, "\n")
+		.split("\n");
+	return `${marker}${lines.join(`\n${indent}`)}\n`;
 };
+
+/** A nested list starts on its own line, also right after its item's text. */
+const renderList = (element: Element, innerContent: string): string =>
+	isElementNamed(element.parentElement, "li") ? `\n${innerContent}` : `${innerContent}\n`;
 
 const renderBlockquote = (innerContent: string): string => {
 	const lines = innerContent.trim().split("\n");
@@ -299,8 +361,10 @@ const htmlElementRenderers: Partial<
 	div: (_element, innerContent) => innerContent,
 	html: (_element, innerContent) => innerContent,
 	li: renderListItem,
+	ol: renderList,
 	pre: (_element, innerContent) => `\`\`\`\n${innerContent}\n\`\`\`\n\n`,
 	span: (_element, innerContent) => innerContent,
+	ul: renderList,
 };
 
 const renderHtmlElement = (element: Element, tagName: string, innerContent: string): string => {
@@ -320,91 +384,41 @@ const renderHtmlElement = (element: Element, tagName: string, innerContent: stri
 const isElementNamed = (node: Node | null, tagName: string): node is Element =>
 	node?.nodeType === 1 && (node as Element).tagName.toLowerCase() === tagName;
 
-/** An empty editor line: `<p></p>`, optionally holding ProseMirror's view-only filler. */
-const isEmptyParagraph = (node: Node | null): boolean =>
-	isElementNamed(node, "p") &&
-	node.textContent === "" &&
-	[...node.children].every((child) => child.classList.contains("ProseMirror-trailingBreak"));
+const isLineBlock = (node: Node): boolean =>
+	isElementNamed(node, "p") || isElementNamed(node, "details");
 
-/**
- * Blocks a details section can join; mirrors `markDetailsLineFlow` in the
- * renderer. An empty paragraph that stays in the source (as `&nbsp;`) is a
- * paragraph there too.
- */
-const sharesLineFlow = (node: Node | null): boolean =>
-	isElementNamed(node, "details") || isElementNamed(node, "p");
-
-/** Adjacent block, skipping formatting whitespace between elements. */
-const siblingBlock = (node: Node, direction: "nextSibling" | "previousSibling"): Node | null => {
-	let sibling = node[direction];
-	while (sibling?.nodeType === 3 && !sibling.textContent?.trim()) {
-		sibling = sibling[direction];
+const toLineFlowItems = (
+	child: Node,
+	processChildren: (node: Node) => string,
+	processNode: (node: Node) => string,
+): LineFlowItem[] => {
+	if (isElementNamed(child, "p")) {
+		return processChildren(child)
+			.split(HARD_BREAK)
+			.map((line) => (line.trim() ? { kind: "line", text: line } : { kind: "empty" }));
 	}
-	return sibling;
-};
-
-/** The run of consecutive empty paragraphs around `paragraph` and the blocks bounding it. */
-const emptyParagraphRun = (paragraph: Node) => {
-	let before = siblingBlock(paragraph, "previousSibling");
-	let index = 0;
-	while (before && isEmptyParagraph(before)) {
-		index += 1;
-		before = siblingBlock(before, "previousSibling");
+	if (isElementNamed(child, "details")) {
+		return [{ kind: "details", text: processNode(child).replace(/\n+$/u, "") }];
 	}
-	let after = siblingBlock(paragraph, "nextSibling");
-	let length = index + 1;
-	while (after && isEmptyParagraph(after)) {
-		length += 1;
-		after = siblingBlock(after, "nextSibling");
+	// Formatting whitespace between block elements is not content.
+	if (child.nodeType === 3 && !child.textContent?.trim()) {
+		return [];
 	}
-	return { after, before, index, length };
-};
-
-/**
- * Inverse of renderTipTapHTML, which shows a blank source line between a details
- * section and a neighbouring paragraph or section as one empty editor line. In a
- * run of empty lines touching a section, one line is that blank line; the others
- * stay `&nbsp;` paragraphs. It counts only where the renderer recreates it: next
- * to a section whose other side is a paragraph or section after saving.
- */
-const isSourceBlankLine = (paragraph: Node): boolean => {
-	const { after, before, index, length } = emptyParagraphRun(paragraph);
-	if (isElementNamed(before, "details") && (length > 1 || sharesLineFlow(after))) {
-		return index === 0;
-	}
-	if (isElementNamed(after, "details") && (length > 1 || sharesLineFlow(before))) {
-		return index === length - 1;
-	}
-	return false;
+	return [{ kind: "block", text: processNode(child) }];
 };
 
 const processChildrenForMarkdoc = (
 	node: Node,
 	processNode: (childNode: Node) => string,
 ): string => {
-	let innerContent = "";
-	const blankLines = new Set<Node>();
-	for (const child of node.childNodes) {
-		if (isEmptyParagraph(child) && isSourceBlankLine(child)) {
-			blankLines.add(child);
-			continue;
-		}
-		// A details section directly next to a line block continues its lines:
-		// no blank line between them in the source. Its opening tag always follows
-		// the preceding block with one line break; an authored empty paragraph is
-		// still serialized separately and therefore keeps an intentional gap.
-		const previous = siblingBlock(child, "previousSibling");
-		if (
-			previous &&
-			!blankLines.has(previous) &&
-			(isElementNamed(child, "details") ||
-				(isElementNamed(previous, "details") && sharesLineFlow(child)))
-		) {
-			innerContent = innerContent.replace(/\n+$/u, "\n");
-		}
-		innerContent += processNode(child);
+	const children = [...node.childNodes];
+	if (!children.some(isLineBlock)) {
+		return children.map(processNode).join("");
 	}
-	return innerContent;
+	const processChildren = (child: Node) => processChildrenForMarkdoc(child, processNode);
+	return serializeLineFlow(
+		children.flatMap((child) => toLineFlowItems(child, processChildren, processNode)),
+	);
 };
 
 /**
@@ -432,7 +446,7 @@ const processNodeForMarkdoc = (node: Node): string => {
 		return renderTable(element, processNodeForMarkdoc);
 	}
 	const innerContent = processChildrenForMarkdoc(element, processNodeForMarkdoc);
-	const customRenderer = customMarkdocRenderers[tagName];
+	const customRenderer = hostRenderers[tagName] ?? customMarkdocRenderers[tagName];
 	return customRenderer
 		? customRenderer(element, innerContent)
 		: renderHtmlElement(element, tagName, innerContent);
@@ -465,7 +479,17 @@ convertHtmlFragmentToMarkdoc = (htmlFragment: string): string => {
  *               <markdoc-switch>, <markdoc-case>, and standard HTML elements.
  * @returns {string} String in Markdoc format mixed with any preserved HTML.
  */
-export const htmlToMarkdoc = (html: string): string => {
+export const htmlToMarkdoc = (
+	html: string,
+	options: {
+		/**
+		 * Writes elements of tags a host adds to the config, keyed by lowercase
+		 * element name, e.g. `{ badge: (element, content) => … }`. They also apply
+		 * inside switch and condition cases.
+		 */
+		renderers?: Partial<Record<string, HtmlToMarkdocRenderer>>;
+	} = {},
+): string => {
 	if (!isHtmlToMarkdocSupported()) {
 		throw new Error("htmlToMarkdoc requires a DOM environment with DOMParser support.");
 	}
@@ -473,9 +497,16 @@ export const htmlToMarkdoc = (html: string): string => {
 	const parser = new DOMParser();
 	const doc = parser.parseFromString(html, "text/html");
 
-	// Start processing from the body to skip implicit <html><head><body> tags
-	// and handle potentially fragmented HTML inputs correctly.
-	return processNodeForMarkdoc(doc.body);
+	// The conversion is synchronous, so the host renderers hold for exactly this call.
+	const previousRenderers = hostRenderers;
+	hostRenderers = options.renderers ?? {};
+	try {
+		// Start processing from the body to skip implicit <html><head><body> tags
+		// and handle potentially fragmented HTML inputs correctly.
+		return processNodeForMarkdoc(doc.body);
+	} finally {
+		hostRenderers = previousRenderers;
+	}
 };
 
 /** Whether htmlToMarkdoc can run in the current JavaScript environment. */

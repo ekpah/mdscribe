@@ -22,8 +22,10 @@ export interface AgentToolDeps {
 	session: Session;
 	activeSubscription: boolean;
 	audioFiles: AudioFile[];
+	background: string;
 	contextFiles: FillInputsContextFile[];
 	sections: ScribeAgentSection[];
+	templateId: string;
 	preparedMedia: PreparedAgentMedia;
 	generation: ResolvedDefaultModelSelection;
 	providerOptions: Record<string, Record<string, JSONValue>> | undefined;

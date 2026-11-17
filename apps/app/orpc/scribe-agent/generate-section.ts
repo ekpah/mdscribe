@@ -5,26 +5,12 @@ import { startUsageObservation } from "@/lib/usage-tracing";
 import { authed } from "@/orpc";
 import { scribeEntitlementsMiddleware } from "@/orpc/middlewares/entitlements";
 import { runScribeGeneration } from "@/orpc/scribe/handlers/scribe-stream";
-import type { DocumentType, AudioFile, FillInputsContextFile } from "@/orpc/scribe/types";
+import type { AudioFile, FillInputsContextFile } from "@/orpc/scribe/types";
 
-interface BuiltInAgentSectionGenerationInput {
-	documentType: DocumentType;
+export interface AgentSectionGenerationInput {
+	/** Template payload: `{ notes, background, sections, targetSectionId }`. */
 	formData: Record<string, unknown>;
-	formId?: never;
-	source: "documentType";
-}
-
-interface CustomAgentSectionGenerationInput {
-	documentType?: never;
-	formData: Record<string, unknown>;
-	formId: string;
-	source: "customForm";
-}
-
-export type AgentSectionGenerationInput = (
-	| BuiltInAgentSectionGenerationInput
-	| CustomAgentSectionGenerationInput
-) & {
+	templateId: string;
 	/** Only present for media that the agent already had to preprocess. */
 	preparedAttachmentText?: string;
 	audioFiles?: AudioFile[];
@@ -35,7 +21,7 @@ export type AgentSectionGenerationInput = (
 		parentObservationId?: string;
 		traceId?: string;
 	};
-};
+}
 
 const toScribeMessages = (formData: Record<string, unknown>): UIMessage[] => [
 	{
@@ -47,7 +33,7 @@ const toScribeMessages = (formData: Record<string, unknown>): UIMessage[] => [
 
 /**
  * Internal non-streaming oRPC entrypoint for agent tools. It deliberately uses
- * the canonical scribe executor, so custom-form access, templates, limits, and
+ * the canonical scribe executor, so template access, limits, and
  * UsageEvents cannot drift from the editor's generation path.
  */
 export const scribeAgentGenerateSectionHandler = authed
@@ -67,22 +53,12 @@ export const scribeAgentGenerateSectionHandler = authed
 
 		const { generation } = await runScribeGeneration({
 			context,
-			input:
-				input.source === "customForm"
-					? {
-							audioFiles: input.audioFiles,
-							contextFiles: input.contextFiles,
-							formId: input.formId,
-							messages: toScribeMessages(input.formData),
-							source: "customForm",
-						}
-					: {
-							audioFiles: input.audioFiles,
-							contextFiles: input.contextFiles,
-							documentType: input.documentType,
-							messages: toScribeMessages(input.formData),
-							source: "documentType",
-						},
+			input: {
+				audioFiles: input.audioFiles,
+				contextFiles: input.contextFiles,
+				messages: toScribeMessages(input.formData),
+				templateId: input.templateId,
+			},
 			preparedAttachmentText: input.preparedAttachmentText,
 			traceContext: input.traceContext ? { ...input.traceContext, observationId } : undefined,
 		});

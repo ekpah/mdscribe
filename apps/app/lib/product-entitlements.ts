@@ -5,7 +5,6 @@ import type { ProductPlan } from "@/lib/product-plans";
 import { getActiveSubscription } from "@/lib/subscriptions";
 
 interface ProductEntitlements {
-	canCreatePrivateAiScribeForms: boolean;
 	canCreatePrivateDocuments: boolean;
 	canCreatePrivateTemplates: boolean;
 	hasActiveSubscription: boolean;
@@ -25,7 +24,6 @@ export const resolveProductEntitlements = async (input: {
 	const planEntitlements = PRODUCT_PLANS[plan];
 
 	return {
-		canCreatePrivateAiScribeForms: planEntitlements.canCreatePrivateAiScribeForms,
 		canCreatePrivateDocuments: planEntitlements.canCreatePrivateDocuments,
 		canCreatePrivateTemplates: planEntitlements.canCreatePrivateTemplates,
 		hasActiveSubscription,

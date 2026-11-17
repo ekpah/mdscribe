@@ -11,10 +11,6 @@ import { lazy } from "@orpc/server";
 export const router = {
 	// Admin operations
 	admin: {
-		aiScribeWorkspaces: lazy(async () => {
-			const handlerModule = await import("./admin/ai-scribe-workspaces");
-			return { default: handlerModule.aiScribeWorkspacesHandler };
-		}),
 		emails: lazy(async () => {
 			const handlerModule = await import("./admin/emails");
 			return { default: handlerModule.emailsHandler };
@@ -31,10 +27,6 @@ export const router = {
 			const handlerModule = await import("./admin/scribe");
 			return { default: handlerModule.scribeHandler };
 		}),
-		scribeForms: lazy(async () => {
-			const handlerModule = await import("./admin/scribe-forms");
-			return { default: handlerModule.scribeFormsHandler };
-		}),
 		templates: lazy(async () => {
 			const handlerModule = await import("./admin/templates");
 			return { default: handlerModule.templatesHandler };
@@ -48,6 +40,12 @@ export const router = {
 			return { default: handlerModule.usersHandler };
 		}),
 	},
+
+	// Old AI Scribe URLs → converted templates
+	aiscribeRedirect: lazy(async () => {
+		const handlerModule = await import("./aiscribe-redirects");
+		return { default: handlerModule.resolveAiscribeRedirectHandler };
+	}),
 
 	// Context transfer operations
 	contextTransfers: lazy(async () => {
@@ -95,25 +93,16 @@ export const router = {
 			return { default: handlerModule.resolveDocumentCitationsHandler };
 		}),
 	},
-	// AI documentation agent (text-only MVP)
+	// AI documentation agent, gated by `doctorsNoteAgentFlag`.
 	scribeAgent: {
 		chat: lazy(async () => {
 			const handlerModule = await import("./scribe-agent");
 			return { default: handlerModule.scribeAgentChatHandler };
 		}),
 	},
-	scribeForms: lazy(async () => {
-		const handlerModule = await import("./scribe-forms");
-		return { default: handlerModule.scribeFormsHandler };
-	}),
 	scribeStream: lazy(async () => {
 		const handlerModule = await import("./scribe/handlers/scribe-stream");
 		return { default: handlerModule.scribeStreamHandler };
-	}),
-	// Runtime Brief-Baukasten (workspace) resolution for the editor
-	scribeWorkspaces: lazy(async () => {
-		const handlerModule = await import("./scribe-workspaces");
-		return { default: handlerModule.scribeWorkspacesHandler };
 	}),
 	// Preview of AI-assisted Markdoc template editing, gated by `templateAgentFlag`.
 	templateAgent: {

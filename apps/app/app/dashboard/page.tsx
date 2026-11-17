@@ -262,7 +262,6 @@ const getRecentActivityItems = (
 	});
 
 interface DashboardTemplate {
-	category: string;
 	id: string;
 	title: string;
 }
@@ -647,16 +646,9 @@ const UserTemplatesCard = ({ templates }: { templates: DashboardTemplate[] }) =>
 							className="flex items-center justify-between rounded-lg p-2 transition-colors hover:bg-solarized-base2"
 							key={template.id}
 						>
-							<div className="min-w-0 flex-1">
-								<p className="truncate font-medium text-sm text-solarized-base03">
-									{template.title}
-								</p>
-								<div className="mt-1 flex items-center gap-2">
-									<Badge className="text-xs" variant="secondary">
-										{template.category}
-									</Badge>
-								</div>
-							</div>
+							<p className="min-w-0 flex-1 truncate font-medium text-sm text-solarized-base03">
+								{template.title}
+							</p>
 							<Link href={`/templates/${template.id}`}>
 								<Button className="h-8 w-8 p-0" size="sm" variant="ghost">
 									<ExternalLinkIcon className="h-3 w-3" />

@@ -55,21 +55,38 @@ export const groundedAfterLabel = (claim: string, evidence: string): number | nu
 	return colon !== -1 && isNumericallyGrounded(claim.slice(colon + 2), evidence) ? colon + 2 : null;
 };
 
+/** Lower case with umlauts spelled out, as OCR often writes them ("Haemoglobin"). */
+const fold = (text: string) =>
+	text
+		.toLowerCase()
+		.replaceAll("ä", "ae")
+		.replaceAll("ö", "oe")
+		.replaceAll("ü", "ue")
+		.replaceAll("ß", "ss");
+
 const STOP_WORDS = new Set(
-	"aktuell beim bislang durch eine einem einer eines nach ohne seit sowie unter über".split(" "),
+	fold("aktuell beim bislang durch eine einem einer eines nach ohne seit sowie unter über").split(
+		" ",
+	),
 );
 
 /**
  * Share of the claim's content words (first five letters, so "Pneumonie" matches
- * "Pneumonien") that occur in the evidence. A conclusion such as "Akutes Delir"
+ * "Pneumonien") and numbers that occur in the evidence. A conclusion such as "Akutes Delir"
  * cited with "zunehmende Verwirrtheit" shares none; claims without such words count as covered.
+ * Numbers count because a lab line such as "NT-proBNP: 4200 pg/ml" is mostly its value.
  */
 export const wordCoverage = (claim: string, evidence: string) => {
-	const stems = (claim.toLowerCase().match(/[a-zäöüß]{4,}/gu) ?? [])
+	const stems = (fold(claim).match(/[a-z]{4,}/gu) ?? [])
 		.filter((word) => !STOP_WORDS.has(word))
 		.map((word) => word.slice(0, 5));
-	const text = evidence.toLowerCase();
-	return stems.length ? stems.filter((stem) => text.includes(stem)).length / stems.length : 1;
+	const numbers = numberTokens(claim);
+	const text = fold(evidence);
+	const covered =
+		stems.filter((stem) => text.includes(stem)).length +
+		numbers.filter((number) => isNumericallyGrounded(number, evidence)).length;
+	const total = stems.length + numbers.length;
+	return total ? covered / total : 1;
 };
 
 /** Markdown emphasis or code split by a citation boundary would change rendering. */

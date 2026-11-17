@@ -1,5 +1,5 @@
 import { Skeleton } from "@repo/design-system/components/ui/skeleton";
-import { Clock, File, FolderPlus, Pencil, User } from "lucide-react";
+import { Clock, File, Pencil, User } from "lucide-react";
 
 import SkeletonContentSection from "./_components/skeleton-content-section";
 
@@ -30,9 +30,7 @@ export default function Loading() {
 							<Skeleton className="h-4 w-40" />
 						</div>
 
-						<span className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground">
-							<FolderPlus {...iconProps} />
-						</span>
+						<Skeleton className="h-8 w-8 sm:w-36" />
 						<Pencil {...iconProps} />
 					</div>
 				</div>

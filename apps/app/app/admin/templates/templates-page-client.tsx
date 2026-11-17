@@ -88,7 +88,6 @@ export default function AdminTemplatesPageClient() {
 
 			return (
 				item.title.toLowerCase().includes(normalizedSearch) ||
-				item.category.toLowerCase().includes(normalizedSearch) ||
 				authorLabel.includes(normalizedSearch)
 			);
 		});
@@ -244,7 +243,6 @@ export default function AdminTemplatesPageClient() {
 										key={item.id}
 									>
 										<p className="truncate font-medium text-solarized-base00">{item.title}</p>
-										<p className="text-xs text-solarized-base01">{item.category}</p>
 
 										<div className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
 											<div>

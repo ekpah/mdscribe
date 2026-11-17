@@ -31,12 +31,9 @@ describe("Admin emails handler", () => {
 
 	test("lists draft metadata without render functions", async () => {
 		const drafts = await call(emailsHandler.list, undefined, { context });
-		const aiTextsDraft = drafts.find((draft) => draft.id === "ai-texts-announcement");
 		const documentsDraft = drafts.find((draft) => draft.id === "documents-announcement");
 
 		expect(drafts).toHaveLength(emailDraftIds.length);
-		expect(aiTextsDraft?.title).toBe("AI-Scribe: AI Textbausteine");
-		expect(aiTextsDraft?.subject).toContain("AI Textbausteine");
 		expect(documentsDraft?.title).toBe("Dokumente: Rehaantrag");
 		expect(documentsDraft?.subject).toContain("Rehaanträge");
 		expect(documentsDraft).not.toHaveProperty("render");
@@ -70,36 +67,15 @@ describe("Admin emails handler", () => {
 		expect(preview.html).toContain("DRV Rehaantrag");
 	});
 
-	test("preview renders AI Textbausteine announcement HTML", async () => {
-		const preview = await call(emailsHandler.preview, { id: "ai-texts-announcement" }, { context });
-
-		expect(preview.id).toBe("ai-texts-announcement");
-		expect(preview.html).toContain("<html");
-		expect(preview.html).toContain("Hallo,");
-		expect(preview.html).not.toContain("Dr. Max Mustermann");
-		expect(preview.html).toContain("Standardvorlage");
-		expect(preview.html).toContain("Eigenes Template erstellen");
-		expect(preview.html).toContain("AI Textbaustein daraus erstellen");
-		expect(preview.html).toContain("Kurzbrief aus der Notaufnahme");
-		expect(preview.html).toContain("Brief Spezialambulanz");
-		expect(preview.html).toContain("Befund Herzkatheter");
-		expect(preview.html).toContain("Template erstellen");
-		expect(preview.html).toContain("AI Textbaustein erstellen");
-		expect(preview.html).toContain("AI-Scribe");
-	});
-
 	test("marketing previews use generic greetings without demo recipient names", async () => {
 		const drafts = await call(emailsHandler.list, undefined, { context });
 		const marketingDrafts = drafts.filter((draft) => draft.category === "marketing");
 
 		expect(marketingDrafts.map((draft) => draft.id).toSorted()).toEqual([
-			"ai-texts-announcement",
 			"byok-announcement",
 			"cold-outreach",
-			"context-transfer-announcement",
 			"documents-announcement",
 			"template-information-announcement",
-			"workspaces-announcement",
 		]);
 
 		for (const draft of marketingDrafts) {
@@ -157,15 +133,15 @@ describe("Admin emails handler", () => {
 		expect(sendOptions?.template?.props?.userName).toBe("Dr. Nils Test");
 	});
 
-	test("sendTest keeps the AI Textbausteine announcement greeting generic", async () => {
+	test("sendTest keeps marketing greetings generic", async () => {
 		const { user: recipient } = await createTestUser(server.db, {
-			email: "ai-texts-recipient@example.com",
+			email: "marketing-recipient@example.com",
 			name: "Dr. Nils Test",
 		});
 
 		await call(
 			emailsHandler.sendTest,
-			{ id: "ai-texts-announcement", userId: recipient.id },
+			{ id: "template-information-announcement", userId: recipient.id },
 			{ context },
 		);
 

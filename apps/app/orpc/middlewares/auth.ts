@@ -14,13 +14,16 @@ const getSession = async () => {
 	return session;
 };
 
-export const getOptionalAuthSession = async (contextSession?: Session) => {
+/** Signed-in user id for public procedures, or null for anonymous callers. */
+export const getOptionalUserId = async (context: unknown): Promise<string | null> => {
+	const contextSession = (context as { session?: Session }).session;
 	if (contextSession) {
-		return contextSession;
+		return contextSession.user.id;
 	}
 
 	try {
-		return await getSession();
+		const session = await getSession();
+		return session?.user.id ?? null;
 	} catch {
 		return null;
 	}

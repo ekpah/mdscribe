@@ -102,6 +102,22 @@ try {
 		`switch case content copied into the calc: ${reusedText}`,
 	);
 	assert(!reusedText.includes('info "PI"'), `formula constant became an input: ${reusedText}`);
+	const cited = create(
+		renderTipTapHTML(
+			'Befund: {% cite citations=[{source: "mdscribe://input/anamnese", quote: "seit 2015"}, {source: "https://example.org"}] %}Arterielle **Hypertonie**{% /cite %} und {% cite source="mdscribe://input/befunde" quote="LVEF 55 %" %}LVEF{% /cite %}',
+		),
+	);
+	cited.commands.insertContentAt(cited.state.doc.content.size - 1, " normal");
+	const citedText = htmlToMarkdoc(cited.getHTML());
+	assert(
+		citedText.includes(
+			'{% cite citations=[{source: "mdscribe://input/anamnese", quote: "seit 2015"}, {source: "https://example.org"}] %}Arterielle **Hypertonie**{% /cite %}',
+		) &&
+			citedText.includes(
+				'{% cite source="mdscribe://input/befunde" quote="LVEF 55 %" %}LVEF{% /cite %} normal',
+			),
+		`citation lost or extended by editing: ${citedText}`,
+	);
 	document.body.dataset.testResult = "passed";
 } finally {
 	for (const editor of editors) {

@@ -311,22 +311,6 @@ export default function UsersPageClient({
 											</div>
 											<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
 												<p className="text-solarized-base01">
-													{USER_MESSAGES.adminUsers.aiScribeForms}
-												</p>
-												<p className="font-medium text-solarized-base00">
-													{user._count.aiScribeForms}
-												</p>
-											</div>
-											<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
-												<p className="text-solarized-base01">
-													{USER_MESSAGES.adminUsers.aiScribeWorkspaces}
-												</p>
-												<p className="font-medium text-solarized-base00">
-													{user._count.aiScribeWorkspaces}
-												</p>
-											</div>
-											<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
-												<p className="text-solarized-base01">
 													{USER_MESSAGES.adminUsers.monthlyAiUsage}
 												</p>
 												<Link

@@ -110,6 +110,19 @@ const output = renderMarkdocAsReact(source, {
 });
 ```
 
+`layout="template"` keeps its line breaks with such a config. For the rich editor, render with
+`renderTipTapHTML(source, { config })` and write the tag back with a renderer for its element:
+
+```ts
+import { htmlToMarkdoc } from "markdoc-md/editor";
+
+const markdoc = htmlToMarkdoc(html, {
+  renderers: { badge: (element, content) => `{% badge %}${content}{% /badge %}` },
+});
+```
+
+Renderers are keyed by lowercase element name and also apply inside `switch` and `condition` cases.
+
 For `info`, `switch`, and `case`, the first positional string is the `primary` attribute. These two
 `info` forms are therefore equivalent:
 
@@ -464,6 +477,11 @@ Rendering intentionally remains tolerant for older stored templates. Invalid cit
 annotated, non-interactive text instead of throwing or invoking a resolver. Invalid or missing
 attributes on `info`, `switch`, `condition`, `case`, and `calc` also render inertly or with the calculation `…`
 fallback. Malformed calc formulas are reported as `calc-formula-invalid` schema diagnostics.
+
+`layout="template"` and the editor HTML from `renderTipTapHTML` show paragraphs and `details`
+sections as one flow of lines: a line break continues on the next line, and a blank line between
+two of them is one empty line. `&nbsp;` paragraphs are explicit extra empty lines; `htmlToMarkdoc`
+writes runs of two or more empty lines that way.
 
 `score` remains accepted as a legacy alias for `calc`. Rendering and editor serialization normalize
 legacy `{% score %}` tags to canonical `{% calc %}` syntax.

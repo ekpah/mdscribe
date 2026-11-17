@@ -1,11 +1,12 @@
 import { composePersonalPreferences } from "@/orpc/scribe/context/user";
+import { BACKGROUND_RULE, renderBackground } from "@/orpc/scribe/prompts/template";
 
 import type { ScribeAgentSection } from "./types";
 
 const formatSection = (section: ScribeAgentSection): string =>
-	`<section id="${section.id}" label="${section.label}">
+	`{% section id="${section.id}" title="${section.label}" %}
 ${section.content.trim() || "(noch leer)"}
-</section>`;
+{% /section %}`;
 
 /**
  * System prompt for the documentation agent. The agent reasons over the full
@@ -15,6 +16,7 @@ ${section.content.trim() || "(noch leer)"}
 export const buildAgentSystemPrompt = (
 	sections: ScribeAgentSection[],
 	personalContext?: string,
+	background?: string,
 ): string => `<system_role>
 Sie sind ein erfahrener Klinikarzt und unterstützen als Dokumentations-Agent beim Erstellen und Überarbeiten eines Arztbriefs. Sie formulieren ärztlich-sachlich, kompakt und medizinisch präzise.
 </system_role>
@@ -32,10 +34,11 @@ Sie sind ein erfahrener Klinikarzt und unterstützen als Dokumentations-Agent be
 
 <uncertainty_handling>
 - Keine Spekulationen oder erfundenen Fakten.
+${BACKGROUND_RULE}
 - Bei unklaren Angaben oder Fehlern entsprechende Informationen weglassen oder die Unsicherheit ausdrücken.
 - Bei fehlenden Informationen nur dokumentieren, was aus den Eingaben sicher ableitbar ist.
 </uncertainty_handling>
 ${personalContext?.trim() ? `\n${composePersonalPreferences(personalContext)}\n` : ""}
 <doctors_note>
 ${sections.map(formatSection).join("\n")}
-</doctors_note>`;
+</doctors_note>${background?.trim() ? `\n\n${renderBackground(background)}` : ""}`;

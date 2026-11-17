@@ -267,6 +267,20 @@
 			"when": 1793000000000,
 			"tag": "0037_user_personal_context",
 			"breakpoints": true
+		},
+		{
+			"idx": 38,
+			"version": "7",
+			"when": 1793100000000,
+			"tag": "0038_ai_scribe_default_collection",
+			"breakpoints": true
+		},
+		{
+			"idx": 39,
+			"version": "7",
+			"when": 1793200000000,
+			"tag": "0039_template_category_optional",
+			"breakpoints": true
 		}
 	]
 }

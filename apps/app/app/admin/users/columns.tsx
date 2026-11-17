@@ -23,8 +23,6 @@ export interface UserData {
 	monthlyUsageCost: number;
 	monthlyUsageCostLimit: number;
 	_count: {
-		aiScribeForms: number;
-		aiScribeWorkspaces: number;
 		templates: number;
 		usageEvents: number;
 	};
@@ -147,20 +145,6 @@ export const columns = [
 		cell: ({ getValue }) => <span className="text-solarized-base00">{getValue()}</span>,
 		header: ({ column }) => <DataTableColumnHeader column={column} title="Vorlagen" />,
 		id: "templates",
-	}),
-	columnHelper.accessor("_count.aiScribeForms", {
-		cell: ({ getValue }) => <span className="text-solarized-base00">{getValue()}</span>,
-		header: ({ column }) => (
-			<DataTableColumnHeader column={column} title={USER_MESSAGES.adminUsers.aiScribeForms} />
-		),
-		id: "aiScribeForms",
-	}),
-	columnHelper.accessor("_count.aiScribeWorkspaces", {
-		cell: ({ getValue }) => <span className="text-solarized-base00">{getValue()}</span>,
-		header: ({ column }) => (
-			<DataTableColumnHeader column={column} title={USER_MESSAGES.adminUsers.aiScribeWorkspaces} />
-		),
-		id: "aiScribeWorkspaces",
 	}),
 	columnHelper.accessor((row) => row.monthlyUsageCost, {
 		cell: ({ getValue, row }) => (

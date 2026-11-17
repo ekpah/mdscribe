@@ -7,10 +7,10 @@ import { parseMarkdocToInputs } from "markdoc-md/parse";
 import { DynamicMarkdocRenderer } from "markdoc-md/react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import type { RefObject, SyntheticEvent } from "react";
+import type { ReactNode, RefObject, SyntheticEvent } from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
 
+import { useCase } from "@/app/_components/input-context/case-context";
 import { InputPreviewSection } from "@/app/_components/input-preview-section";
 import {
 	copyInlineSelection,
@@ -19,10 +19,17 @@ import {
 	InlineFieldsProvider,
 	InlineKeyboardBar,
 } from "@/app/_components/markdoc-inline-inputs";
-import { getRenderedClipboardContent } from "@/lib/rendered-clipboard";
+import { templateTagComponents } from "@/features/template-tags/components";
+import { appMarkdocConfig } from "@/features/template-tags/config";
+import { copyToClipboard, getRenderedClipboardContent } from "@/lib/rendered-clipboard";
 import { USER_MESSAGES } from "@/lib/user-messages";
 
+import { NavActions } from "./nav-actions";
+import type { NavActionsProps } from "./nav-actions";
+
 type TemplateContentView = "template" | "examples" | "information";
+
+const editableComponents = { ...inlineInputComponents, ...templateTagComponents };
 
 const tabRailClassName = "absolute right-0 top-4 z-20 flex flex-col items-end gap-1";
 
@@ -90,22 +97,12 @@ const CopyTextButton = ({ sourceRef }: { sourceRef: RefObject<HTMLDivElement | n
 			aria-label="Text kopieren"
 			className="h-8 max-sm:w-8 max-sm:px-0"
 			onClick={async () => {
-				if (!sourceRef.current) {
-					return;
-				}
-				const { html, text } = getRenderedClipboardContent(sourceRef.current);
-				try {
-					await navigator.clipboard.write([
-						new ClipboardItem({
-							"text/html": new Blob([html], { type: "text/html" }),
-							"text/plain": new Blob([text], { type: "text/plain" }),
-						}),
-					]);
+				if (
+					sourceRef.current &&
+					(await copyToClipboard(getRenderedClipboardContent(sourceRef.current)))
+				) {
 					setIsCopied(true);
-					toast.success("Text kopiert");
 					setTimeout(() => setIsCopied(false), 2000);
-				} catch {
-					toast.error("Kopieren fehlgeschlagen. Bitte manuell kopieren.");
 				}
 			}}
 			size="sm"
@@ -174,16 +171,21 @@ const InformationPreview = ({ information }: { information: string }) => {
 
 export default function ContentSection({
 	contentView,
+	navActions,
+	navigation,
 	note,
 	examples,
 	information,
 }: {
 	contentView: TemplateContentView;
+	navActions: NavActionsProps;
+	navigation: ReactNode;
 	note: string;
 	examples: string[];
 	information: string;
 }) {
-	const inputTags = useMemo(() => parseMarkdocToInputs(note), [note]);
+	const inputContextController = useCase();
+	const inputTags = useMemo(() => parseMarkdocToInputs(note, appMarkdocConfig), [note]);
 	const [activeInputName, setActiveInputName] = useState<string | null>(null);
 	const pathname = usePathname();
 	const searchParams = useSearchParams();
@@ -220,61 +222,74 @@ export default function ContentSection({
 	}, []);
 	const copySourceRef = useRef<HTMLDivElement>(null);
 
+	const referencePreview = {
+		examples: <ExamplesPreview examples={examples} />,
+		information: <InformationPreview information={information} />,
+		template: null,
+	}[contentView];
+
 	return (
-		<InputPreviewSection
-			contentType="template"
-			edgeTabs={contentTabs}
-			inputTags={inputTags}
-			preview={(values, onCitationSelect, fields) => {
-				if (contentView === "examples") {
-					return <ExamplesPreview examples={examples} />;
-				}
-				if (contentView === "information") {
-					return <InformationPreview information={information} />;
-				}
-				return (
-					<InlineFieldsProvider value={fields}>
-						<InlineEditingScope>
-							<InlineKeyboardBar />
-							<div
-								className="contents"
-								onClickCapture={handleInlineTagActivate}
-								onCopy={copyInlineSelection}
-								onFocusCapture={handleInlineTagActivate}
-							>
-								<DynamicMarkdocRenderer
-									activeTagName={activeInputName}
-									className="prose prose-slate max-w-none grow"
-									components={inlineInputComponents}
-									layout="template"
-									markdocContent={note as string}
-									onCitationSelect={onCitationSelect}
-									onVariableChange={fields.setValue}
-									variables={values}
-								/>
-							</div>
-							{/* The copied text: the same rendering without any input controls. The
-							    copy reads its own element, which must not carry `hidden`: a hidden
-							    clone has no layout, so its text would lose every line break. */}
-							<div hidden>
-								<div ref={copySourceRef}>
+		<>
+			<div className="flex h-10 shrink-0 items-center justify-between gap-2">
+				{navigation}
+				<NavActions {...navActions} />
+			</div>
+			<InputPreviewSection
+				contentType="template"
+				edgeTabs={contentTabs}
+				inputContextController={inputContextController}
+				inputTags={inputTags}
+				preview={(values, onCitationSelect, fields) => {
+					if (referencePreview) {
+						return referencePreview;
+					}
+					return (
+						<InlineFieldsProvider value={fields}>
+							<InlineEditingScope>
+								<InlineKeyboardBar />
+								<div
+									className="contents"
+									onClickCapture={handleInlineTagActivate}
+									onCopy={copyInlineSelection}
+									onFocusCapture={handleInlineTagActivate}
+								>
 									<DynamicMarkdocRenderer
+										activeTagName={activeInputName}
+										className="prose prose-slate max-w-none grow"
+										components={editableComponents}
+										config={appMarkdocConfig}
 										layout="template"
-										markdocContent={note as string}
+										markdocContent={note}
+										onCitationSelect={onCitationSelect}
+										onVariableChange={fields.setValue}
 										variables={values}
 									/>
 								</div>
-							</div>
-						</InlineEditingScope>
-					</InlineFieldsProvider>
-				);
-			}}
-			resetKey={note}
-			templateExamples={examples}
-			templateInformation={information}
-			toolbarActions={
-				contentView === "template" ? <CopyTextButton sourceRef={copySourceRef} /> : undefined
-			}
-		/>
+								{/* The copied text: the same rendering without any input controls. The
+							    copy reads its own element, which must not carry `hidden`: a hidden
+							    clone has no layout, so its text would lose every line break. */}
+								<div hidden>
+									<div ref={copySourceRef}>
+										<DynamicMarkdocRenderer
+											components={templateTagComponents}
+											config={appMarkdocConfig}
+											layout="template"
+											markdocContent={note}
+											variables={values}
+										/>
+									</div>
+								</div>
+							</InlineEditingScope>
+						</InlineFieldsProvider>
+					);
+				}}
+				resetKey={note}
+				templateExamples={examples}
+				templateInformation={information}
+				toolbarActions={
+					contentView === "template" ? <CopyTextButton sourceRef={copySourceRef} /> : undefined
+				}
+			/>
+		</>
 	);
 }

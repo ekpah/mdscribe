@@ -81,15 +81,6 @@ export const AudioInput = forwardRef<AudioInputHandle, AudioInputProps>(
 			onRecordingChange?.(isRecording);
 		}, [isRecording, onRecordingChange]);
 
-		useEffect(
-			() => () => {
-				for (const recording of recordingsRef.current) {
-					URL.revokeObjectURL(recording.url);
-				}
-			},
-			[],
-		);
-
 		const handleStreamReady = useCallback((stream: MediaStream) => {
 			const mimeType = getSupportedMimeType();
 			const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);

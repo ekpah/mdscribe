@@ -1,19 +1,11 @@
-import {
-	Breadcrumb,
-	BreadcrumbItem,
-	BreadcrumbList,
-	BreadcrumbPage,
-	BreadcrumbSeparator,
-} from "@repo/design-system/components/ui/breadcrumb";
-import { SidebarTrigger } from "@repo/design-system/components/ui/sidebar";
 import { QueryClient } from "@tanstack/react-query";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import ContentSection from "@/app/documents/(library)/[id]/_components/content-section";
 import { NavActions } from "@/app/documents/(library)/[id]/_components/nav-actions";
 import { documentDefinitionSchema, normalizeDocumentDefinition } from "@/app/documents/_lib";
+import { TemplateNavigation } from "@/app/templates/_components/template-navigation";
 import { orpc } from "@/lib/orpc";
 import { getServerSession } from "@/lib/server-session";
 
@@ -56,18 +48,13 @@ const DocumentPage = async ({ params }: PageProps<"/documents/[id]">) => {
 	return (
 		<div className="flex h-full w-full flex-col">
 			<div className="flex h-10 items-center justify-between gap-2">
-				<SidebarTrigger className="ml-4 block md:hidden" />
-				<Breadcrumb>
-					<BreadcrumbList>
-						<BreadcrumbItem className="hidden md:block">
-							<Link href="/documents">Dokumente</Link>
-						</BreadcrumbItem>
-						<BreadcrumbSeparator className="hidden md:block" />
-						<BreadcrumbItem>
-							<BreadcrumbPage>{document.title}</BreadcrumbPage>
-						</BreadcrumbItem>
-					</BreadcrumbList>
-				</Breadcrumb>
+				<TemplateNavigation
+					entry={{
+						id: document.id,
+						kind: "pdf",
+						title: document.title,
+					}}
+				/>
 				<NavActions
 					author={document.author?.name || undefined}
 					documentId={document.id}

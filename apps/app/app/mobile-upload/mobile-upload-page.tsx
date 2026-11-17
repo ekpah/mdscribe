@@ -13,7 +13,7 @@ import Image from "next/image";
 import type { ChangeEvent } from "react";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
-import type { ContextTransferPayload } from "@/app/_components/context-transfer/types";
+import type { MobileUploadPayload } from "@/app/_components/input-context/inputs/document/mobile-file-upload";
 import { blobToBase64 } from "@/app/_components/inputs/audio-submission";
 import { encryptTransferEnvelope } from "@/lib/context-transfer-crypto";
 import { FILL_INPUT_PAYLOAD_LIMITS, formatPayloadBytes } from "@/lib/input-fill-limits";
@@ -89,8 +89,7 @@ export const MobileUploadPage = () => {
 		setIsUploading(true);
 		setError(null);
 		try {
-			const payload: ContextTransferPayload = {
-				audioFiles: [],
+			const payload: MobileUploadPayload = {
 				contextFiles: [
 					{
 						data: await blobToBase64(file),
@@ -100,7 +99,6 @@ export const MobileUploadPage = () => {
 						size: file.size,
 					},
 				],
-				textContext: {},
 				version: 1,
 			};
 			const { envelope } = await encryptTransferEnvelope(payload, credentials.key);

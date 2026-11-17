@@ -144,16 +144,6 @@ function Select<Value>({
   )
 }
 
-function SelectGroup({ className, ...props }: SelectPrimitive.Group.Props) {
-  return (
-    <SelectPrimitive.Group
-      data-slot="select-group"
-      className={cn("scroll-my-1.5 p-1", className)}
-      {...props}
-    />
-  )
-}
-
 function SelectValue({
   className,
   children,
@@ -301,22 +291,6 @@ function SelectContent({
   )
 }
 
-function SelectLabel({
-  className,
-  ...props
-}: SelectPrimitive.GroupLabel.Props) {
-  return (
-    <SelectPrimitive.GroupLabel
-      data-slot="select-label"
-      className={cn(
-        "text-muted-foreground py-1.5 ps-8 pe-2 text-xs font-medium",
-        className
-      )}
-      {...props}
-    />
-  )
-}
-
 function SelectItem({
   className,
   children,
@@ -399,9 +373,7 @@ function SelectScrollDownButton({
 export {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 }

@@ -1,5 +1,4 @@
 import { Alert, AlertDescription } from "@repo/design-system/components/ui/alert";
-import { Button } from "@repo/design-system/components/ui/button";
 import {
 	Card,
 	CardDescription,
@@ -9,93 +8,26 @@ import {
 import {
 	AlertCircle,
 	ArrowRight,
-	Bed,
 	Blocks,
-	ClipboardList,
 	FileText,
-	Heart,
 	PenTool,
-	Settings,
-	Stethoscope,
-	Syringe,
+	Search,
 	UserPlus,
 	Zap,
 } from "lucide-react";
 import Link from "next/link";
 
-import { buildCustomFormPath, buildWorkspacePath } from "@/lib/aiscribe-paths";
+import { getTemplateSections } from "@/features/template-tags/sections";
 import { getQueryClient } from "@/lib/get-query-client";
 import { orpc } from "@/lib/orpc";
 import { getServerSession } from "@/lib/server-session";
-import { USER_MESSAGES } from "@/lib/user-messages";
-
-import { buildCustomAiscribeTemplateConfig } from "./_lib/custom-form-config";
-
-type AccentColor =
-	| "solarized-blue"
-	| "solarized-red"
-	| "solarized-orange"
-	| "solarized-green"
-	| "solarized-violet"
-	| "solarized-yellow"
-	| "solarized-cyan";
-
-// Static class mappings to ensure Tailwind can detect all class names at build time
-const accentColorClasses: Record<
-	AccentColor,
-	{ hoverBorder: string; bg: string; bgHover: string; textHover: string }
-> = {
-	"solarized-blue": {
-		bg: "bg-solarized-blue/10",
-		bgHover: "group-hover:bg-solarized-blue/20",
-		hoverBorder: "hover:border-solarized-blue",
-		textHover: "group-hover:text-solarized-blue",
-	},
-	"solarized-cyan": {
-		bg: "bg-solarized-cyan/10",
-		bgHover: "group-hover:bg-solarized-cyan/20",
-		hoverBorder: "hover:border-solarized-cyan",
-		textHover: "group-hover:text-solarized-cyan",
-	},
-	"solarized-green": {
-		bg: "bg-solarized-green/10",
-		bgHover: "group-hover:bg-solarized-green/20",
-		hoverBorder: "hover:border-solarized-green",
-		textHover: "group-hover:text-solarized-green",
-	},
-	"solarized-orange": {
-		bg: "bg-solarized-orange/10",
-		bgHover: "group-hover:bg-solarized-orange/20",
-		hoverBorder: "hover:border-solarized-orange",
-		textHover: "group-hover:text-solarized-orange",
-	},
-	"solarized-red": {
-		bg: "bg-solarized-red/10",
-		bgHover: "group-hover:bg-solarized-red/20",
-		hoverBorder: "hover:border-solarized-red",
-		textHover: "group-hover:text-solarized-red",
-	},
-	"solarized-violet": {
-		bg: "bg-solarized-violet/10",
-		bgHover: "group-hover:bg-solarized-violet/20",
-		hoverBorder: "hover:border-solarized-violet",
-		textHover: "group-hover:text-solarized-violet",
-	},
-	"solarized-yellow": {
-		bg: "bg-solarized-yellow/10",
-		bgHover: "group-hover:bg-solarized-yellow/20",
-		hoverBorder: "hover:border-solarized-yellow",
-		textHover: "group-hover:text-solarized-yellow",
-	},
-};
 
 interface ScribeCardProps {
 	title: string;
-	description: string;
+	description?: string;
 	href: string;
 	icon: React.ReactNode;
 	isLoggedIn: boolean;
-	accentColor?: AccentColor;
 	topRightIcon?: React.ReactNode;
 }
 
@@ -105,11 +37,8 @@ const ScribeCard = ({
 	href,
 	icon,
 	isLoggedIn,
-	accentColor = "solarized-blue",
 	topRightIcon,
 }: ScribeCardProps) => {
-	const colorClasses = accentColorClasses[accentColor];
-
 	if (!isLoggedIn) {
 		return (
 			<div className="block cursor-not-allowed">
@@ -135,14 +64,10 @@ const ScribeCard = ({
 
 	return (
 		<Link href={href} className="group block h-full">
-			<Card
-				className={`h-full border-solarized-base2 transition-all duration-200 hover:shadow-md ${colorClasses.hoverBorder}`}
-			>
+			<Card className="h-full border-solarized-base2 transition-all duration-200 hover:shadow-md hover:border-solarized-blue">
 				<CardHeader className="p-4 sm:p-5">
 					<div className="flex items-center justify-between">
-						<div
-							className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors sm:h-9 sm:w-9 ${colorClasses.bg} ${colorClasses.bgHover}`}
-						>
+						<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors sm:h-9 sm:w-9 bg-solarized-blue/10 group-hover:bg-solarized-blue/20">
 							{icon}
 						</div>
 						<div className="flex items-center gap-2">
@@ -150,9 +75,7 @@ const ScribeCard = ({
 							{topRightIcon}
 						</div>
 					</div>
-					<CardTitle
-						className={`mt-3 text-sm text-solarized-base00 sm:text-base ${colorClasses.textHover}`}
-					>
+					<CardTitle className="mt-3 text-sm text-solarized-base00 sm:text-base group-hover:text-solarized-blue">
 						{title}
 					</CardTitle>
 					<CardDescription className="line-clamp-2 text-xs text-solarized-base01 sm:text-sm">
@@ -164,84 +87,18 @@ const ScribeCard = ({
 	);
 };
 
-const WorkspaceMarker = () => (
-	<span className="text-solarized-cyan" title={USER_MESSAGES.adminUsers.aiScribeWorkspaces}>
+const SectionsMarker = () => (
+	<span className="text-solarized-cyan" title="Brief mit mehreren Abschnitten">
 		<Blocks aria-hidden="true" className="h-4 w-4 sm:h-5 sm:w-5" />
-		<span className="sr-only">{USER_MESSAGES.adminUsers.aiScribeWorkspaces}</span>
+		<span className="sr-only">Brief mit mehreren Abschnitten</span>
 	</span>
 );
-
-const quickGenerationModes: {
-	title: string;
-	description: string;
-	href: string;
-	icon: React.ReactNode;
-	accentColor: AccentColor;
-}[] = [
-	{
-		accentColor: "solarized-red",
-		description:
-			"AI Scribe für Notaufnahme-Szenarien. Generiere Anamnesen, Differenzialdiagnosen und Dispositionen.",
-		href: "/aiscribe/er",
-		icon: <Heart className="h-4 w-4 text-solarized-red sm:h-5 sm:w-5" />,
-		title: "ER Modus",
-	},
-	{
-		accentColor: "solarized-orange",
-		description:
-			"AI Scribe für Intensivstation-Szenarien. Generiere Anamnesen, Differenzialdiagnosen und Dispositionen.",
-		href: "/aiscribe/icu",
-		icon: <Bed className="h-4 w-4 text-solarized-orange sm:h-5 sm:w-5" />,
-		title: "ICU Modus",
-	},
-	{
-		accentColor: "solarized-green",
-		description:
-			"AI Scribe für ambulante Konsultationen. Generiere professionelle Arztbriefe für ambulante Patienten.",
-		href: "/aiscribe/outpatient",
-		icon: <Stethoscope className="h-4 w-4 text-solarized-green sm:h-5 sm:w-5" />,
-		title: "Ambulanter Modus",
-	},
-	{
-		accentColor: "solarized-violet",
-		description: "AI Scribe für Prozeduren. Dokumentation für medizinische Eingriffe generieren.",
-		href: "/aiscribe/procedures",
-		icon: <Syringe className="h-4 w-4 text-solarized-violet sm:h-5 sm:w-5" />,
-		title: "Prozeduren Modus",
-	},
-	{
-		accentColor: "solarized-blue",
-		description:
-			"AI Scribe für Entlassungsbriefe. Strukturierte Entlassungsdokumentation erstellen.",
-		href: "/aiscribe/discharge",
-		icon: <FileText className="h-4 w-4 text-solarized-blue sm:h-5 sm:w-5" />,
-		title: "Entlassung Modus",
-	},
-	{
-		accentColor: "solarized-yellow",
-		description: "Aktualisierte Diagnoseblöcke basierend auf bestehenden Diagnosen erstellen.",
-		href: "/aiscribe/diagnoseblock",
-		icon: <ClipboardList className="h-4 w-4 text-solarized-yellow sm:h-5 sm:w-5" />,
-		title: "Diagnoseblock Update",
-	},
-];
 
 export default async function AIScribeLandingPage() {
 	const queryClient = getQueryClient();
 	const session = await getServerSession();
-	const customForms = await queryClient.fetchQuery(orpc.scribeForms.listAvailable.queryOptions());
 	const isLoggedIn = !!session?.user;
-	const workspaces = isLoggedIn
-		? await queryClient.fetchQuery(orpc.scribeWorkspaces.listAvailable.queryOptions())
-		: [];
-	const adminForms = customForms.filter((form) => form.authorId === null);
-	const personalForms = session?.user
-		? customForms.filter((form) => form.authorId === session.user.id)
-		: [];
-	const adminWorkspaces = workspaces.filter((workspace) => workspace.authorId === null);
-	const personalWorkspaces = session?.user
-		? workspaces.filter((workspace) => workspace.authorId === session.user.id)
-		: [];
+	const templates = await queryClient.fetchQuery(orpc.templates.aiScribeDefaults.queryOptions());
 
 	return (
 		<div className="flex h-full w-full flex-col overflow-hidden bg-solarized-base3">
@@ -292,68 +149,6 @@ export default async function AIScribeLandingPage() {
 						</div>
 					)}
 
-					{isLoggedIn && (
-						<div className="space-y-3 sm:space-y-4">
-							<div className="flex flex-wrap items-center justify-between gap-3">
-								<div className="flex items-center gap-2">
-									<FileText className="h-5 w-5 text-solarized-cyan" />
-									<h2 className="font-semibold text-base text-solarized-base00 sm:text-lg">
-										Meine Vorlagen
-									</h2>
-								</div>
-								<Button
-									size="sm"
-									variant="outline"
-									render={
-										<Link href="/profile/ai-scribe">
-											<Settings className="h-4 w-4" />
-											Verwalten
-										</Link>
-									}
-								/>
-							</div>
-							<p className="text-xs text-solarized-base01 sm:text-sm">
-								Ihre selbst angelegten AI Vorlagen und Brief-Baukästen für wiederkehrende
-								Dokumentationsabläufe.
-							</p>
-							{(personalForms.length > 0 || personalWorkspaces.length > 0) && (
-								<div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
-									{personalForms.map((form) => {
-										const formConfig = buildCustomAiscribeTemplateConfig(form);
-										const Icon = formConfig.icon;
-
-										return (
-											<ScribeCard
-												key={form.id}
-												title={form.name}
-												description={form.description ?? formConfig.description}
-												href={buildCustomFormPath(form.slug, form.author?.username ?? null)}
-												icon={<Icon className="h-4 w-4 text-solarized-cyan sm:h-5 sm:w-5" />}
-												isLoggedIn={isLoggedIn}
-												accentColor="solarized-cyan"
-											/>
-										);
-									})}
-									{personalWorkspaces.map((workspace) => (
-										<ScribeCard
-											accentColor="solarized-cyan"
-											description={
-												workspace.description ??
-												"Aus AI Vorlagen zusammengestellter Arztbrief-Editor."
-											}
-											href={buildWorkspacePath(workspace.slug, workspace.authorUsername)}
-											icon={<FileText className="h-4 w-4 text-solarized-cyan sm:h-5 sm:w-5" />}
-											isLoggedIn={isLoggedIn}
-											key={workspace.id}
-											title={workspace.name}
-											topRightIcon={<WorkspaceMarker />}
-										/>
-									))}
-								</div>
-							)}
-						</div>
-					)}
-
 					{/* Quick Generation Section */}
 					<div className="space-y-3 sm:space-y-4">
 						<div className="flex items-center gap-2">
@@ -363,51 +158,29 @@ export default async function AIScribeLandingPage() {
 							</h2>
 						</div>
 						<p className="text-xs text-solarized-base01 sm:text-sm">
-							Von MDScribe bereitgestellte Modi, AI Vorlagen und Brief-Baukästen für die direkte
-							Dokumentgenerierung.
+							Jede Textvorlage lässt sich mit AI Scribe generieren. Vorlagen mit mehreren
+							Abschnitten öffnen sich als Brief-Editor.
 						</p>
 						<div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
-							{quickGenerationModes.map((mode) => (
+							{templates.map((template) => (
 								<ScribeCard
-									key={mode.title}
-									title={mode.title}
-									description={mode.description}
-									href={mode.href}
-									icon={mode.icon}
+									href={`/aiscribe/${template.id}`}
+									icon={<FileText className="h-4 w-4 text-solarized-blue sm:h-5 sm:w-5" />}
 									isLoggedIn={isLoggedIn}
-									accentColor={mode.accentColor}
-								/>
-							))}
-							{adminForms.map((form) => {
-								const formConfig = buildCustomAiscribeTemplateConfig(form);
-								const Icon = formConfig.icon;
-
-								return (
-									<ScribeCard
-										key={form.id}
-										title={form.name}
-										description={form.description ?? formConfig.description}
-										href={buildCustomFormPath(form.slug, form.author?.username ?? null)}
-										icon={<Icon className="h-4 w-4 text-solarized-cyan sm:h-5 sm:w-5" />}
-										isLoggedIn={isLoggedIn}
-										accentColor="solarized-cyan"
-									/>
-								);
-							})}
-							{adminWorkspaces.map((workspace) => (
-								<ScribeCard
-									accentColor="solarized-cyan"
-									description={
-										workspace.description ?? "Aus AI Vorlagen zusammengestellter Arztbrief-Editor."
+									key={template.id}
+									title={template.title}
+									topRightIcon={
+										getTemplateSections(template.content).length > 0 ? <SectionsMarker /> : null
 									}
-									href={buildWorkspacePath(workspace.slug, workspace.authorUsername)}
-									icon={<FileText className="h-4 w-4 text-solarized-cyan sm:h-5 sm:w-5" />}
-									isLoggedIn={isLoggedIn}
-									key={workspace.id}
-									title={workspace.name}
-									topRightIcon={<WorkspaceMarker />}
 								/>
 							))}
+							<ScribeCard
+								description="Eine beliebige eigene oder öffentliche Textvorlage auswählen."
+								href="/templates"
+								icon={<Search className="h-4 w-4 text-solarized-base01 sm:h-5 sm:w-5" />}
+								isLoggedIn={isLoggedIn}
+								title="Andere Vorlage"
+							/>
 						</div>
 					</div>
 				</div>

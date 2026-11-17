@@ -4,6 +4,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import renderMarkdocAsReact from "../../../../packages/markdoc-md/render/utils/render-markdoc-as-react";
 import { addScribeCitations } from "../../features/response-citations/markup";
+import { templateTagComponents } from "../../features/template-tags/components";
+import { appMarkdocConfig } from "../../features/template-tags/config";
 import { getRenderedClipboardContent } from "../../lib/rendered-clipboard";
 
 const equal = (actual: unknown, expected: unknown) => {
@@ -13,7 +15,13 @@ const equal = (actual: unknown, expected: unknown) => {
 };
 
 const fixtures = [
-	{ source: "**Befund:**\nAlpha\nBeta\n\nGamma", text: "Befund:\nAlpha\nBeta\nGamma" },
+	{
+		instructions: true,
+		source:
+			"Alpha\n{% ai %}nur Anweisung{% /ai %}\nBeta {% ai %}kurz (extern){% /ai %}\n\n{% ai %}Eigene Zeile{% /ai %}\n\nGamma",
+		text: "Alpha\nBeta\n\nGamma",
+	},
+	{ source: "**Befund:**\nAlpha\nBeta\n\nGamma", text: "Befund:\nAlpha\nBeta\n\nGamma" },
 	{ source: "Alpha  \n&nbsp;  \nBeta\n\n&nbsp;\n\nGamma", text: "Alpha\n\nBeta\n\nGamma" },
 	{
 		source: "## Diagnosen\n3. Erstens\n\n4. Zweitens\n\n- Drittens",
@@ -29,14 +37,22 @@ const fixtures = [
 for (const fixture of fixtures) {
 	const element = document.createElement("div");
 	element.innerHTML = renderToStaticMarkup(
-		renderMarkdocAsReact(fixture.source, { layout: "template" }),
+		renderMarkdocAsReact(fixture.source, {
+			components: templateTagComponents,
+			config: appMarkdocConfig,
+			layout: "template",
+		}),
 	);
 	document.body.append(element);
 	try {
 		const before = element.innerHTML;
 		const { html, text } = getRenderedClipboardContent(element);
 		equal(text, fixture.text);
-		equal(html, before);
+		// AI instructions are left out of both formats; everything else is copied unchanged.
+		equal(html.includes("data-markdoc-ai"), false);
+		if (!("instructions" in fixture)) {
+			equal(html, before);
+		}
 		equal(element.innerHTML, before);
 		equal(html.includes("<p"), false);
 		// Paste into a document with no app styles: line structure and typography

@@ -198,12 +198,13 @@ export const TagPopover = ({
 			if (!rect || !panel || !popup) {
 				return;
 			}
-			const top = viewport?.offsetTop ?? 0;
+			const visibleTop = viewport?.offsetTop ?? 0;
 			const left = viewport?.offsetLeft ?? 0;
 			const width = viewport?.width ?? window.innerWidth;
-			// Keep clear of the keyboard bar on touch devices.
+			const bottom = visibleTop + (viewport?.height ?? window.innerHeight);
+			// Keep clear of the field bar docked at the card's top on phones.
 			const bar = document.querySelector("[data-inline-keyboard-bar]")?.getBoundingClientRect();
-			const bottom = Math.min(top + (viewport?.height ?? window.innerHeight), bar?.top ?? Infinity);
+			const top = Math.max(visibleTop, bar?.bottom ?? visibleTop);
 			const above = Math.max(0, rect.top - top - 20);
 			const below = Math.max(0, bottom - rect.bottom - 20);
 			// Natural content height, so a constrained panel cannot flip back and forth.

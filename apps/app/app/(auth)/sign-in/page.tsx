@@ -12,6 +12,7 @@ import {
 import { Checkbox } from "@repo/design-system/components/ui/checkbox";
 import { Input } from "@repo/design-system/components/ui/input";
 import { Label } from "@repo/design-system/components/ui/label";
+import { useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -29,6 +30,7 @@ export default function SignIn() {
 	const [loading, setLoading] = useState(false);
 	const [rememberMe, setRememberMe] = useState(false);
 	const router = useRouter();
+	const queryClient = useQueryClient();
 	const searchParams = useSearchParams();
 	const redirectParam = searchParams.get("redirect");
 	const redirect = getSafeRedirectPath(redirectParam);
@@ -67,6 +69,9 @@ export default function SignIn() {
 				},
 				onSuccess: () => {
 					trackEvent("user-login", { method: isEmail ? "email" : "username" });
+					// Everything cached so far, including the session, was loaded logged out.
+					queryClient.clear();
+					router.refresh();
 					router.push(redirect);
 					setLoading(false);
 				},
@@ -82,7 +87,7 @@ export default function SignIn() {
 				setLoading(false);
 			}
 		},
-		[identifier, password, redirect, rememberMe, router],
+		[identifier, password, queryClient, redirect, rememberMe, router],
 	);
 
 	return (

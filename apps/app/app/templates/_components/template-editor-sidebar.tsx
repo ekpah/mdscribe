@@ -8,6 +8,7 @@ import { ScrollArea } from "@repo/design-system/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { cn } from "@repo/design-system/lib/utils";
+import { isTextUIPart } from "ai";
 import type { UIMessage } from "ai";
 import { Bot, Info, Loader2, Mic, Paperclip, SendHorizonal, Sparkles } from "lucide-react";
 import type { TagInspectorEditor } from "markdoc-md-editor/tag-inspector/tag-inspector";
@@ -36,11 +37,6 @@ const INTRO_MESSAGE =
 	"Beschreibe, was ich an der Vorlage ändern oder neu erstellen soll, oder stelle mir eine Frage zur Vorlage. Änderungen übernehme ich direkt in den Editor – gespeichert werden sie erst über den Speichern-Button.";
 const UPDATE_TEMPLATE_TOOL_TYPE = "tool-updateTemplate";
 
-interface MessageTextPart {
-	type: "text";
-	text: string;
-}
-
 interface UpdateTemplateToolPart {
 	type: string;
 	toolCallId?: string;
@@ -55,11 +51,9 @@ interface UpdateTemplateToolPart {
 	errorText?: string;
 }
 
-const isTextPart = (part: { type: string }): part is MessageTextPart => part.type === "text";
-
 const getMessageText = (message: UIMessage): string =>
 	message.parts
-		.filter(isTextPart)
+		.filter(isTextUIPart)
 		.map((part) => part.text)
 		.join("");
 
@@ -453,7 +447,7 @@ export const TemplateEditorSidebar = ({
 								}
 
 								return message.parts.map((part, index) => {
-									if (isTextPart(part) && part.text.trim().length > 0) {
+									if (isTextUIPart(part) && part.text.trim().length > 0) {
 										return (
 											<div
 												className="mr-4 whitespace-pre-wrap rounded-lg bg-muted px-3 py-2 text-sm"

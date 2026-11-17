@@ -10,10 +10,9 @@ import { Stripe as StripeClient } from "stripe";
 import { env } from "@/env";
 import { stripeConfig } from "@/lib/stripe-config";
 import { USER_MESSAGES } from "@/lib/user-messages";
+import { MIN_USERNAME_LENGTH, USERNAME_PATTERN } from "@/lib/username";
 
-// Usernames feed per-author slug routes, so they must be URL-safe and must not
-// collide with reserved path segments.
-const USERNAME_PATTERN = /^[a-zA-Z0-9._]+$/;
+// Usernames must not collide with reserved path segments.
 const RESERVED_USERNAMES = new Set([
 	"admin",
 	"aiscribe",
@@ -169,7 +168,7 @@ export const auth = betterAuth({
 	plugins: [
 		...stripeAuthPlugins,
 		username({
-			minUsernameLength: 3,
+			minUsernameLength: MIN_USERNAME_LENGTH,
 			usernameValidator: isValidUsername,
 		}),
 	],

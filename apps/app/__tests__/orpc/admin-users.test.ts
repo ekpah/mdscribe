@@ -1,13 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 import { call } from "@orpc/server";
-import {
-	aiScribeFormConfig,
-	aiScribeWorkspace,
-	eq,
-	subscription,
-	usageEvent,
-} from "@repo/database";
+import { eq, subscription, usageEvent } from "@repo/database";
 
 import {
 	ADMIN_EMAIL,
@@ -53,30 +47,16 @@ describe("Admin users", () => {
 		expect(listedUser?.subscriptionStatus).toBe("active");
 	});
 
-	test("returns monthly cost, plan allowance, and custom AI content counts", async () => {
+	test("returns monthly cost and plan allowance", async () => {
 		const { user } = await createTestUser(server.db);
 		await createTestSubscription(server.db, user.id);
 		await createTestUsageEvent(server.db, user.id, { cost: 1.25 });
-		await server.db.insert(aiScribeFormConfig).values({
-			authorId: user.id,
-			inputPreset: "default",
-			name: "Custom form",
-			promptHarness: "diagnosis",
-			slug: `form-${crypto.randomUUID()}`,
-		});
-		await server.db.insert(aiScribeWorkspace).values({
-			authorId: user.id,
-			name: "Custom workspace",
-			slug: `workspace-${crypto.randomUUID()}`,
-		});
 
 		const users = await call(usersHandler.list, undefined, { context });
 		const listedUser = users.find((candidate) => candidate.id === user.id);
 
 		expect(listedUser?.monthlyUsageCost).toBe(1.25);
 		expect(listedUser?.monthlyUsageCostLimit).toBe(8);
-		expect(listedUser?._count.aiScribeForms).toBe(1);
-		expect(listedUser?._count.aiScribeWorkspaces).toBe(1);
 	});
 
 	test("uses the same period and BYOK exclusion as the user's quota", async () => {

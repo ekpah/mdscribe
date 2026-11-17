@@ -4,6 +4,8 @@ import { MAX_CITATION_QUOTE_LENGTH } from "markdoc-md/citations";
 import { validateMarkdocTemplate } from "markdoc-md/parse";
 import { z } from "zod";
 
+import { appMarkdocConfig } from "@/features/template-tags/config";
+
 import { addScribeCitations } from "../markup";
 import type { ScribeCitation, ScribeCitationSource } from "../markup";
 
@@ -22,9 +24,20 @@ const annotationSchema = z.object({
 	unitId: z.string(),
 });
 
+/** Another source for an already cited span joins it, as in the decision pass. */
+const joinSameSpan = (accepted: ScribeCitation[], citation: ScribeCitation): ScribeCitation[] => {
+	const index = accepted.findIndex((c) => c.start === citation.start && c.end === citation.end);
+	const same = accepted[index];
+	if (!same || same.citations.some((c) => c.source === citation.citations[0]?.source)) {
+		return [];
+	}
+	accepted[index] = { ...same, citations: [...same.citations, ...citation.citations] };
+	return [accepted[index]];
+};
+
 /**
  * Emit only complete, validated annotations; never expose partial model JSON to the UI.
- * @yields {ScribeCitation} A non-overlapping citation using a registered source and literal quote.
+ * @yields {ScribeCitation} A non-overlapping citation using registered sources and literal quotes; a span cited again from another source is yielded again with both.
  */
 export const streamResponseCitations = async function* streamResponseCitations({
 	draft,
@@ -115,12 +128,14 @@ export const streamResponseCitations = async function* streamResponseCitations({
 			start: unit.start + at,
 		};
 		if (accepted.some((c) => c.start < citation.end && citation.start < c.end)) {
+			yield* joinSameSpan(accepted, citation);
 			continue;
 		}
 		if (
-			validateMarkdocTemplate(addScribeCitations(draft, [...accepted, citation])).some(
-				(d) => d.severity === "error",
-			)
+			validateMarkdocTemplate(
+				addScribeCitations(draft, [...accepted, citation]),
+				appMarkdocConfig,
+			).some((d) => d.severity === "error")
 		) {
 			continue;
 		}

@@ -339,7 +339,6 @@ export const createTestTemplate = async (
 	authorId: string,
 	options?: {
 		title?: string;
-		category?: string;
 		content?: string;
 		examples?: string[];
 		information?: string;
@@ -350,7 +349,6 @@ export const createTestTemplate = async (
 		.insert(template)
 		.values({
 			authorId,
-			category: options?.category ?? "Test Category",
 			content: options?.content ?? "Test content",
 			examples: options?.examples ?? [],
 			id: crypto.randomUUID(),

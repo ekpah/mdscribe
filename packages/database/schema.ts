@@ -121,7 +121,8 @@ export const template = pgTable(
 		authorId: text("authorId")
 			.notNull()
 			.references(() => user.id),
-		category: text("category").notNull(),
+		// Unused since categories were removed; kept nullable so a running older release still works.
+		category: text("category"),
 		content: text("content").notNull(),
 		examples: text("examples").array().notNull().default([]),
 		id: text("id")
@@ -144,7 +145,8 @@ export const documentTemplate = pgTable(
 		authorId: text("authorId")
 			.notNull()
 			.references(() => user.id),
-		category: text("category").notNull(),
+		// Unused since categories were removed; kept nullable so a running older release still works.
+		category: text("category"),
 		createdAt: timestamp("createdAt", { mode: "date", precision: 3 }).notNull().defaultNow(),
 		fieldDefinitions: jsonb("fieldDefinitions").notNull(),
 		id: text("id")
@@ -162,7 +164,6 @@ export const documentTemplate = pgTable(
 	(table) => [
 		index("DocumentTemplate_authorId_idx").on(table.authorId),
 		index("DocumentTemplate_authorId_visibility_idx").on(table.authorId, table.visibility),
-		index("DocumentTemplate_category_idx").on(table.category),
 		index("DocumentTemplate_visibility_idx").on(table.visibility),
 	],
 );
@@ -481,6 +482,10 @@ export const aiModel = pgTable(
 );
 
 export const aiDefaults = pgTable("AiDefaults", {
+	/** The template collection whose templates the AI Scribe page offers by default. */
+	aiScribeCollectionId: text("aiScribeCollectionId").references(() => templateCollection.id, {
+		onDelete: "set null",
+	}),
 	defaultAgentModelId: text("defaultAgentModelId").references(() => aiModel.id, {
 		onDelete: "set null",
 	}),

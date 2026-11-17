@@ -25,7 +25,6 @@ const globalForSeed = globalThis as unknown as {
 // must be completed from the facts of an individual case.
 const SEED_TEMPLATES = [
 	{
-		category: "Prozeduren",
 		content: `Aufklärung liegt vor, aktuelle Gerinnungswerte wurden geprüft.
 
 Lagerung des Pat. sowie Monitoring von Blutdruck, EKG, SpO2, AF.
@@ -50,7 +49,6 @@ Zusammenfassung: {% info "Beurteilung" type="string" /%}
 		title: "Rechtsherzkatheter",
 	},
 	{
-		category: "Anamnese",
 		content: `# Pneumonie - Aufnahmeanamnese
 
 ## Aktuelle Beschwerden
@@ -67,7 +65,6 @@ Zusammenfassung: {% info "Beurteilung" type="string" /%}
 		title: "Pneumonie Aufnahme",
 	},
 	{
-		category: "Entlassbrief",
 		content: `# Entlassbrief - Herzinsuffizienz
 
 ## Diagnosen
@@ -88,7 +85,6 @@ Unter diuretischer Therapie zeigte sich eine rasche Rekompensation.
 		title: "Herzinsuffizienz Entlassbrief",
 	},
 	{
-		category: "Diagnoseblock",
 		content: `## Diagnoseblock
 E11.9 Diabetes mellitus Typ 2 ohne Komplikationen
 - HbA1c: ___%
@@ -97,7 +93,6 @@ E11.9 Diabetes mellitus Typ 2 ohne Komplikationen
 		title: "Diabetes Mellitus Typ 2",
 	},
 	{
-		category: "ICU-Transfer",
 		content: `# Intensivverlegung - ARDS
 
 ## Verlegungsgrund
@@ -128,7 +123,6 @@ const seedTemplates = async (db: SeedTransaction, authorId: string): Promise<voi
 	for (const tmpl of SEED_TEMPLATES) {
 		await db.insert(schema.template).values({
 			authorId,
-			category: tmpl.category,
 			content: tmpl.content,
 			id: crypto.randomUUID(),
 			title: tmpl.title,

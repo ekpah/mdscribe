@@ -12,13 +12,19 @@ import { Plugin, TextSelection } from "@tiptap/pm/state";
 import type { Editor } from "@tiptap/react";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import TipTapStarterKit from "@tiptap/starter-kit";
-import { htmlToMarkdoc, renderTipTapHTML } from "markdoc-md/editor";
-import { validateMarkdocTemplate } from "markdoc-md/parse";
 import type { MarkdocTemplateDiagnostic } from "markdoc-md/parse";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 import { createPortal } from "react-dom";
 
+import {
+	getPluginRenderNames,
+	getPluginTagNames,
+	toEditorHTML,
+	toMarkdoc,
+	validateEditorTemplate,
+} from "./plugins";
+import { getMarkdocEditorPlugins } from "./plugins";
 import { TAG_COLORS } from "./tag-colors";
 import {
 	ensureSharedSwitchCaseAttributes,
@@ -42,8 +48,17 @@ const BRANCHING_TAG_NAMES = new Set(["conditionTag", "switchTag"]);
 /** Marks automatic normalization of loaded content, which is kept out of undo history. */
 const NORMALIZATION_META = "markdoc-normalization";
 
-const MARKDOC_INPUT_TAG_PATTERN = /\{%\s*(?:calc|condition|details|info|score|switch|table)\b/iu;
-const TIPTAP_INPUT_ELEMENT_PATTERN = /<(?:Calc|Condition|Details|Info|Score|Switch|table)\b/iu;
+/** Tags pasted as Markdoc text become editor tags, including the tags plugins add. */
+const markdocInputTagPattern = () =>
+	new RegExp(
+		String.raw`\{%\s*(?:${["calc", "condition", "details", "info", "score", "switch", "table", ...getPluginTagNames()].join("|")})\b`,
+		"iu",
+	);
+const tiptapInputElementPattern = () =>
+	new RegExp(
+		String.raw`<(?:${["Calc", "Condition", "Details", "Info", "Score", "Switch", "table", ...getPluginRenderNames()].join("|")})\b`,
+		"iu",
+	);
 
 export default function TipTap({
 	note,
@@ -76,13 +91,15 @@ export default function TipTap({
 	const inspectEditor = onInspectEditor ?? setInspectedEditor;
 	const editor = useEditor({
 		autofocus,
-		content: renderTipTapHTML(note),
+		content: toEditorHTML(note),
 		editorProps: {
 			attributes: {
 				class: cn(
 					"prose prose-sm w-full max-w-none cursor-text whitespace-pre-wrap text-sm leading-[1.45] focus:outline-none pointer-coarse:text-base",
 					onInspectEditor ? "min-h-20" : "min-h-full",
 					"[&_p]:my-0 [&_p]:leading-[1.45]",
+					// Cited text looks like it does in AI-Scribe answers.
+					"[&_cite]:not-italic [&_cite]:underline [&_cite]:decoration-dotted [&_cite]:decoration-solarized-blue/60 [&_cite]:underline-offset-4",
 					// injectCSS is disabled: restore ProseMirror's hidden native selection
 					// for NodeSelection, leaving the chip's own ring as the only highlight.
 					"[&.ProseMirror-hideselection]:caret-transparent [&.ProseMirror-hideselection_*]:selection:bg-transparent [&.ProseMirror-hideselection]:selection:bg-transparent",
@@ -134,16 +151,16 @@ export default function TipTap({
 			},
 			handlePaste: (view, event) => {
 				// Editor HTML already carries the tags, plus formatting plain text would lose.
-				if (TIPTAP_INPUT_ELEMENT_PATTERN.test(event.clipboardData?.getData("text/html") ?? "")) {
+				if (tiptapInputElementPattern().test(event.clipboardData?.getData("text/html") ?? "")) {
 					return false;
 				}
 				const clipboardText = event.clipboardData?.getData("text/plain") ?? "";
-				if (!MARKDOC_INPUT_TAG_PATTERN.test(clipboardText)) {
+				if (!markdocInputTagPattern().test(clipboardText)) {
 					return false;
 				}
 
-				const html = renderTipTapHTML(clipboardText);
-				if (!TIPTAP_INPUT_ELEMENT_PATTERN.test(html)) {
+				const html = toEditorHTML(clipboardText);
+				if (!tiptapInputElementPattern().test(html)) {
 					return false;
 				}
 
@@ -247,7 +264,7 @@ export default function TipTap({
 				);
 				return;
 			}
-			onValidationChange?.(validateMarkdocTemplate(note));
+			onValidationChange?.(validateEditorTemplate(note));
 		},
 		onFocus: ({ editor: focusedEditor, event }) => {
 			if (event.target === focusedEditor.view.dom) {
@@ -262,10 +279,10 @@ export default function TipTap({
 			};
 			// Get the HTML and convert to markdoc format
 			const html = updatedEditor.getHTML();
-			const markdocContent = htmlToMarkdoc(html);
+			const markdocContent = toMarkdoc(html);
 			lastEditorContentRef.current = markdocContent;
 			setContent(markdocContent, html, update);
-			onValidationChange?.(validateMarkdocTemplate(markdocContent));
+			onValidationChange?.(validateEditorTemplate(markdocContent));
 		},
 	});
 
@@ -277,8 +294,8 @@ export default function TipTap({
 		lastEditorContentRef.current = note;
 		setOpenSwitch(null);
 		setInspectedEditor(null);
-		editor.commands.setContent(renderTipTapHTML(note), { emitUpdate: false });
-		onValidationChange?.(validateMarkdocTemplate(note));
+		editor.commands.setContent(toEditorHTML(note), { emitUpdate: false });
+		onValidationChange?.(validateEditorTemplate(note));
 	}, [editor, note, onValidationChange]);
 
 	useEffect(() => {
@@ -363,7 +380,12 @@ export default function TipTap({
 			}
 
 			event.preventDefault();
-			editor.chain().focus().run();
+			// Below the text, as in a full-height editor, the caret goes to the end.
+			const below = event.clientY > editor.view.dom.getBoundingClientRect().bottom;
+			editor
+				.chain()
+				.focus(below ? "end" : undefined)
+				.run();
 		},
 		[editor],
 	);
@@ -441,7 +463,7 @@ export default function TipTap({
 										<TipTap
 											key={caseIndex}
 											autofocus={false}
-											note={htmlToMarkdoc(activeCase.content ?? activeCase.text)}
+											note={toMarkdoc(activeCase.content ?? activeCase.text)}
 											onInspectEditor={inspectEditor}
 											rootEditor={rootEditor ?? editor}
 											setContent={(_content, html, update) => {
@@ -488,7 +510,12 @@ export default function TipTap({
 				onMouseDown={handleEditorSurfaceMouseDown}
 				role="none"
 			>
-				<EditorContent className="min-h-full" editor={editor} />
+				{/* Content height, so plugin footers follow the text; the surface handles clicks below it. */}
+				<EditorContent editor={editor} />
+				{editor &&
+					getMarkdocEditorPlugins().map(({ Footer }, index) =>
+						Footer ? <Footer editor={editor} key={index} /> : null,
+					)}
 			</div>
 		</div>
 	);

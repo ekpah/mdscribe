@@ -1,5 +1,4 @@
 import { formatGeneratedAiFormActivity, USER_MESSAGES } from "@/lib/user-messages";
-import { getPromptHarnessLabel, resolvePromptHarnessId } from "@/orpc/scribe/prompts";
 
 interface DashboardActivityEvent {
 	customFormName?: string | null;
@@ -29,12 +28,6 @@ export const getDashboardActivityTitle = (event: DashboardActivityEvent): string
 	}
 
 	const metadata = getMetadata(event.metadata);
-	const endpoint = typeof metadata?.endpoint === "string" ? metadata.endpoint : undefined;
-	const documentType = resolvePromptHarnessId(endpoint);
-	if (documentType) {
-		return formatGeneratedAiFormActivity(getPromptHarnessLabel(documentType));
-	}
-
 	const promptLabel = typeof metadata?.promptLabel === "string" ? metadata.promptLabel.trim() : "";
 	if (promptLabel) {
 		return formatGeneratedAiFormActivity(promptLabel);

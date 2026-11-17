@@ -28,6 +28,7 @@ import { useCitationModifier } from "markdoc-md/react";
 import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import type { InputContextTextContext } from "@/app/_components/input-context/types";
 import type { ContextDocument, OcrResult } from "@/lib/ocr-types";
 
 import { normalizeDateValue } from "./ui/date-utils";
@@ -45,14 +46,6 @@ export interface FillInputsAudioFile {
 
 export type FillInputsContextFile = ContextDocument;
 
-export interface FillInputsTextContext {
-	anamnese?: string;
-	befunde?: string;
-	diagnoseblock?: string;
-	epikrise?: string;
-	notes?: string;
-}
-
 interface InputsProps {
 	activeInputFocusKey?: string | number;
 	activeInputName?: string | null;
@@ -65,7 +58,7 @@ interface InputsProps {
 	onFillInputs?: (
 		inputFields: FillInputsInputField[],
 		audioFiles: FillInputsAudioFile[],
-		textContext: FillInputsTextContext,
+		textContext: InputContextTextContext,
 		contextFiles: FillInputsContextFile[],
 		/** Values appear before the separate citation pass finishes. */
 		onProgress?: (result: FillInputsResult, stage: "decisions" | "values") => void,
@@ -73,7 +66,7 @@ interface InputsProps {
 	renderFillControls?: (props: {
 		onSubmit: (
 			audioFiles: FillInputsAudioFile[],
-			textContext: FillInputsTextContext,
+			textContext: InputContextTextContext,
 			contextFiles: FillInputsContextFile[],
 		) => Promise<void>;
 	}) => React.ReactNode;
@@ -1039,7 +1032,7 @@ export interface TemplateFields {
 	/** Fills the fields with AI from the given context; undefined without a fill backend. */
 	fill?: (
 		audioFiles: FillInputsAudioFile[],
-		textContext: FillInputsTextContext,
+		textContext: InputContextTextContext,
 		contextFiles: FillInputsContextFile[],
 	) => Promise<void>;
 	/** Drops typed values and AI suggestions together; `forgetHistory` also drops undo. */
@@ -1250,7 +1243,7 @@ export const useTemplateFields = (
 	const handleFillInputs = useCallback(
 		async (
 			audioFiles: FillInputsAudioFile[],
-			textContext: FillInputsTextContext,
+			textContext: InputContextTextContext,
 			contextFiles: FillInputsContextFile[],
 		) => {
 			if (!onFillInputs) {
@@ -1570,7 +1563,7 @@ export default function Inputs({
 	const shouldShowFillInputs = Boolean(showFillInputs && fields.fill && renderFillControls);
 
 	return (
-		<form className="flex h-full w-full flex-col overflow-hidden">
+		<form className="flex h-full min-h-0 w-full flex-col overflow-hidden">
 			{/* Scrollable inputs area */}
 			<InputsList
 				activeInputFocusKey={activeInputFocusKey}

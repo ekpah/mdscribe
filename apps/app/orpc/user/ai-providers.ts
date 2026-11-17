@@ -296,113 +296,104 @@ const saveInput = z.object({
 	providerId: z.string().min(1),
 });
 
-const saveHandler = authed
-	.input(type<z.infer<typeof saveInput>>())
-	.handler(async ({ input, context }) => {
-		const parsed = saveInput.parse(input);
-		const provider = await getExposedProvider(context.db, parsed.providerId);
-		const protocol = parseProviderProtocol(provider.protocol);
-		await validateCandidateKey({
-			apiKey: parsed.apiKey,
-			baseUrl: provider.baseUrl,
-			protocol,
-		});
-		const encryptedApiKey = await encrypt(parsed.apiKey);
-		const now = new Date();
-		const [credential] = await context.db
-			.insert(userAiProvider)
-			.values({
+const saveHandler = authed.input(saveInput).handler(async ({ input, context }) => {
+	const provider = await getExposedProvider(context.db, input.providerId);
+	const protocol = parseProviderProtocol(provider.protocol);
+	await validateCandidateKey({
+		apiKey: input.apiKey,
+		baseUrl: provider.baseUrl,
+		protocol,
+	});
+	const encryptedApiKey = await encrypt(input.apiKey);
+	const now = new Date();
+	const [credential] = await context.db
+		.insert(userAiProvider)
+		.values({
+			apiKey: encryptedApiKey,
+			enabled: true,
+			id: crypto.randomUUID(),
+			name: input.name ?? provider.name,
+			providerId: provider.id,
+			updatedAt: now,
+			userId: context.session.user.id,
+			validatedAt: now,
+		})
+		.onConflictDoUpdate({
+			set: {
 				apiKey: encryptedApiKey,
 				enabled: true,
-				id: crypto.randomUUID(),
-				name: parsed.name ?? provider.name,
-				providerId: provider.id,
+				name: input.name ?? provider.name,
 				updatedAt: now,
-				userId: context.session.user.id,
 				validatedAt: now,
-			})
-			.onConflictDoUpdate({
-				set: {
-					apiKey: encryptedApiKey,
-					enabled: true,
-					name: parsed.name ?? provider.name,
-					updatedAt: now,
-					validatedAt: now,
-				},
-				target: [userAiProvider.userId, userAiProvider.providerId],
-			})
-			.returning({
-				enabled: userAiProvider.enabled,
-				name: userAiProvider.name,
-				providerId: userAiProvider.providerId,
-				validatedAt: userAiProvider.validatedAt,
-			});
-		return credential;
-	});
+			},
+			target: [userAiProvider.userId, userAiProvider.providerId],
+		})
+		.returning({
+			enabled: userAiProvider.enabled,
+			name: userAiProvider.name,
+			providerId: userAiProvider.providerId,
+			validatedAt: userAiProvider.validatedAt,
+		});
+	return credential;
+});
 
 const setEnabledInput = z.object({
 	enabled: z.boolean(),
 	providerId: z.string().min(1),
 });
 
-const setEnabledHandler = authed
-	.input(type<z.infer<typeof setEnabledInput>>())
-	.handler(async ({ input, context }) => {
-		const parsed = setEnabledInput.parse(input);
-		if (parsed.enabled) {
-			await getExposedProvider(context.db, parsed.providerId);
-		}
-		const [credential] = await context.db
-			.update(userAiProvider)
-			.set({ enabled: parsed.enabled })
-			.where(
-				and(
-					eq(userAiProvider.providerId, parsed.providerId),
-					eq(userAiProvider.userId, context.session.user.id),
-				),
-			)
-			.returning({
-				enabled: userAiProvider.enabled,
-				providerId: userAiProvider.providerId,
-			});
-		if (!credential) {
-			throw new ORPCError("NOT_FOUND", {
-				message: USER_MESSAGES.byok.credentialMissing,
-			});
-		}
-		return credential;
-	});
+const setEnabledHandler = authed.input(setEnabledInput).handler(async ({ input, context }) => {
+	if (input.enabled) {
+		await getExposedProvider(context.db, input.providerId);
+	}
+	const [credential] = await context.db
+		.update(userAiProvider)
+		.set({ enabled: input.enabled })
+		.where(
+			and(
+				eq(userAiProvider.providerId, input.providerId),
+				eq(userAiProvider.userId, context.session.user.id),
+			),
+		)
+		.returning({
+			enabled: userAiProvider.enabled,
+			providerId: userAiProvider.providerId,
+		});
+	if (!credential) {
+		throw new ORPCError("NOT_FOUND", {
+			message: USER_MESSAGES.byok.credentialMissing,
+		});
+	}
+	return credential;
+});
 
 const renameInput = z.object({
 	name: z.string().trim().min(1).max(60),
 	providerId: z.string().min(1),
 });
 
-const renameHandler = authed
-	.input(type<z.infer<typeof renameInput>>())
-	.handler(async ({ input, context }) => {
-		const parsed = renameInput.parse(input);
-		await getExposedProvider(context.db, parsed.providerId);
-		const [credential] = await context.db
-			.update(userAiProvider)
-			.set({ name: parsed.name })
-			.where(
-				and(
-					eq(userAiProvider.providerId, parsed.providerId),
-					eq(userAiProvider.userId, context.session.user.id),
-				),
-			)
-			.returning({
-				name: userAiProvider.name,
-				providerId: userAiProvider.providerId,
-			});
-		if (!credential) {
-			throw new ORPCError("NOT_FOUND", {
-				message: USER_MESSAGES.byok.credentialMissing,
-			});
-		}
-		return credential;
-	});
+const renameHandler = authed.input(renameInput).handler(async ({ input, context }) => {
+	await getExposedProvider(context.db, input.providerId);
+	const [credential] = await context.db
+		.update(userAiProvider)
+		.set({ name: input.name })
+		.where(
+			and(
+				eq(userAiProvider.providerId, input.providerId),
+				eq(userAiProvider.userId, context.session.user.id),
+			),
+		)
+		.returning({
+			name: userAiProvider.name,
+			providerId: userAiProvider.providerId,
+		});
+	if (!credential) {
+		throw new ORPCError("NOT_FOUND", {
+			message: USER_MESSAGES.byok.credentialMissing,
+		});
+	}
+	return credential;
+});
 
 const deleteHandler = authed
 	.input(type<{ providerId: string }>())

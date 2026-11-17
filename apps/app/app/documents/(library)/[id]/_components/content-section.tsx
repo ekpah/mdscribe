@@ -6,6 +6,7 @@ import { Download, Printer, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { useCase } from "@/app/_components/input-context/case-context";
 import { InputPreviewSection } from "@/app/_components/input-preview-section";
 import { PDFViewSection } from "@/app/_components/pdf-view-section-dynamic";
 import { DocumentFieldStepper } from "@/app/documents/_components/document-field-stepper";
@@ -103,6 +104,7 @@ export default function ContentSection({
 	const [previewPdfBytes, setPreviewPdfBytes] = useState<Uint8Array | null>(null);
 	const [activeInputFocusKey, setActiveInputFocusKey] = useState<number>();
 	const [activePdfNavigationKey, setActivePdfNavigationKey] = useState(0);
+	const inputContextController = useCase();
 	const [activeInputName, setActiveInputName] = useState<string | null>(null);
 	const [contentView, setContentView] = useState<DocumentPreviewView>("document");
 	const [isRefreshingPreview, setIsRefreshingPreview] = useState(false);
@@ -282,6 +284,7 @@ export default function ContentSection({
 		<InputPreviewSection
 			contentType="document"
 			edgeTabs={<DocumentPreviewTabs activeView={contentView} onViewChange={setContentView} />}
+			inputContextController={inputContextController}
 			inputTags={inputs}
 			onReviewField={(inputName) => handleActiveChange(inputName, true)}
 			onValuesChange={setValues}

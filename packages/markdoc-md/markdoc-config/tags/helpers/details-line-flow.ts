@@ -59,31 +59,54 @@ export const readDetailsLineFlow = (node: Node): DetailsLineFlow => ({
 const isRenderedDetails = (node: RenderableTreeNode | undefined): node is Tag =>
 	Tag.isTag(node) && node.name === "Details";
 
-const sharesRenderedLineFlow = (node: RenderableTreeNode | undefined): boolean =>
-	isRenderedDetails(node) || (Tag.isTag(node) && node.name === "p");
+const isRenderedParagraph = (node: RenderableTreeNode | undefined): node is Tag =>
+	Tag.isTag(node) && node.name === "p";
 
-/** Make details-adjacent source gaps real empty lines, in both editor and template output. */
-export const showDetailsGapsAsEmptyLines = (node: RenderableTreeNode): void => {
+/** A paragraph without visible content: an explicit `&nbsp;` line or an editor's empty line. */
+const isEmptyLineParagraph = (node: RenderableTreeNode | undefined): boolean =>
+	isRenderedParagraph(node) &&
+	node.children.every((child) => typeof child === "string" && /^\s*$/u.test(child));
+
+/** Paragraphs and sections share one line flow; lists, headings, and tables keep their spacing. */
+const isLineBlock = (node: RenderableTreeNode | undefined): node is Tag =>
+	isRenderedParagraph(node) || isRenderedDetails(node);
+
+/** Between two sections, the first one's joinNext decides. */
+const isJoined = (previous: Tag, next: Tag): boolean =>
+	isRenderedDetails(previous)
+		? previous.attributes.joinNext === true
+		: isRenderedDetails(next) && next.attributes.joinPrevious === true;
+
+/**
+ * Line blocks render as consecutive lines, so the blank source line between two
+ * of them becomes one real empty line, in both editor and template output.
+ * Paragraph breaks therefore stay visible, while explicit empty lines and
+ * sections joined to their neighbour (no blank line) add none.
+ */
+export const showLineGapsAsEmptyLines = (node: RenderableTreeNode): void => {
 	if (!Tag.isTag(node)) {
 		return;
 	}
 	const children: RenderableTreeNode[] = [];
-	for (const [index, child] of node.children.entries()) {
-		showDetailsGapsAsEmptyLines(child);
-		if (!isRenderedDetails(child)) {
-			children.push(child);
-			continue;
-		}
-		const { joinNext, joinPrevious, ...attributes } = child.attributes;
-		child.attributes = attributes;
-		const previous = node.children[index - 1];
-		const next = node.children[index + 1];
-		if (sharesRenderedLineFlow(previous) && !isRenderedDetails(previous) && joinPrevious !== true) {
+	let previous: RenderableTreeNode | undefined;
+	for (const child of node.children) {
+		showLineGapsAsEmptyLines(child);
+		if (
+			isLineBlock(previous) &&
+			isLineBlock(child) &&
+			!isEmptyLineParagraph(previous) &&
+			!isEmptyLineParagraph(child) &&
+			!isJoined(previous, child)
+		) {
 			children.push(new Tag("p"));
 		}
 		children.push(child);
-		if (sharesRenderedLineFlow(next) && joinNext !== true) {
-			children.push(new Tag("p"));
+		previous = child;
+	}
+	for (const child of children) {
+		if (isRenderedDetails(child)) {
+			const { joinNext: _joinNext, joinPrevious: _joinPrevious, ...attributes } = child.attributes;
+			child.attributes = attributes;
 		}
 	}
 	node.children = children;

@@ -1,6 +1,7 @@
 import type { CitationRequest } from "markdoc-md/citations";
 
 import type { ContextDocument, OcrResult } from "@/lib/ocr-types";
+import type { TextInputId } from "@/orpc/scribe/prompts/template";
 
 /**
  * Model configuration for streaming responses
@@ -38,13 +39,7 @@ export type FillInputsContextFile = ContextDocument;
 /**
  * Reusable clinical text context for input autofill
  */
-interface FillInputsTextContext {
-	anamnese?: string;
-	befunde?: string;
-	diagnoseblock?: string;
-	epikrise?: string;
-	notes?: string;
-}
+type FillInputsTextContext = Partial<Record<TextInputId, string>>;
 
 /**
  * Generic field definition for input filling.
@@ -86,48 +81,9 @@ export interface FillInputsResult {
 }
 
 /**
- * Document type configurations
- */
-const DOCUMENT_TYPES = [
-	"discharge",
-	"anamnese",
-	"diagnosis",
-	"procedures",
-	"befunde",
-	"epikrise",
-	"outpatient",
-	"icu-transfer",
-] as const;
-
-export type DocumentType = (typeof DOCUMENT_TYPES)[number];
-
-/**
  * Prompt message for LLM
  */
 export interface PromptMessage {
 	role: "system" | "user" | "assistant";
 	content: string;
-}
-
-export interface PromptVariables {
-	relevantTemplate: string;
-	todaysDate: string;
-	contextXml: string;
-}
-
-/**
- * Grammatical gender of a prompt harness `promptName`, used to decline German
- * adjectives/articles in user-facing labels (e.g. "Verbesserte Anamnese" vs.
- * "Verbesserten Entlassbrief"). `plural` covers names like "Befunde".
- */
-export type GrammaticalGender = "feminine" | "masculine" | "neuter" | "plural";
-
-/**
- * Configuration for each document type
- */
-export interface DocumentTypeConfig {
-	promptName: string;
-	promptLabel?: string;
-	gender: GrammaticalGender;
-	systemPrompt: string;
 }

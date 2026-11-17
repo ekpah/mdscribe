@@ -2,8 +2,10 @@
 // bun build __tests__/editor-roundtrip.browser.ts --target browser --outfile /tmp/markdoc-roundtrip.js
 // agent-browser open about:blank && agent-browser eval --stdin < /tmp/markdoc-roundtrip.js
 import Markdoc from "@markdoc/markdoc";
+import type { Config } from "@markdoc/markdoc";
 
 import { htmlToMarkdoc, renderTipTapHTML } from "../editor";
+import { markdocConfig } from "../markdoc-config";
 import { validateMarkdocTemplate } from "../parse/validate-markdoc-template";
 
 const equal = (actual: string, expected: string): void => {
@@ -27,9 +29,9 @@ const staysStableForThreeCycles = (fragment: string): void => {
 
 const fragments = [
 	"<p>first<br>second</p>",
-	"<p>first<br><br>second</p>",
-	"<p><br>first<br></p>",
-	"<p><br><br></p>",
+	"<p>first</p><p></p><p>second</p>",
+	"<p></p><p>first</p><p></p>",
+	"<p></p><p></p><p></p>",
 	"<p></p>",
 	"<p></p><p>first</p><p></p><p></p><p>last</p><p></p>",
 	"<p><strong>first</strong><br><em>second</em></p>",
@@ -44,7 +46,29 @@ for (const fragment of fragments) {
 	staysStableForThreeCycles(fragment);
 }
 
+// TipTap wraps list items in paragraphs; nested lists must stay in their item.
+const nestedList =
+	"<ol><li><strong>first</strong><ul><li>nested<br>line</li><li>other</li></ul></li><li>second<ol><li>deep</li></ol></li></ol>";
+staysStableForThreeCycles(nestedList);
+equal(
+	normalize(
+		renderTipTapHTML(
+			htmlToMarkdoc(
+				"<ol><li><p><strong>first</strong></p><ul><li><p>nested<br>line</p></li><li><p>other</p></li></ul></li><li><p>second</p><ol><li><p>deep</p></li></ol></li></ol>",
+			),
+		),
+	),
+	normalize(nestedList),
+);
+
 equal(normalize(renderTipTapHTML("first\nsecond")), "<p>first<br>second</p>");
+
+// Adjacent editor lines are one paragraph; one empty line is a paragraph break
+// and shows as one empty line again; longer runs stay explicit lines.
+equal(htmlToMarkdoc("<p>first</p><p>second</p>"), "first  \nsecond\n\n");
+equal(htmlToMarkdoc("<p>first<br><br>second</p>"), "first\n\nsecond\n\n");
+equal(htmlToMarkdoc("<p>A</p><p></p><p></p><p>B</p>"), "A\n\n&nbsp;\n\n&nbsp;\n\nB\n\n");
+equal(normalize(renderTipTapHTML("first\n\nsecond")), "<p>first</p><p></p><p>second</p>");
 equal(
 	normalize(renderTipTapHTML(htmlToMarkdoc('<p><br class="ProseMirror-trailingBreak"></p>'))),
 	"<p></p>",
@@ -71,6 +95,27 @@ equal(
 equal(
 	htmlToMarkdoc('<h2>Heading</h2><Details open="false"><p>Text</p></Details>'),
 	"## Heading\n{% details %}\nText\n\n{% /details %}\n\n",
+);
+// A host's own tag round-trips through its renderer, also inside a switch case.
+const hostConfig: Config = {
+	...markdocConfig,
+	tags: { ...markdocConfig.tags, badge: { children: ["inline", "text"], render: "Badge" } },
+};
+const renderers = {
+	badge: (_element: Element, innerContent: string) => `{% badge %}${innerContent}{% /badge %}`,
+};
+for (const source of [
+	"Vorher {% badge %}neu{% /badge %} Nachher\n\n",
+	'{% switch "s" %}{% case "a" %}A {% badge %}neu{% /badge %}{% /case %}{% /switch %}\n\n',
+]) {
+	equal(htmlToMarkdoc(renderTipTapHTML(source, { config: hostConfig }), { renderers }), source);
+}
+// The renderers hold for their own call only.
+equal(
+	htmlToMarkdoc(
+		renderTipTapHTML("Vorher {% badge %}neu{% /badge %} Nachher", { config: hostConfig }),
+	),
+	"Vorher neu Nachher\n\n",
 );
 const detailsInCase = htmlToMarkdoc(
 	'<Switch primary="s"><Case primary="a"><p>Intro</p><Details summary="More"><p>Text</p></Details></Case><Case primary="b">B</Case></Switch>',

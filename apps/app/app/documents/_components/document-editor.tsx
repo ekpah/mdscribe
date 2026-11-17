@@ -95,7 +95,6 @@ interface EditorFieldRow {
 	valueType: "string" | "number" | "date";
 }
 
-const FALLBACK_CATEGORIES = ["Kardiologie", "Gastroenterologie", "Diverses", "Onkologie"] as const;
 const COMPACT_FIELD_LABEL_CLASS_NAME = "block truncate text-[11px]";
 const COMPACT_INPUT_CLASS_NAME = "h-8 min-w-0 text-xs";
 const COMPACT_SELECT_TRIGGER_CLASS_NAME =
@@ -1317,9 +1316,7 @@ export default function DocumentEditor({
 	const initializedRef = useRef(false);
 
 	const [title, setTitle] = useState("");
-	const [category, setCategory] = useState("");
 	const [information, setInformation] = useState("");
-	const [newCategory, setNewCategory] = useState("");
 	const [pdfFileBytes, setPdfFileBytes] = useState<Uint8Array | null>(null);
 	const [pdfFields, setPdfFields] = useState<PdfFormField[]>([]);
 	const [pdfFileName, setPdfFileName] = useState("document.pdf");
@@ -1360,7 +1357,6 @@ export default function DocumentEditor({
 		}
 
 		setTitle(sourceDocument.title);
-		setCategory(sourceDocument.category);
 		setInformation(sourceDocument.information);
 		setVisibility(sourceDocument.visibility === "private" ? "private" : "public");
 		const savedDefinition = normalizeSavedDocumentDefinition(sourceDocument.fieldDefinitions);
@@ -1558,9 +1554,8 @@ export default function DocumentEditor({
 	}, [definition, enhanceMutation, pdfFileBytes]);
 
 	const handleSave = useCallback(async () => {
-		const finalCategory = category === "new" ? newCategory : category;
-		if (!title.trim() || !finalCategory.trim()) {
-			toast.error("Name und Kategorie sind erforderlich.");
+		if (!title.trim()) {
+			toast.error("Name ist erforderlich.");
 			return;
 		}
 		if (!pdfFileBytes) {
@@ -1572,7 +1567,6 @@ export default function DocumentEditor({
 		try {
 			if (documentId) {
 				const payload = {
-					category: finalCategory.trim(),
 					fieldDefinitions: definition,
 					id: documentId,
 					information: information.trim(),
@@ -1592,7 +1586,6 @@ export default function DocumentEditor({
 			}
 
 			const createdDocument = await createMutation.mutateAsync({
-				category: finalCategory.trim(),
 				fieldDefinitions: definition,
 				information: information.trim(),
 				pdfBase64: encodeUint8ArrayToBase64(pdfFileBytes),
@@ -1608,13 +1601,11 @@ export default function DocumentEditor({
 			toast.error(`Speichern fehlgeschlagen: ${message}`, { id: "document-save" });
 		}
 	}, [
-		category,
 		createMutation,
 		documentId,
 		definition,
 		information,
 		isPdfReplaced,
-		newCategory,
 		pdfFileBytes,
 		invalidateDocumentQueries,
 		router,
@@ -1623,7 +1614,6 @@ export default function DocumentEditor({
 		visibility,
 	]);
 
-	const rawCategorySuggestions = editorContext?.categorySuggestions;
 	const editorFields = useMemo(
 		() => toEditorFieldDefinitions(definition, pdfFields),
 		[definition, pdfFields],
@@ -1640,60 +1630,10 @@ export default function DocumentEditor({
 		[definition, pdfFields],
 	);
 	const hasBooleanCheckboxCandidate = editorFields.some(isCheckboxLikeBooleanField);
-	const suggestedCategories = useMemo(() => {
-		const limit = 10;
-		const result: string[] = [];
-		const seen = new Set<string>();
-
-		const addCategory = (value: string) => {
-			const normalized = value.trim();
-			if (!normalized) {
-				return;
-			}
-
-			const key = normalized.toLowerCase();
-			if (seen.has(key)) {
-				return;
-			}
-
-			seen.add(key);
-			result.push(normalized);
-		};
-
-		if (category.trim() && category !== "new") {
-			addCategory(category);
-		}
-
-		for (const value of rawCategorySuggestions ?? []) {
-			if (result.length >= limit) {
-				break;
-			}
-			addCategory(value);
-		}
-
-		for (const value of FALLBACK_CATEGORIES) {
-			if (result.length >= limit) {
-				break;
-			}
-			addCategory(value);
-		}
-
-		return result.slice(0, limit);
-	}, [category, rawCategorySuggestions]);
-
-	const resolvedCategory = category === "new" ? newCategory : category;
-	const isCategoryValid = resolvedCategory.trim() !== "";
 	const isNameValid = title.trim() !== "";
-	const isNewCategoryValid = newCategory.trim() !== "";
 	const isSavePending = createMutation.isPending || updateMutation.isPending;
-	const categoryValidationMessage = isCategoryValid ? null : (
-		<p className="mt-1 text-solarized-red text-xs">Kategorie ist erforderlich</p>
-	);
 	const nameValidationMessage = isNameValid ? null : (
 		<p className="mt-1 text-solarized-red text-xs">Name ist erforderlich</p>
-	);
-	const newCategoryValidationMessage = isNewCategoryValid ? null : (
-		<p className="mt-1 text-solarized-red text-xs">Neue Kategorie ist erforderlich</p>
 	);
 
 	return (
@@ -1715,33 +1655,6 @@ export default function DocumentEditor({
 				<div className="hidden h-full min-h-0 min-w-0 overflow-y-auto overflow-x-hidden overscroll-none p-4 md:block">
 					<div className="space-y-4">
 						<div className="flex flex-wrap items-start gap-2">
-							<div className="min-w-0 flex-[1_1_14rem] space-y-2">
-								<Label htmlFor="document-category">
-									Kategorie <span className="text-solarized-red">*</span>
-								</Label>
-								<input name="category" type="hidden" value={resolvedCategory} />
-								<Select onValueChange={setCategory} value={category}>
-									<SelectTrigger
-										className={cn(
-											FORM_SELECT_TRIGGER_CLASS_NAME,
-											isCategoryValid ? "" : "border-solarized-red",
-										)}
-										id="document-category"
-									>
-										<SelectValue placeholder="Kategorie auswählen" />
-									</SelectTrigger>
-									<SelectContent>
-										{suggestedCategories.map((categoryOption) => (
-											<SelectItem key={categoryOption} value={categoryOption}>
-												{categoryOption}
-											</SelectItem>
-										))}
-										<SelectItem value="new">Neue Kategorie hinzufügen</SelectItem>
-									</SelectContent>
-								</Select>
-								{categoryValidationMessage}
-							</div>
-
 							<div className="min-w-0 flex-[1_1_14rem] space-y-2">
 								<Label htmlFor="document-title">
 									Name <span className="text-solarized-red">*</span>
@@ -1818,22 +1731,6 @@ export default function DocumentEditor({
 								</div>
 							</div>
 						</div>
-
-						{category === "new" ? (
-							<div className="space-y-2">
-								<Label htmlFor="document-new-category">
-									Neue Kategorie <span className="text-solarized-red">*</span>
-								</Label>
-								<Input
-									className={isNewCategoryValid ? "" : "border-solarized-red"}
-									id="document-new-category"
-									onChange={(event) => setNewCategory(event.target.value)}
-									placeholder="Füge eine Kategorie hinzu"
-									value={newCategory}
-								/>
-								{newCategoryValidationMessage}
-							</div>
-						) : null}
 
 						<div className="space-y-2">
 							{definition.bindings.length === 0 ? (

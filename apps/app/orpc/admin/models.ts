@@ -58,9 +58,6 @@ const UNKNOWN_CAPABILITIES: ModelCapabilities = {
 	supportsVideo: false,
 };
 
-const normalizeSupportedParameters = (parameters: string[] | undefined): string[] =>
-	parameters ?? [];
-
 const listModelsHandler = authed.use(requiredAdminMiddleware).handler(async ({ context }) => {
 	const providers = await context.db.query.aiProvider.findMany({
 		orderBy: (provider, { asc }) => asc(provider.name),
@@ -69,8 +66,9 @@ const listModelsHandler = authed.use(requiredAdminMiddleware).handler(async ({ c
 
 	const models: AdminModel[] = [];
 	for (const provider of providers) {
-		for (const model of provider.models) {
-			const supportedParameters = normalizeSupportedParameters(model.supportedParameters);
+		// The Playground generates text, so only chat models qualify (not OCR or decision models).
+		for (const model of provider.models.filter(({ kind }) => kind === "chat")) {
+			const supportedParameters = model.supportedParameters ?? [];
 			const supportsReasoning =
 				model.supportsReasoning || supportedParameters.includes("reasoning");
 			models.push({

@@ -2,7 +2,7 @@ import Markdoc from "@markdoc/markdoc";
 import type { Config, RenderableTreeNode } from "@markdoc/markdoc";
 
 import { markdocConfig as config } from "../../markdoc-config";
-import { showDetailsGapsAsEmptyLines } from "../../markdoc-config/tags/helpers/details-line-flow";
+import { showLineGapsAsEmptyLines } from "../../markdoc-config/tags/helpers/details-line-flow";
 import { sanitizeMarkdocForRendering } from "./sanitize-markdoc-for-rendering";
 
 const CASE_LITERAL_ATTRIBUTES = new Set(["eq", "gt", "gte", "lt", "lte", "value"]);
@@ -86,7 +86,7 @@ export const renderTipTapHTML = (
 			softbreak: { render: "br" },
 		},
 	});
-	showDetailsGapsAsEmptyLines(content);
+	showLineGapsAsEmptyLines(content);
 	encodeLiteralAttributes(content);
 	return Markdoc.renderers.html(content);
 };

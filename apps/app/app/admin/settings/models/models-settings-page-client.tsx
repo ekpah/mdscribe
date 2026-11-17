@@ -3,7 +3,7 @@
 import { Card, CardContent } from "@repo/design-system/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
 import { useQuery } from "@tanstack/react-query";
-import { Blocks, Database, FileText, Loader2, Settings, Sparkles } from "lucide-react";
+import { Database, FileText, Loader2, Settings, Sparkles } from "lucide-react";
 import dynamic from "next/dynamic";
 
 import { orpc } from "@/lib/orpc";
@@ -25,24 +25,10 @@ const ModelsTab = dynamic(
 	},
 );
 
-const ScribeFormsTab = dynamic(
+const AiScribeTab = dynamic(
 	async () => {
-		const mod = await import("./_components/scribe-forms-tab");
-		return mod.ScribeFormsTab;
-	},
-	{
-		loading: () => (
-			<div className="flex items-center justify-center py-10 text-solarized-base01">
-				<Loader2 className="h-5 w-5 animate-spin" />
-			</div>
-		),
-	},
-);
-
-const AiScribeWorkspacesTab = dynamic(
-	async () => {
-		const mod = await import("./_components/ai-scribe-workspaces-tab");
-		return mod.AiScribeWorkspacesTab;
+		const mod = await import("./_components/ai-scribe-tab");
+		return mod.AiScribeTab;
 	},
 	{
 		loading: () => (
@@ -100,18 +86,11 @@ export default function ModelsSettingsPageClient() {
 						Modelle
 					</TabsTrigger>
 					<TabsTrigger
-						value="scribe-forms"
+						value="ai-scribe"
 						className="min-w-[138px] shrink-0 justify-center gap-2 text-center md:w-full md:justify-start md:text-left"
 					>
 						<FileText className="h-4 w-4" />
-						AI Vorlagen
-					</TabsTrigger>
-					<TabsTrigger
-						value="ai-scribe-workspaces"
-						className="min-w-[138px] shrink-0 justify-center gap-2 text-center md:w-full md:justify-start md:text-left"
-					>
-						<Blocks className="h-4 w-4" />
-						Brief-Baukasten
+						AI Scribe
 					</TabsTrigger>
 				</TabsList>
 
@@ -143,12 +122,8 @@ export default function ModelsSettingsPageClient() {
 						<ModelsTab connections={safeConnections} />
 					</TabsContent>
 
-					<TabsContent value="scribe-forms" className="mt-0">
-						<ScribeFormsTab />
-					</TabsContent>
-
-					<TabsContent value="ai-scribe-workspaces" className="mt-0">
-						<AiScribeWorkspacesTab />
+					<TabsContent value="ai-scribe" className="mt-0">
+						<AiScribeTab />
 					</TabsContent>
 				</div>
 			</Tabs>

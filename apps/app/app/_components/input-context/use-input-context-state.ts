@@ -290,6 +290,30 @@ export const useInputContextState = ({
 		[commitContextFiles],
 	);
 
+	// The state owns the recordings' object URLs: they outlive the audio panel, which
+	// unmounts on every page change, and end with the state or a new case.
+	const audioRecordingsRef = useRef(audioRecordings);
+	useEffect(() => {
+		audioRecordingsRef.current = audioRecordings;
+	}, [audioRecordings]);
+	useEffect(
+		() => () => {
+			for (const recording of audioRecordingsRef.current) {
+				URL.revokeObjectURL(recording.url);
+			}
+		},
+		[],
+	);
+
+	const clear = useCallback(() => {
+		for (const recording of audioRecordingsRef.current) {
+			URL.revokeObjectURL(recording.url);
+		}
+		setAudioRecordings([]);
+		commitContextFiles([]);
+		setTextContextState({});
+	}, [commitContextFiles]);
+
 	const prepareSubmission = useCallback(async (): Promise<InputContextSubmission> => {
 		// Freeze membership before any await. Files added during preparation belong
 		// to the next submission, not to this submission's OCR or citation snapshot.
@@ -386,6 +410,7 @@ export const useInputContextState = ({
 		addAudioFiles,
 		addContextFiles,
 		audioRecordings,
+		clear,
 		contextFiles,
 		effectiveMaxRecordings,
 		hasAnyContext,

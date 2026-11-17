@@ -1,12 +1,10 @@
 export const PRODUCT_PLANS = {
 	free: {
-		canCreatePrivateAiScribeForms: false,
 		canCreatePrivateDocuments: false,
 		canCreatePrivateTemplates: false,
 		scribeMonthlyCostLimit: 0.3,
 	},
 	plus: {
-		canCreatePrivateAiScribeForms: true,
 		canCreatePrivateDocuments: true,
 		canCreatePrivateTemplates: true,
 		scribeMonthlyCostLimit: 8,

@@ -3,9 +3,11 @@ import { createMdscribeSource } from "markdoc-md/citations";
 import { validateMarkdocTemplate } from "markdoc-md/parse";
 
 import type { Citation, CitationSource } from "@/features/citation-engine";
+import { appMarkdocConfig } from "@/features/template-tags/config";
 import type { OcrResult, OcrUIMessage } from "@/lib/ocr-types";
 import { citeWithDecisionModel } from "@/orpc/scribe/decisions/cite";
 import type { DecisionResponse, DecisionTarget } from "@/orpc/scribe/decisions/client";
+import type { NamedInput } from "@/orpc/scribe/prompts/template";
 import type { FillInputsContextFile } from "@/orpc/scribe/types";
 
 import { addScribeCitations } from "../markup";
@@ -14,51 +16,38 @@ import { streamResponseCitations } from "./annotate";
 
 type LlmFinish = NonNullable<Parameters<typeof streamText>[0]["onFinish"]>;
 
-/** Typed form inputs, audio transcripts and OCR text (with page geometry) of one generation. */
+/**
+ * The evidence of one generation: its background inputs, as in the prompt, and the
+ * OCR text of its files with page geometry. Notes and audio transcripts are not cited.
+ */
 export const createResponseCitationSources = ({
-	audioTranscripts,
 	contextFiles,
-	formData,
+	inputs,
 	ocrResults,
 }: {
-	audioTranscripts: string[];
 	contextFiles: FillInputsContextFile[];
-	formData: Record<string, unknown>;
+	inputs: readonly NamedInput[];
 	ocrResults: OcrResult[];
-}): CitationSource[] => {
-	const labels: Record<string, string> = {
-		anamnese: "Anamnese",
-		befunde: "Befunde",
-		diagnoseblock: "Diagnosen",
-		epikrise: "Epikrise",
-		notes: "Notizen",
-	};
-	const sources: CitationSource[] = Object.entries(labels).flatMap(([id, label]) => {
-		const text = formData[id];
-		return typeof text === "string" && text.trim()
-			? [{ label, source: createMdscribeSource("input", id), text }]
-			: [];
-	});
-	for (const [index, transcript] of audioTranscripts.entries()) {
-		sources.push({
-			label: `Transkript ${index + 1}`,
-			source: createMdscribeSource("input", `transcript-${index + 1}`),
-			text: transcript,
-		});
-	}
-	for (const [index, file] of contextFiles.entries()) {
+}): CitationSource[] => [
+	...inputs.map(({ id, name, text }) => ({
+		label: name,
+		source: createMdscribeSource("input", id),
+		text,
+	})),
+	...contextFiles.flatMap((file, index) => {
 		const ocr = ocrResults[index];
-		if (file.id && ocr?.text.trim()) {
-			sources.push({
-				label: file.name,
-				pages: ocr.pages,
-				source: createMdscribeSource("file", file.id),
-				text: ocr.text,
-			});
-		}
-	}
-	return sources;
-};
+		return file.id && ocr?.text.trim()
+			? [
+					{
+						label: file.name,
+						pages: ocr.pages,
+						source: createMdscribeSource("file", file.id),
+						text: ocr.text,
+					},
+				]
+			: [];
+	}),
+];
 
 interface CiteOptions {
 	/** Preferred: one decision-model request. Usage is reported with its duration. */
@@ -90,9 +79,10 @@ const toScribeCitations = (draft: string, citations: Citation[]): ScribeCitation
 			start: target.start,
 		};
 		if (
-			!validateMarkdocTemplate(addScribeCitations(draft, [...accepted, citation])).some(
-				(diagnostic) => diagnostic.severity === "error",
-			)
+			!validateMarkdocTemplate(
+				addScribeCitations(draft, [...accepted, citation]),
+				appMarkdocConfig,
+			).some((diagnostic) => diagnostic.severity === "error")
 		) {
 			accepted.push(citation);
 		}
@@ -152,7 +142,12 @@ export const writeResponseCitations = async ({
 	writer.write({ data: "adding", id: "citations", type: "data-citation-status" });
 	try {
 		for await (const citation of citeResponse(options)) {
-			writer.write({ data: citation, type: "data-citation" });
+			// One part per span: a span re-emitted with another source replaces its part.
+			writer.write({
+				data: citation,
+				id: `${citation.start}:${citation.end}`,
+				type: "data-citation",
+			});
 		}
 		writer.write({ data: "complete", id: "citations", type: "data-citation-status" });
 	} catch {

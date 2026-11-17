@@ -18,6 +18,7 @@ import {
 } from "@repo/design-system/components/ui/message-scroller";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { cn } from "@repo/design-system/lib/utils";
+import { isTextUIPart } from "ai";
 import type { UIMessage } from "ai";
 import { Bot, Loader2, Mic, Paperclip, PencilLine, SendHorizonal } from "lucide-react";
 import type { DragEvent, KeyboardEvent, ReactNode } from "react";
@@ -37,11 +38,9 @@ import { AudioInput } from "@/app/_components/input-context/inputs/audio/audio-i
 import type { AudioInputHandle } from "@/app/_components/input-context/inputs/audio/audio-input";
 import { DocumentInput } from "@/app/_components/input-context/inputs/document/document-input";
 import type {
-	AudioRecording,
 	InputContextAudioFile,
 	InputContextController,
 	InputContextFile,
-	UploadedContextFile,
 } from "@/app/_components/input-context/types";
 import { useInputContextClipboardPaste } from "@/app/_components/input-context/use-input-context-clipboard-paste";
 import { useInputContextState } from "@/app/_components/input-context/use-input-context-state";
@@ -63,16 +62,9 @@ interface SectionToolOutput {
 	error?: unknown;
 }
 
-interface MessageTextPart {
-	type: "text";
-	text: string;
-}
-
-const isTextPart = (part: { type: string }): part is MessageTextPart => part.type === "text";
-
 const getMessageText = (message: UIMessage): string =>
 	message.parts
-		.filter(isTextPart)
+		.filter(isTextUIPart)
 		.map((part) => part.text)
 		.join("");
 
@@ -97,7 +89,7 @@ type AssistantBlock =
 const getAssistantBlocks = (message: UIMessage): AssistantBlock[] => {
 	const blocks: AssistantBlock[] = [];
 	for (const [index, part] of message.parts.entries()) {
-		if (isTextPart(part)) {
+		if (isTextUIPart(part)) {
 			const previous = blocks.at(-1);
 			if (previous?.kind === "text") {
 				previous.text += part.text;
@@ -231,8 +223,6 @@ const ComposerToggleButton = ({
 };
 
 interface AgentComposerHandle {
-	/** Expand the audio panel (used when transferred context contains recordings). */
-	openAudioPanel: () => void;
 	/** Expand the file panel (used when files are dropped on the card). */
 	openFilesPanel: () => void;
 	/** Collapse any expanded context panel (used after a successful send). */
@@ -287,10 +277,6 @@ const AgentComposer = forwardRef<
 		() => ({
 			collapsePanels: () => {
 				setOpenPanel(null);
-			},
-			openAudioPanel: () => {
-				markPanelMounted("audio");
-				setOpenPanel("audio");
 			},
 			openFilesPanel: () => {
 				markPanelMounted("files");
@@ -454,15 +440,13 @@ const AgentComposer = forwardRef<
 AgentComposer.displayName = "AgentComposer";
 
 interface DoctorsNoteAgentPanelProps {
+	/** Hintergrundinformationen of the letter, sent with each turn. */
+	background: string;
 	/** Current sections of the letter, sent with each turn as the agent's context. */
 	sections: ScribeAgentSection[];
+	templateId: string;
 	/** Stage a section edit from the agent as a proposal (reviewed via diff). */
 	onProposeEdit: (sectionId: string, content: string) => void;
-	/** Context transferred from another AIScribe page into the agent composer. */
-	initialContext?: {
-		audioRecordings: AudioRecording[];
-		contextFiles: UploadedContextFile[];
-	} | null;
 	disabled?: boolean;
 }
 
@@ -475,9 +459,10 @@ interface DoctorsNoteAgentPanelProps {
  * text-context input.
  */
 export const DoctorsNoteAgentPanel = ({
+	background,
 	sections,
+	templateId,
 	onProposeEdit,
-	initialContext,
 	disabled = false,
 }: DoctorsNoteAgentPanelProps) => {
 	const [instruction, setInstruction] = useState("");
@@ -485,12 +470,13 @@ export const DoctorsNoteAgentPanel = ({
 	const preparingRef = useRef(false);
 	const [isDraggingFiles, setIsDraggingFiles] = useState(false);
 	const inputContext = useInputContextState({ agent: true });
-	const hydratedInitialContextRef = useRef(false);
 	const composerRef = useRef<AgentComposerHandle>(null);
 
 	// Latest sections/handler read synchronously by the transport + apply effect.
 	const sectionsRef = useRef(sections);
 	sectionsRef.current = sections;
+	const backgroundRef = useRef(background);
+	backgroundRef.current = background;
 	const onProposeEditRef = useRef(onProposeEdit);
 	onProposeEditRef.current = onProposeEdit;
 	const appliedToolCallIds = useRef<Set<string>>(new Set());
@@ -537,9 +523,11 @@ export const DoctorsNoteAgentPanel = ({
 					await orpc.scribeAgent.chat.call(
 						{
 							audioFiles: attachments.audioFiles,
+							background: backgroundRef.current,
 							contextFiles: attachments.contextFiles,
 							messages: options.messages,
 							sections: sectionsRef.current,
+							templateId,
 						},
 						{ signal: options.abortSignal },
 					),
@@ -549,20 +537,6 @@ export const DoctorsNoteAgentPanel = ({
 	});
 
 	const isLoading = isPreparing || status === "streaming" || status === "submitted";
-
-	useEffect(() => {
-		if (hydratedInitialContextRef.current || !initialContext) {
-			return;
-		}
-		hydratedInitialContextRef.current = true;
-		inputContext.setAudioRecordings(initialContext.audioRecordings);
-		inputContext.setContextFiles(initialContext.contextFiles);
-		if (initialContext.contextFiles.length > 0) {
-			composerRef.current?.openFilesPanel();
-		} else if (initialContext.audioRecordings.length > 0) {
-			composerRef.current?.openAudioPanel();
-		}
-	}, [initialContext, inputContext]);
 
 	// Apply completed section-tool outputs back into the editor exactly once.
 	useEffect(() => {

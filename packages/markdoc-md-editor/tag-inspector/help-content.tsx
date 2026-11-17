@@ -8,7 +8,10 @@ import {
 } from "@repo/design-system/components/ui/accordion";
 import { Badge } from "@repo/design-system/components/ui/badge";
 import { Separator } from "@repo/design-system/components/ui/separator";
-import { BookOpen, Code2, ListTree, Sparkles } from "lucide-react";
+import { BookOpen, Code2, ListTree } from "lucide-react";
+import { Fragment } from "react";
+
+import { getMarkdocEditorPlugins } from "../plugins";
 
 export const TagInspectorHelp = () => (
 	<div className="space-y-4">
@@ -26,40 +29,15 @@ export const TagInspectorHelp = () => (
 
 		<Separator />
 
-		{/* AI Guidance Section */}
-		<div className="space-y-3">
-			<div className="flex items-center gap-2">
-				<Sparkles className="h-4 w-4 text-solarized-violet" />
-				<h4 className="font-semibold text-sm">KI-Anleitung</h4>
-			</div>
-
-			<div className="space-y-3 rounded-lg bg-solarized-violet/5 p-3">
-				{/* Double Brackets */}
-				<div className="space-y-1.5">
-					<div className="flex items-center gap-2">
-						<Badge
-							className="border-solarized-violet bg-solarized-violet/10 font-mono text-solarized-violet text-xs"
-							variant="outline"
-						>
-							((…))
-						</Badge>
-						<span className="font-medium text-xs">KI-Hinweise</span>
-					</div>
-					<p className="text-muted-foreground text-xs leading-relaxed">
-						Doppelte Klammern sind die empfohlene Syntax für{" "}
-						<code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">((Hinweise))</code> im
-						Template. Diese sind ausgegraut sichtbar, werden aber beim Kopieren entfernt.
-					</p>
-					<div className="mt-2 rounded border border-solarized-violet/20 bg-background p-2">
-						<p className="font-mono text-muted-foreground text-xs">
-							Beispiel: ((Beschreibe den Befund detailliert))
-						</p>
-					</div>
-				</div>
-			</div>
-		</div>
-
-		<Separator />
+		{/* Help of the tags plugins add, e.g. a host's instructions for the AI */}
+		{getMarkdocEditorPlugins().map(({ Help }, index) =>
+			Help ? (
+				<Fragment key={index}>
+					<Help />
+					<Separator />
+				</Fragment>
+			) : null,
+		)}
 
 		{/* Tags Accordion */}
 		<div className="space-y-3">

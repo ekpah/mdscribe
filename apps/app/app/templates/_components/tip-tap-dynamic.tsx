@@ -7,7 +7,11 @@ import dynamic from "next/dynamic";
 // TipTap and Markdoc stack in their initial JavaScript.
 const TipTap = dynamic(
 	async () => {
-		const mod = await import("markdoc-md-editor/tip-tap");
+		// The app's tags register before the editor creates its extensions.
+		const [mod] = await Promise.all([
+			import("markdoc-md-editor/tip-tap"),
+			import("@/features/template-tags/editor/plugin"),
+		]);
 		return mod.default;
 	},
 	{

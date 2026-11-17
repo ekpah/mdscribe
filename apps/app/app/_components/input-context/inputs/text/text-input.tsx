@@ -10,55 +10,39 @@ interface TextInputField {
 	key: InputContextTextContextKey;
 	label: string;
 	placeholder: string;
+	textareaClassName?: string;
 }
 
 interface TextInputProps {
-	characterCountClassName?: string;
-	className?: string;
-	descriptionClassName?: string;
 	disabled?: boolean;
-	fieldClassName?: string;
-	fields?: TextInputField[];
-	labelClassName?: string;
+	/** Fields to show; a field that holds text always shows, so no input is sent unseen. */
+	keys?: InputContextTextContextKey[];
 	maxCharacters?: number;
 	onMaxCharactersExceeded?: (maxCharacters: number) => void;
 	onValueChange: (value: InputContextTextContext) => void;
-	showCharacterCount?: boolean;
-	stretchFields?: boolean;
-	textareaClassName?: string;
+	/** Hintergrundinformationen grows into the height the panel has left. */
+	stretch?: boolean;
 	value: InputContextTextContext;
 }
 
+// Hintergrundinformationen on top, then the notes on the current presentation;
+// each reaches the model as its own tag.
 const TEXT_CONTEXT_FIELDS: TextInputField[] = [
 	{
-		description: "Diagnosen, Vorerkrankungen und relevante Vorbefunde.",
-		key: "diagnoseblock",
-		label: "Diagnoseblock",
-		placeholder: "Diagnoseblock eingeben...",
+		description:
+			"Alles von vor der aktuellen Vorstellung: Vorbriefe, Vordiagnosen, Vorbefunde, Dauermedikation. Die KI nutzt das als Faktenquelle, schreibt es aber nicht ab.",
+		key: "background",
+		label: "Hintergrundinformationen",
+		placeholder: "z. B. Vorbrief, Vordiagnosen oder Vorbefunde einfügen …",
+		// Set apart from the notes: dashed, tinted and muted.
+		textareaClassName:
+			"border-dashed border-solarized-base1 bg-solarized-base2/70 text-muted-foreground shadow-none focus-visible:border-solarized-blue focus-visible:ring-0",
 	},
 	{
-		description: "Aufnahmegrund, Vorgeschichte und relevante Anamnese.",
-		key: "anamnese",
-		label: "Anamnese",
-		placeholder: "Anamnese eingeben...",
-	},
-	{
-		description: "Labor, Bildgebung, Untersuchungen und Verlauf.",
-		key: "befunde",
-		label: "Befunde",
-		placeholder: "Befunde eingeben...",
-	},
-	{
-		description: "Bewertende Zusammenfassung, Verlauf und Empfehlungen.",
-		key: "epikrise",
-		label: "Epikrise",
-		placeholder: "Epikrise eingeben...",
-	},
-	{
-		description: "Weitere Hinweise oder bewusst ergänzte Informationen.",
+		description: "Die aktuelle Vorstellung: Anamnese, Befunde, Verlauf, Diagnosen.",
 		key: "notes",
 		label: "Notizen",
-		placeholder: "Weitere Notizen eingeben...",
+		placeholder: "Notizen zur aktuellen Vorstellung eingeben …",
 	},
 ];
 
@@ -82,94 +66,77 @@ export const getTextContextCharacterCount = (
 
 export const toSubmittedTextContext = (
 	textContext: InputContextTextContext,
-	fields: TextInputField[] = TEXT_CONTEXT_FIELDS,
-): InputContextTextContext => {
-	const submittedTextContext: InputContextTextContext = {};
-
-	for (const field of fields) {
-		const value = textContext[field.key]?.trim();
-		if (value) {
-			submittedTextContext[field.key] = value;
-		}
-	}
-
-	return submittedTextContext;
-};
+): InputContextTextContext =>
+	Object.fromEntries(
+		TEXT_CONTEXT_FIELDS.flatMap(({ key }) => {
+			const text = textContext[key]?.trim();
+			return text ? [[key, text]] : [];
+		}),
+	);
 
 export const TextInput = ({
-	characterCountClassName,
-	className,
-	descriptionClassName,
 	disabled = false,
-	fieldClassName,
-	fields = TEXT_CONTEXT_FIELDS,
-	labelClassName,
+	keys,
 	maxCharacters,
 	onMaxCharactersExceeded,
 	onValueChange,
-	showCharacterCount = true,
-	stretchFields = false,
-	textareaClassName,
+	stretch = false,
 	value,
 }: TextInputProps) => {
+	const fields = TEXT_CONTEXT_FIELDS.filter(
+		(field) => !keys || keys.includes(field.key) || hasTextValue(value[field.key]),
+	);
 	const characterCount = getTextContextCharacterCount(value, fields);
+	const handleFieldChange = (key: InputContextTextContextKey, text: string) => {
+		const nextValue = { ...value, [key]: text };
+		if (
+			maxCharacters !== undefined &&
+			getTextContextCharacterCount(nextValue, fields) > maxCharacters
+		) {
+			onMaxCharactersExceeded?.(maxCharacters);
+			return;
+		}
+		onValueChange(nextValue);
+	};
+
+	const renderField = (field: TextInputField) => {
+		// Everything from before the presentation can be long: it takes the height there is.
+		const grows = stretch && field.key === "background";
+		return (
+			<label
+				className={cn("flex min-w-0 flex-col gap-1.5", grows && "min-h-0 flex-1")}
+				key={field.key}
+			>
+				<span className="font-medium text-foreground text-xs">{field.label}</span>
+				<Textarea
+					className={cn(
+						"resize-y bg-background text-xs placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20",
+						grows ? "min-h-32 flex-1" : "min-h-24 sm:min-h-32",
+						field.textareaClassName,
+					)}
+					disabled={disabled}
+					onChange={(event) => {
+						handleFieldChange(field.key, event.target.value);
+					}}
+					placeholder={field.placeholder}
+					value={value[field.key] ?? ""}
+				/>
+				<span className="block text-muted-foreground text-[11px]">{field.description}</span>
+			</label>
+		);
+	};
 
 	return (
-		<div
-			className={cn(
-				"grid min-h-0 gap-4 md:grid-cols-2",
-				stretchFields && "flex-1 auto-rows-fr",
-				className,
-			)}
-		>
-			{fields.map((field) => (
-				<label
-					className={cn(
-						"min-w-0 space-y-1.5",
-						stretchFields && "flex min-h-0 flex-col",
-						fieldClassName,
-					)}
-					key={field.key}
-				>
-					<span className={cn("font-medium text-foreground text-xs", labelClassName)}>
-						{field.label}
-					</span>
-					<Textarea
-						className={cn(
-							"resize-y bg-background text-xs placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20",
-							stretchFields ? "min-h-0 flex-1 resize-none" : "min-h-24 sm:min-h-32",
-							textareaClassName,
-						)}
-						disabled={disabled}
-						onChange={(event) => {
-							const nextValue = {
-								...value,
-								[field.key]: event.target.value,
-							};
-							if (
-								maxCharacters !== undefined &&
-								getTextContextCharacterCount(nextValue, fields) > maxCharacters
-							) {
-								onMaxCharactersExceeded?.(maxCharacters);
-								return;
-							}
-							onValueChange(nextValue);
-						}}
-						placeholder={field.placeholder}
-						value={value[field.key] ?? ""}
-					/>
-					<span className={cn("block text-muted-foreground text-[11px]", descriptionClassName)}>
-						{field.description}
-					</span>
-				</label>
-			))}
-			{showCharacterCount && maxCharacters !== undefined ? (
-				<div
-					className={cn("text-muted-foreground text-[11px] md:col-span-2", characterCountClassName)}
-				>
+		// The fields keep their height; a panel shorter than them scrolls.
+		<div className={cn("flex flex-col gap-4", stretch ? "min-h-0 flex-1" : "shrink-0")}>
+			<div className={cn("gap-4", stretch ? "flex min-h-0 flex-1 flex-col" : "grid")}>
+				{fields.map(renderField)}
+			</div>
+			{maxCharacters === undefined ? null : (
+				<div className="text-muted-foreground text-[11px]">
 					{characterCount.toLocaleString("de-DE")} / {maxCharacters.toLocaleString("de-DE")} Zeichen
 				</div>
-			) : null}
+			)}
 		</div>
 	);
 };

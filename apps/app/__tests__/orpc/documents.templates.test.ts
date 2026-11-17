@@ -128,7 +128,6 @@ describe("documents.templates handlers", () => {
 		const result = await call(
 			documentsHandler.templates.create,
 			{
-				category: "Entlassung",
 				fieldDefinitions: createDocumentDefinition(),
 				information: "Bitte Pflichtfelder zuerst ausfüllen.",
 				pdfBase64,
@@ -163,7 +162,6 @@ describe("documents.templates handlers", () => {
 			call(
 				documentsHandler.templates.create,
 				{
-					category: "Entlassung",
 					fieldDefinitions: createDocumentDefinition(),
 					pdfBase64,
 					title: "Privates Formular",
@@ -185,7 +183,6 @@ describe("documents.templates handlers", () => {
 		const result = await call(
 			documentsHandler.templates.create,
 			{
-				category: "Entlassung",
 				fieldDefinitions: createDocumentDefinition(),
 				pdfBase64,
 				title: "Privates Formular",
@@ -207,7 +204,6 @@ describe("documents.templates handlers", () => {
 		const created = await call(
 			documentsHandler.templates.create,
 			{
-				category: "Entlassung",
 				fieldDefinitions: createDocumentDefinition(),
 				pdfBase64,
 				title: "Entlassformular",
@@ -254,7 +250,6 @@ describe("documents.templates handlers", () => {
 		const privateDocument = await call(
 			documentsHandler.templates.create,
 			{
-				category: "Entlassung",
 				fieldDefinitions: createDocumentDefinition(),
 				pdfBase64,
 				title: "Privates Formular",
@@ -265,7 +260,6 @@ describe("documents.templates handlers", () => {
 		const publicDocument = await call(
 			documentsHandler.templates.create,
 			{
-				category: "Entlassung",
 				fieldDefinitions: createDocumentDefinition(),
 				pdfBase64,
 				title: "Öffentliches Formular",
@@ -318,7 +312,6 @@ describe("documents.templates handlers", () => {
 		const created = await call(
 			documentsHandler.templates.create,
 			{
-				category: "Entlassung",
 				fieldDefinitions: createDocumentDefinition(),
 				pdfBase64,
 				title: "Entlassformular",
@@ -345,7 +338,6 @@ describe("documents.templates handlers", () => {
 		const first = await call(
 			documentsHandler.templates.create,
 			{
-				category: "A",
 				fieldDefinitions: createDocumentDefinition(),
 				pdfBase64: Buffer.from(firstPdfBytes).toString("base64"),
 				title: "Erstes Dokument",
@@ -356,7 +348,6 @@ describe("documents.templates handlers", () => {
 		const second = await call(
 			documentsHandler.templates.create,
 			{
-				category: "B",
 				fieldDefinitions: createDocumentDefinition(),
 				pdfBase64: Buffer.from(secondPdfBytes).toString("base64"),
 				title: "Zweites Dokument",
@@ -385,7 +376,6 @@ describe("documents.templates handlers", () => {
 		const created = await call(
 			documentsHandler.templates.create,
 			{
-				category: "Entlassung",
 				fieldDefinitions: createDocumentDefinition(),
 				pdfBase64,
 				title: "Entlassformular",
@@ -401,7 +391,6 @@ describe("documents.templates handlers", () => {
 		await call(
 			documentsHandler.templates.update,
 			{
-				category: "Aufnahme",
 				fieldDefinitions: createDocumentDefinition(),
 				id: created.id,
 				information: "Neue Ausfüllhinweise",
@@ -435,7 +424,6 @@ describe("documents.templates handlers", () => {
 		const created = await call(
 			documentsHandler.templates.create,
 			{
-				category: "Entlassung",
 				fieldDefinitions: createDocumentDefinition(),
 				pdfBase64,
 				title: "Entlassformular",
@@ -452,7 +440,6 @@ describe("documents.templates handlers", () => {
 			call(
 				documentsHandler.templates.update,
 				{
-					category: "Aufnahme",
 					fieldDefinitions: createDocumentDefinition(),
 					id: created.id,
 					title: "Nicht erlaubt",
@@ -471,7 +458,6 @@ describe("documents.templates handlers", () => {
 		const created = await call(
 			documentsHandler.templates.create,
 			{
-				category: "Entlassung",
 				fieldDefinitions: createDocumentDefinition(),
 				pdfBase64,
 				title: "Zu löschendes Formular",
@@ -499,7 +485,6 @@ describe("documents.templates handlers", () => {
 		const created = await call(
 			documentsHandler.templates.create,
 			{
-				category: "Entlassung",
 				fieldDefinitions: createDocumentDefinition(),
 				pdfBase64,
 				title: "Geschütztes Formular",
@@ -537,7 +522,6 @@ describe("documents.templates handlers", () => {
 		const created = await call(
 			documentsHandler.templates.create,
 			{
-				category: "Entlassung",
 				fieldDefinitions: createDocumentDefinition(),
 				pdfBase64,
 				title: "Privates Formular",
@@ -552,7 +536,6 @@ describe("documents.templates handlers", () => {
 			call(
 				documentsHandler.templates.update,
 				{
-					category: "Aufnahme",
 					fieldDefinitions: createDocumentDefinition(),
 					id: created.id,
 					title: "Weiter privat",
@@ -565,7 +548,6 @@ describe("documents.templates handlers", () => {
 		const publicResult = await call(
 			documentsHandler.templates.update,
 			{
-				category: "Aufnahme",
 				fieldDefinitions: createDocumentDefinition(),
 				id: created.id,
 				title: "Jetzt öffentlich",
@@ -601,7 +583,6 @@ describe("documents.templates handlers", () => {
 		const created = await call(
 			documentsHandler.templates.create,
 			{
-				category: "Entlassung",
 				fieldDefinitions: sharedVariableDefinition,
 				pdfBase64,
 				title: "Entlassformular",
@@ -673,7 +654,6 @@ describe("documents.templates handlers", () => {
 		const created = await call(
 			documentsHandler.templates.create,
 			{
-				category: "Entlassung",
 				fieldDefinitions: checkboxDefinition,
 				pdfBase64,
 				title: "Checkbox-Zuordnungen",
@@ -704,7 +684,6 @@ describe("documents.templates handlers", () => {
 			call(
 				documentsHandler.templates.create,
 				{
-					category: "Entlassung",
 					fieldDefinitions: invalidDefinition,
 					pdfBase64,
 					title: "Entlassformular",
@@ -734,7 +713,6 @@ describe("documents.templates handlers", () => {
 			call(
 				documentsHandler.templates.create,
 				{
-					category: "Entlassung",
 					fieldDefinitions: definition,
 					pdfBase64,
 					title: "Entlassformular",
@@ -763,7 +741,6 @@ describe("documents.templates handlers", () => {
 			call(
 				documentsHandler.templates.create,
 				{
-					category: "Entlassung",
 					fieldDefinitions: definition,
 					pdfBase64,
 					title: "Ungültige Auswahlwerte",
@@ -788,7 +765,6 @@ describe("documents.templates handlers", () => {
 			call(
 				documentsHandler.templates.create,
 				{
-					category: "Entlassung",
 					fieldDefinitions: {
 						bindings: [
 							{
@@ -824,7 +800,6 @@ describe("documents.templates handlers", () => {
 			call(
 				documentsHandler.templates.create,
 				{
-					category: "Entlassung",
 					fieldDefinitions: createDocumentDefinition(),
 					pdfBase64: "A".repeat(MAX_PDF_BASE64_LENGTH + 4),
 					title: "Zu großes PDF",
@@ -863,7 +838,6 @@ describe("documents.templates handlers", () => {
 		const created = await call(
 			documentsHandler.templates.create,
 			{
-				category: "Entlassung",
 				fieldDefinitions: definition,
 				pdfBase64,
 				title: "Entlassformular",

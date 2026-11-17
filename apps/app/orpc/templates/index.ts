@@ -1,34 +1,32 @@
 import { ORPCError, type } from "@orpc/server";
 import {
+	aiDefaults,
 	aiScribeFormConfig,
+	aiScribeWorkspace,
 	and,
-	count,
 	desc,
 	eq,
 	or,
 	template,
-	templateCollection,
 	templateCollectionTemplate,
 	user,
 } from "@repo/database";
 import type { Database, Template } from "@repo/database";
-import { validateMarkdocTemplate } from "markdoc-md/parse";
 import { z } from "zod";
 
+import { validateAppTemplate } from "@/features/template-tags/config";
 import { templateAgentFlag } from "@/flags";
-import type { Session } from "@/lib/auth-types";
 import { resolveProductEntitlements } from "@/lib/product-entitlements";
 import { createTemplateFuse } from "@/lib/template-search";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed, pub } from "@/orpc";
-import { getOptionalAuthSession } from "@/orpc/middlewares/auth";
+import { getOptionalUserId } from "@/orpc/middlewares/auth";
 
 const templateVisibilitySchema = z.enum(["public", "private"]);
 type TemplateVisibility = z.infer<typeof templateVisibilitySchema>;
 
 const templateListSelection = {
 	authorId: template.authorId,
-	category: template.category,
 	id: template.id,
 	title: template.title,
 	updatedAt: template.updatedAt,
@@ -45,7 +43,7 @@ interface TemplateAuthorSummary {
 	name: string | null;
 }
 
-type TemplateWithRelations = Template & {
+type TemplateWithRelations = Omit<Template, "category"> & {
 	author: TemplateAuthorSummary | null;
 };
 
@@ -58,7 +56,6 @@ const getTemplateInput = z.object({
 });
 
 const createTemplateInput = z.object({
-	category: z.string().min(1, "Category is required"),
 	content: z.string(),
 	examples: z
 		.array(z.string().trim().min(1, "Example content is required"))
@@ -70,7 +67,6 @@ const createTemplateInput = z.object({
 });
 
 const updateTemplateInput = z.object({
-	category: z.string().min(1, "Category is required"),
 	content: z.string(),
 	examples: z
 		.array(z.string().trim().min(1, "Example content is required"))
@@ -92,42 +88,10 @@ const lexicalSearchInput = z.object({
 
 const LEXICAL_SEARCH_LIMIT = 20;
 
-const MAX_CATEGORY_SUGGESTIONS = 10;
-
-const addCategories = (
-	target: string[],
-	seen: Set<string>,
-	categories: string[],
-	limit: number,
-) => {
-	for (const category of categories) {
-		const normalized = category.trim();
-		if (!normalized) {
-			continue;
-		}
-
-		const key = normalized.toLowerCase();
-		if (seen.has(key)) {
-			continue;
-		}
-
-		seen.add(key);
-		target.push(normalized);
-		if (target.length >= limit) {
-			return;
-		}
-	}
-};
-
 const visibleTemplateWhere = (userId?: string | null) =>
 	userId
 		? or(eq(template.visibility, "public"), eq(template.authorId, userId))
 		: eq(template.visibility, "public");
-
-const getOptionalUserId = async (context: unknown) => {
-	const session = await getOptionalAuthSession((context as { session?: Session }).session);
-	return session?.user.id ?? null;
-};
 
 const ensureCanSaveTemplateVisibility = async ({
 	db,
@@ -151,7 +115,7 @@ const ensureCanSaveTemplateVisibility = async ({
 };
 
 const ensureValidTemplateContent = (content: string): void => {
-	const diagnostics = validateMarkdocTemplate(content);
+	const diagnostics = validateAppTemplate(content);
 	if (diagnostics.some((diagnostic) => diagnostic.severity === "error")) {
 		throw new ORPCError("BAD_REQUEST", {
 			message: USER_MESSAGES.invalidTemplateTags,
@@ -176,16 +140,26 @@ const listTemplatesHandler = pub.handler(async ({ context }) => {
 	return templates;
 });
 
+/** The templates of the admin-chosen AI Scribe collection, as offered on `/aiscribe`. */
+const listAiScribeDefaultsHandler = pub.handler(async ({ context }) => {
+	const userId = await getOptionalUserId(context);
+	return context.db
+		.select({ ...templateListSelection, content: template.content })
+		.from(aiDefaults)
+		.innerJoin(
+			templateCollectionTemplate,
+			eq(templateCollectionTemplate.collectionId, aiDefaults.aiScribeCollectionId),
+		)
+		.innerJoin(template, eq(templateCollectionTemplate.templateId, template.id))
+		.where(and(eq(aiDefaults.id, "global"), visibleTemplateWhere(userId)))
+		.orderBy(template.title);
+});
+
 /** Search every template visible to the current user using the shared fuzzy matcher. */
 const searchTemplatesHandler = pub.input(lexicalSearchInput).handler(async ({ context, input }) => {
 	const userId = await getOptionalUserId(context);
 	const templates = await context.db
-		.select({
-			category: template.category,
-			id: template.id,
-			title: template.title,
-			updatedAt: template.updatedAt,
-		})
+		.select({ id: template.id, title: template.title, updatedAt: template.updatedAt })
 		.from(template)
 		.where(visibleTemplateWhere(userId));
 
@@ -211,7 +185,6 @@ const getTemplateHandler = pub
 					name: user.name,
 				},
 				authorId: template.authorId,
-				category: template.category,
 				content: template.content,
 				examples: template.examples,
 				id: template.id,
@@ -269,65 +242,6 @@ const getAuthoredHandler = authed
 	});
 
 const getEditorContextHandler = authed.handler(async ({ context }) => {
-	const userId = context.session.user.id;
-	const limit = MAX_CATEGORY_SUGGESTIONS;
-	const categorySuggestions: string[] = [];
-	const seen = new Set<string>();
-
-	const authoredCategories = await context.db
-		.select({ category: template.category })
-		.from(template)
-		.where(eq(template.authorId, userId))
-		.groupBy(template.category)
-		.orderBy(desc(count()))
-		.limit(limit);
-
-	addCategories(
-		categorySuggestions,
-		seen,
-		authoredCategories.map((item) => item.category),
-		limit,
-	);
-
-	if (categorySuggestions.length < limit) {
-		const collectionCategories = await context.db
-			.select({ category: template.category })
-			.from(templateCollectionTemplate)
-			.innerJoin(
-				templateCollection,
-				eq(templateCollectionTemplate.collectionId, templateCollection.id),
-			)
-			.innerJoin(template, eq(templateCollectionTemplate.templateId, template.id))
-			.where(and(eq(templateCollection.userId, userId), visibleTemplateWhere(userId)))
-			.groupBy(template.category)
-			.orderBy(desc(count()))
-			.limit(limit);
-
-		addCategories(
-			categorySuggestions,
-			seen,
-			collectionCategories.map((item) => item.category),
-			limit,
-		);
-	}
-
-	if (categorySuggestions.length < limit) {
-		const allCategories = await context.db
-			.select({ category: template.category })
-			.from(template)
-			.where(eq(template.visibility, "public"))
-			.groupBy(template.category)
-			.orderBy(desc(count()))
-			.limit(limit);
-
-		addCategories(
-			categorySuggestions,
-			seen,
-			allCategories.map((item) => item.category),
-			limit,
-		);
-	}
-
 	const entitlements = await resolveProductEntitlements({
 		db: context.db,
 		userId: context.session.user.id,
@@ -335,7 +249,6 @@ const getEditorContextHandler = authed.handler(async ({ context }) => {
 
 	return {
 		canCreatePrivateTemplates: entitlements.canCreatePrivateTemplates,
-		categorySuggestions,
 		isTemplateAgentEnabled: await templateAgentFlag.run({
 			identify: { isAdmin: context.auth.isAdmin },
 		}),
@@ -366,7 +279,6 @@ const createTemplateHandler = authed
 				.insert(template)
 				.values({
 					authorId: context.session.user.id,
-					category: input.category,
 					content: input.content,
 					examples,
 					information,
@@ -404,7 +316,6 @@ const updateTemplateHandler = authed
 			const result = await tx
 				.update(template)
 				.set({
-					category: input.category,
 					content: input.content,
 					examples,
 					information,
@@ -424,11 +335,7 @@ const updateTemplateHandler = authed
 		});
 	});
 
-/**
- * Delete an authored template and every AI template based on it. Deleting the
- * AI templates resets referencing workspace slots to their default via the
- * existing ON DELETE SET NULL foreign keys.
- */
+/** Delete an authored template. */
 const deleteTemplateHandler = authed.input(deleteTemplateInput).handler(({ context, input }) =>
 	context.db.transaction(async (tx) => {
 		const ownedTemplate = await tx.query.template.findFirst({
@@ -442,17 +349,12 @@ const deleteTemplateHandler = authed.input(deleteTemplateInput).handler(({ conte
 			});
 		}
 
-		const deletedAiTemplates = await tx
-			.delete(aiScribeFormConfig)
-			.where(eq(aiScribeFormConfig.templateId, input.id))
-			.returning({ id: aiScribeFormConfig.id });
-
 		await tx.delete(template).where(eq(template.id, input.id));
-
-		return {
-			deletedAiTemplateCount: deletedAiTemplates.length,
-			success: true,
-		};
+		// A template converted from an AI Vorlage or Brief-Baukasten shares its id;
+		// drop the old entry too, so a later conversion cannot bring it back.
+		await tx.delete(aiScribeFormConfig).where(eq(aiScribeFormConfig.id, input.id));
+		await tx.delete(aiScribeWorkspace).where(eq(aiScribeWorkspace.id, input.id));
+		return { success: true };
 	}),
 );
 
@@ -461,6 +363,8 @@ const deleteTemplateHandler = authed.input(deleteTemplateInput).handler(({ conte
 // ============================================================================
 
 export const templatesHandler = {
+	// Public: the AI Scribe page's default templates
+	aiScribeDefaults: listAiScribeDefaultsHandler,
 	// Authenticated - Read
 	authored: getAuthoredHandler,
 	// Authenticated - CRUD

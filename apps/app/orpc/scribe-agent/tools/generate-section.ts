@@ -2,23 +2,24 @@ import { call } from "@orpc/server";
 import { tool } from "ai";
 import { z } from "zod";
 
+import { splitSectionOutput } from "@/features/template-tags/sections";
 import { scribeAgentGenerateSectionHandler } from "@/orpc/scribe-agent/generate-section";
 import { formatAudioTranscriptsForPrompt } from "@/orpc/scribe/handlers/audio-input";
-import { getPromptHarnessTargetField } from "@/orpc/scribe/prompts";
 
 import { findSection, runTracedTool } from "./shared";
 import type { AgentToolDeps, SectionToolResult } from "./shared";
 
-const buildSectionFormData = (deps: AgentToolDeps, sectionId: string, notes: string) => {
-	const formData: Record<string, unknown> = { notes };
-	for (const section of deps.sections) {
-		if (section.id === sectionId || section.content.trim().length === 0) {
-			continue;
-		}
-		formData[getPromptHarnessTargetField(section.harness)] = section.content;
-	}
-	return formData;
-};
+// The agent's notes are the target's input; every written section, including the target's draft, is context.
+const buildSectionFormData = (deps: AgentToolDeps, sectionId: string, notes: string) => ({
+	background: deps.background,
+	notes,
+	sections: Object.fromEntries(
+		deps.sections
+			.filter((section) => section.content.trim().length > 0)
+			.map((section) => [section.id, section.content]),
+	),
+	targetSectionId: sectionId,
+});
 
 const getPreparedAttachmentText = (deps: AgentToolDeps): string | undefined => {
 	const sections = [
@@ -39,7 +40,7 @@ const getPreparedAttachmentText = (deps: AgentToolDeps): string | undefined => {
 export const createGenerateSectionTool = (deps: AgentToolDeps) =>
 	tool({
 		description:
-			"Erstellt einen kompletten Abschnitt des Arztbriefs neu mit der passenden AI Vorlage. Langsam und kostenintensiv: nur für ausdrücklich gewünschte vollständige Neugenerierungen oder umfangreiche, zusammenhängende neue Informationen nutzen. Für einzelne Angaben oder lokale Änderungen editSection verwenden.",
+			"Erstellt einen kompletten Abschnitt des Arztbriefs neu mit der Vorlage des Briefs. Langsam und kostenintensiv: nur für ausdrücklich gewünschte vollständige Neugenerierungen oder umfangreiche, zusammenhängende neue Informationen nutzen. Für einzelne Angaben oder lokale Änderungen editSection verwenden.",
 		execute: ({ notes, sectionId }): Promise<SectionToolResult> =>
 			runTracedTool({
 				deps,
@@ -50,38 +51,24 @@ export const createGenerateSectionTool = (deps: AgentToolDeps) =>
 					}
 					const result = await call(
 						scribeAgentGenerateSectionHandler,
-						section.formId
-							? {
-									audioFiles: deps.preparedMedia.usedTranscription ? [] : deps.audioFiles,
-									contextFiles: deps.preparedMedia.usedFilePreprocessing ? [] : deps.contextFiles,
-									formData: buildSectionFormData(deps, sectionId, notes),
-									formId: section.formId,
-									preparedAttachmentText: getPreparedAttachmentText(deps),
-									source: "customForm" as const,
-									traceContext: {
-										agentRunId: deps.agentRunId,
-										agentSectionId: sectionId,
-										parentObservationId: toolObservationId,
-										traceId: deps.traceId,
-									},
-								}
-							: {
-									audioFiles: deps.preparedMedia.usedTranscription ? [] : deps.audioFiles,
-									contextFiles: deps.preparedMedia.usedFilePreprocessing ? [] : deps.contextFiles,
-									documentType: section.harness,
-									formData: buildSectionFormData(deps, sectionId, notes),
-									preparedAttachmentText: getPreparedAttachmentText(deps),
-									source: "documentType" as const,
-									traceContext: {
-										agentRunId: deps.agentRunId,
-										agentSectionId: sectionId,
-										parentObservationId: toolObservationId,
-										traceId: deps.traceId,
-									},
-								},
+						{
+							audioFiles: deps.preparedMedia.usedTranscription ? [] : deps.audioFiles,
+							contextFiles: deps.preparedMedia.usedFilePreprocessing ? [] : deps.contextFiles,
+							formData: buildSectionFormData(deps, sectionId, notes),
+							preparedAttachmentText: getPreparedAttachmentText(deps),
+							templateId: deps.templateId,
+							traceContext: {
+								agentRunId: deps.agentRunId,
+								agentSectionId: sectionId,
+								parentObservationId: toolObservationId,
+								traceId: deps.traceId,
+							},
+						},
 						{ context: { db: deps.db, session: deps.session } },
 					);
-					return { content: result.text, ok: true, sectionId };
+					// The model answers in the section frame; fall back to the bare text.
+					const content = splitSectionOutput(result.text)[sectionId] ?? result.text.trim();
+					return { content, ok: true, sectionId };
 				},
 				inputData: { notes, sectionId },
 				name: "generateSection",

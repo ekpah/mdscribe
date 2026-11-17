@@ -4,10 +4,12 @@ import { Extension } from "@tiptap/core";
 import type { AnyExtension } from "@tiptap/core";
 import type { EditorState } from "@tiptap/pm/state";
 
+import { getMarkdocEditorPlugins } from "../plugins";
 import { CalcTag } from "./editorNodes/calcTag/calc-tag";
 import type { CalcTagAttrs } from "./editorNodes/calcTag/calc-tag";
 import { CaseTag } from "./editorNodes/caseTag/case-tag";
 import type { CaseTagOptions } from "./editorNodes/caseTag/case-tag";
+import { CiteMark } from "./editorNodes/cite-mark";
 import { ConditionTag } from "./editorNodes/conditionTag/condition-tag";
 import { DetailsTag } from "./editorNodes/detailsTag/details-tag";
 import type { DetailsTagAttrs } from "./editorNodes/detailsTag/details-tag";
@@ -82,7 +84,7 @@ export const MarkdocMD = Extension.create<MarkdocExtensionOptions>({
 	},
 
 	addExtensions() {
-		const extensions: AnyExtension[] = [ConditionTag];
+		const extensions: AnyExtension[] = [CiteMark, ConditionTag];
 
 		if (this.options.caseTag !== false) {
 			extensions.push(CaseTag.configure(this.options.caseTag));
@@ -104,7 +106,10 @@ export const MarkdocMD = Extension.create<MarkdocExtensionOptions>({
 			extensions.push(SwitchTag.configure(this.options.switchTag));
 		}
 
-		extensions.push(TagGapCaret);
+		extensions.push(
+			...getMarkdocEditorPlugins().flatMap((plugin) => plugin.extensions),
+			TagGapCaret,
+		);
 
 		return extensions;
 	},

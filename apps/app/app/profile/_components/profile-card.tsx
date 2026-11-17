@@ -30,6 +30,7 @@ import { z } from "zod";
 import { authClient } from "@/lib/auth-client";
 import { unwrapAuthClientResult } from "@/lib/auth-client-result";
 import { USER_MESSAGES } from "@/lib/user-messages";
+import { MIN_USERNAME_LENGTH, USERNAME_PATTERN } from "@/lib/username";
 
 const PROFILE_UPDATE_ERROR =
 	"Dein Profil konnte nicht aktualisiert werden. Bitte versuche es erneut.";
@@ -46,8 +47,6 @@ const resolveUpdateErrorMessage = (error: unknown): string => {
 	return PROFILE_UPDATE_ERROR;
 };
 
-const USERNAME_PATTERN = /^[a-zA-Z0-9._]+$/;
-
 const profileFormSchema = z.object({
 	email: z
 		.string()
@@ -61,7 +60,9 @@ const profileFormSchema = z.object({
 	username: z
 		.string()
 		.trim()
-		.min(3, { message: "Benutzername: mindestens 3 Zeichen." })
+		.min(MIN_USERNAME_LENGTH, {
+			message: `Benutzername: mindestens ${MIN_USERNAME_LENGTH} Zeichen.`,
+		})
 		.max(30, { message: "Benutzername darf nicht länger als 30 Zeichen sein." })
 		.regex(USERNAME_PATTERN, {
 			message: "Benutzername: nur Buchstaben, Zahlen, Punkt und Unterstrich.",

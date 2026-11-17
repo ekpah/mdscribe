@@ -1,48 +1,226 @@
 "use client";
 
-import { useChat } from "@ai-sdk/react";
-import { eventIteratorToUnproxiedDataStream } from "@orpc/client";
-import { MarkdownDiffEditor } from "@repo/design-system/components/editor/diff-editor";
+import { SuggestionDiff } from "@repo/design-system/components/editor/diff-editor";
+import { Skeleton } from "@repo/design-system/components/ui/skeleton";
 import { cn } from "@repo/design-system/lib/utils";
-import { Loader2, Sparkles } from "lucide-react";
+import { Check, Loader2, Pencil, Sparkles } from "lucide-react";
+import type { CitationRequest } from "markdoc-md/citations";
+import { DynamicMarkdocRenderer } from "markdoc-md/react";
+import dynamic from "next/dynamic";
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 import { toast } from "sonner";
 
-import { CitationList } from "@/features/response-citations/cited-response";
-import { getAiscribeErrorMessage } from "@/lib/aiscribe-errors";
-import type { OcrUIMessage } from "@/lib/ocr-types";
-import { orpc } from "@/lib/orpc";
+import { addScribeCitations } from "@/features/response-citations/markup";
+import type { ScribeCitation } from "@/features/response-citations/markup";
 import { USER_MESSAGES } from "@/lib/user-messages";
-import type { DocumentType } from "@/orpc/scribe/types";
+
+import {
+	collectSectionEvidence,
+	getMessageText,
+	getSectionTexts,
+	useCaseGeneration,
+} from "./use-case-generation";
+import type { CaseInput, SectionEvidence } from "./use-case-generation";
 
 const MIN_HEIGHT = 120;
 
+// Loaded on first edit, so reading a letter does not ship the editor.
+const MarkdownEditor = dynamic(() => import("markdoc-md-editor/markdown-editor"), {
+	loading: () => <Skeleton className="h-full min-h-20 w-full" />,
+	ssr: false,
+});
+
+/** Typography of the section text, shared by the rendered view and the editor, so editing does not move it. */
+const SECTION_TEXT_CLASS =
+	"prose prose-slate prose-sm max-w-none text-sm leading-[1.45] [&_p]:my-0 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0";
+
+/** One `{% section %}` of the letter's template. */
 export interface DoctorsNoteSectionConfig {
 	id: string;
 	label: string;
 	placeholder: string;
-	description?: string;
-	/** Document type for oRPC enhancement. If omitted, the field will be a plain input without enhancement. */
-	documentType?: DocumentType;
-	/** When set, generation streams through this AI Vorlage (harness + template). */
-	formId?: string;
-	/** Template metadata/content used by this section. */
-	template?: {
-		content: string;
-		title: string;
-	} | null;
-	/**
-	 * Build the prompt body for this section.
-	 * Only required if documentType is provided.
-	 * @param notes - The current text in this section
-	 * @param context - Values from other visible sections (keyed by section id)
-	 * @returns The prompt body to send to the API
-	 */
-	buildPrompt?: (notes: string, context: Record<string, string>) => Record<string, unknown>;
 }
 
+/** Where each cited statement of `evidence` is in `text`; of overlapping ones, the earlier one. */
+const locateCitations = (text: string, evidence: SectionEvidence[]): ScribeCitation[] => {
+	const located = evidence
+		.flatMap(({ citations, text: cited }) => {
+			const at = text.indexOf(cited);
+			return at === -1 ? [] : [{ citations, end: at + cited.length, start: at }];
+		})
+		.toSorted((a, b) => a.start - b.start);
+	return located.filter((mark, index) => index === 0 || mark.start >= located[index - 1].end);
+};
+
+/** `text[start, end)` of a suggestion with each cited statement as a mark that opens its sources. */
+const renderCitedRange = (
+	text: string,
+	start: number,
+	end: number,
+	evidence: SectionEvidence[],
+	onSelect: (citations: CitationRequest[]) => void,
+): ReactNode[] => {
+	const nodes: ReactNode[] = [];
+	let cursor = start;
+	for (const mark of locateCitations(text, evidence)) {
+		const from = Math.max(mark.start, start);
+		const to = Math.min(mark.end, end);
+		if (from >= to) {
+			continue;
+		}
+		if (from > cursor) {
+			nodes.push(text.slice(cursor, from));
+		}
+		// A mark like markdoc-md's `cite`, not a <button>: Chrome lays buttons out as inline
+		// blocks, so a statement spanning lines would push the following punctuation onto its own line.
+		nodes.push(
+			<mark
+				className="cursor-pointer whitespace-pre-wrap bg-transparent text-inherit underline decoration-dotted decoration-solarized-blue/50 underline-offset-4 hover:bg-solarized-blue/10 focus-visible:outline-2 focus-visible:outline-solarized-blue"
+				data-citation-source=""
+				key={`${from}-${to}`}
+				onClick={() => onSelect(mark.citations)}
+				onKeyDown={(event) => {
+					if (event.key === "Enter" || event.key === " ") {
+						event.preventDefault();
+						onSelect(mark.citations);
+					}
+				}}
+				// oxlint-disable-next-line jsx-a11y/prefer-tag-over-role, jsx-a11y/no-noninteractive-element-to-interactive-role -- a <button> cannot wrap across lines
+				role="button"
+				tabIndex={0}
+				title="Quelle anzeigen"
+			>
+				{text.slice(from, to)}
+			</mark>,
+		);
+		cursor = to;
+	}
+	if (cursor < end) {
+		nodes.push(text.slice(cursor, end));
+	}
+	return nodes;
+};
+
+const NO_EVIDENCE: SectionEvidence[] = [];
+
+/** The section text: rendered with its citations, or in the editor while editing. */
+const SectionText = ({
+	canEdit,
+	citedValue,
+	isEditing,
+	isLoading,
+	onChange,
+	onCitationSelect,
+	onStartEditing,
+	placeholder,
+	value,
+}: {
+	canEdit: boolean;
+	citedValue: string;
+	isEditing: boolean;
+	isLoading: boolean;
+	onChange: (value: string) => void;
+	onCitationSelect?: (citations: CitationRequest[]) => void;
+	onStartEditing: () => void;
+	placeholder: string;
+	value: string;
+}) => {
+	if (isEditing) {
+		return (
+			<MarkdownEditor
+				className={cn(SECTION_TEXT_CLASS, "min-h-20 focus:outline-none")}
+				onChange={onChange}
+				value={value}
+			/>
+		);
+	}
+	if (!value.trim()) {
+		// An empty section opens the editor directly.
+		return (
+			<button
+				className="w-full text-left text-muted-foreground text-sm disabled:cursor-not-allowed"
+				disabled={!canEdit}
+				onClick={onStartEditing}
+				type="button"
+			>
+				{isLoading ? "Wird generiert..." : placeholder}
+			</button>
+		);
+	}
+	return (
+		<div className="[&_mark[data-citation-source]]:underline [&_mark[data-citation-source]]:decoration-solarized-blue/50 [&_mark[data-citation-source]]:decoration-dotted [&_mark[data-citation-source]]:underline-offset-4">
+			<DynamicMarkdocRenderer
+				className={SECTION_TEXT_CLASS}
+				layout="template"
+				markdocContent={citedValue}
+				onCitationSelect={onCitationSelect}
+			/>
+		</div>
+	);
+};
+
+const TOOL_BUTTON_CLASS = cn(
+	"rounded-md p-1.5 transition-all hover:bg-solarized-blue/10",
+	"opacity-50 hover:opacity-100 focus:opacity-100 disabled:cursor-not-allowed disabled:opacity-30",
+);
+
+/** Edit toggle and generate button, top right of the section. */
+const SectionTools = ({
+	canEdit,
+	canEnhance,
+	isEditing,
+	isLoading,
+	onEnhance,
+	onToggleEditing,
+}: {
+	canEdit: boolean;
+	canEnhance: boolean;
+	isEditing: boolean;
+	isLoading: boolean;
+	onEnhance: () => void;
+	onToggleEditing: () => void;
+}) => {
+	const EditIcon = isEditing ? Check : Pencil;
+	const EnhanceIcon = isLoading ? Loader2 : Sparkles;
+	return (
+		<div className="absolute top-2 right-2 z-10 flex items-center gap-0.5">
+			<button
+				aria-pressed={isEditing}
+				className={cn(TOOL_BUTTON_CLASS, isEditing && "opacity-100")}
+				disabled={!canEdit}
+				onClick={onToggleEditing}
+				title={isEditing ? "Bearbeiten beenden" : "Bearbeiten"}
+				type="button"
+			>
+				<EditIcon className="h-4 w-4 text-solarized-blue" />
+			</button>
+			<button
+				className={cn(TOOL_BUTTON_CLASS, isLoading && "opacity-100")}
+				disabled={!canEnhance && !isLoading}
+				onClick={onEnhance}
+				title={isLoading ? "Wird generiert..." : "Mit KI generieren/verbessern (⌘↵)"}
+				type="button"
+			>
+				<EnhanceIcon className={cn("h-4 w-4 text-solarized-blue", isLoading && "animate-spin")} />
+			</button>
+		</div>
+	);
+};
+
 interface DoctorsNoteSectionProps {
+	/** The letter's case input: text, files (as OCR text) and audio (as transcript once available). */
+	caseInput: CaseInput;
+	/** Whether the case input holds any text, files or audio. */
+	hasCaseInput: boolean;
+	/** Cited statements of the last whole-letter generation in this section. */
+	evidence?: SectionEvidence[];
+	onCitationSelect?: (citations: CitationRequest[]) => void;
+	/** Locates the document quotes of the section's own answer before a click. */
+	prefetchCitations?: (citations: CitationRequest[]) => void;
 	config: DoctorsNoteSectionConfig;
+	templateId: string;
 	value: string;
 	onChange: (value: string) => void;
 	/** Context from other sections (keyed by section id) */
@@ -61,81 +239,45 @@ interface DoctorsNoteSectionProps {
 	onSuggestionValueChange?: (sectionId: string, value: string | null) => void;
 }
 
-const messageText = (message: OcrUIMessage | undefined) =>
-	message?.parts.flatMap((part) => (part.type === "text" ? [part.text] : [])).join("") ?? "";
-
 export const DoctorsNoteSection = ({
+	caseInput,
+	hasCaseInput,
+	evidence = NO_EVIDENCE,
+	onCitationSelect,
+	prefetchCitations,
 	config,
+	templateId,
 	value,
 	onChange,
 	context,
 	disabled = false,
 	minHeight = MIN_HEIGHT,
-	proposal,
+	proposal = null,
 	onProposalResolved,
 	onSuggestionValueChange,
 }: DoctorsNoteSectionProps) => {
 	const [proposedText, setProposedText] = useState<string | null>(null);
-
-	// Check if enhancement is available (has a generator and buildPrompt)
-	const hasEnhancement = Boolean((config.documentType || config.formId) && config.buildPrompt);
-
-	// Use AI SDK useChat with custom oRPC transport
-	const { messages, sendMessage, status, stop, setMessages } = useChat<OcrUIMessage>({
-		id: `section-${config.id}`,
-		onError: (error) => {
-			const message = getAiscribeErrorMessage(error);
-			if (message) {
-				toast.error(message);
-			}
-			setProposedText(null);
-		},
-		onFinish: () => {
-			// Completion is done, proposed text is already set via the effect
-		},
-		transport: {
-			reconnectToStream() {
-				throw new Error("Unsupported");
-			},
-			async sendMessages(options) {
-				const requestInput = config.formId
-					? {
-							formId: config.formId,
-							messages: options.messages,
-							source: "customForm" as const,
-						}
-					: {
-							documentType: config.documentType ?? "discharge",
-							messages: options.messages,
-							source: "documentType" as const,
-						};
-				return eventIteratorToUnproxiedDataStream(
-					await orpc.scribeStream.call(requestInput, {
-						signal: options.abortSignal,
-					}),
-				);
-			},
-		},
+	const generation = useCaseGeneration({
+		caseInput,
+		chatId: `section-${config.id}`,
+		onError: () => setProposedText(null),
+		prefetchCitations,
+		templateId,
 	});
+	const { isLoading, message, stop } = generation;
 
-	// Extract completion text from the last assistant message
-	const responseMessage = messages.findLast((m) => m.role === "assistant");
-	const completion = useMemo(() => messageText(responseMessage), [responseMessage]);
+	// The model answers in this section's frame; an unframed answer is used as is.
+	const completion = useMemo(
+		() => getSectionTexts(getMessageText(message), config.id)[config.id] ?? "",
+		[config.id, message],
+	);
+	const ownEvidence = useMemo(
+		() => collectSectionEvidence(message, config.id)[config.id] ?? [],
+		[config.id, message],
+	);
 
-	// Loading state from useChat status
-	const isLoading = status === "streaming" || status === "submitted";
-
-	const hasAnyInput = useMemo(() => {
-		if (value.trim().length > 0) {
-			return true;
-		}
-		for (const contextValue of Object.values(context)) {
-			if (contextValue.trim().length > 0) {
-				return true;
-			}
-		}
-		return false;
-	}, [value, context]);
+	const hasAnyInput =
+		hasCaseInput || [value, ...Object.values(context)].some((text) => text.trim());
 
 	// Update proposed text as completion streams in
 	useEffect(() => {
@@ -144,12 +286,8 @@ export const DoctorsNoteSection = ({
 		}
 	}, [completion, isLoading]);
 
-	// Handle enhance button click
+	const { generate } = generation;
 	const handleEnhance = useCallback(() => {
-		if (!hasEnhancement || !config.buildPrompt) {
-			return;
-		}
-
 		if (isLoading) {
 			stop();
 			return;
@@ -160,24 +298,14 @@ export const DoctorsNoteSection = ({
 			return;
 		}
 
-		// Build prompt using the config's buildPrompt function
-		const promptBody = config.buildPrompt(value, context);
-
-		// Clear previous messages and start streaming with empty proposed text (triggers diff mode)
-		setMessages([]);
+		// The section's own draft goes in its slot of the document; the model rewrites it,
+		// with the whole case input as for the letter.
 		setProposedText("");
-		sendMessage({ text: JSON.stringify(promptBody) });
-	}, [
-		hasEnhancement,
-		isLoading,
-		stop,
-		config,
-		value,
-		context,
-		hasAnyInput,
-		setMessages,
-		sendMessage,
-	]);
+		void generate({
+			sections: { ...context, [config.id]: value },
+			targetSectionId: config.id,
+		});
+	}, [isLoading, stop, config.id, value, context, hasAnyInput, generate]);
 
 	// External (agent) proposals take precedence over the section's own enhance.
 	const effectiveProposal = proposal ?? proposedText;
@@ -186,72 +314,94 @@ export const DoctorsNoteSection = ({
 		onSuggestionValueChange?.(config.id, effectiveProposal);
 	}, [config.id, effectiveProposal, onSuggestionValueChange]);
 
-	// Clear proposed text after a suggestion is accepted or rejected. An accepted
-	// generation keeps its message, so its citations stay listed under the text.
-	const handleSuggestionAccepted = useCallback(() => {
+	// Clear proposed text after a suggestion is accepted or rejected; the answer's
+	// citations stay for the statements that remain.
+	const handleSuggestionHandled = useCallback(() => {
 		setProposedText(null);
 		onProposalResolved?.();
 	}, [onProposalResolved]);
-	const handleSuggestionRejected = useCallback(() => {
-		setProposedText(null);
-		setMessages([]);
-		onProposalResolved?.();
-	}, [setMessages, onProposalResolved]);
 
-	const canEnhance = hasEnhancement && !disabled && !isLoading;
+	const [isEditing, setIsEditing] = useState(false);
+	const canEnhance = !disabled && !isLoading;
 	const isInDiffMode = effectiveProposal !== null;
+	const canEdit = !disabled && !isLoading && !isInDiffMode;
+	// A citation stays marked as long as its exact text survives editing.
+	const shownText = effectiveProposal ?? value;
+	const shownEvidence = useMemo(
+		() => [...evidence, ...ownEvidence].filter(({ text }) => shownText.includes(text)),
+		[evidence, ownEvidence, shownText],
+	);
+	const citedValue = useMemo(
+		() =>
+			onCitationSelect ? addScribeCitations(value, locateCitations(value, shownEvidence)) : value,
+		[onCitationSelect, shownEvidence, value],
+	);
+
+	const hotkeyRef = useHotkeys<HTMLDivElement>(
+		["meta+enter", "ctrl+enter"],
+		(event) => {
+			event.preventDefault();
+			handleEnhance();
+		},
+		{ enableOnContentEditable: true, enabled: !disabled && !isInDiffMode },
+	);
+
+	if (isInDiffMode) {
+		return (
+			<div className="relative h-full">
+				{isLoading && (
+					<span className="absolute top-2 left-3 z-10 text-muted-foreground text-xs">
+						Wird generiert...
+					</span>
+				)}
+				<SuggestionDiff
+					isStreaming={isLoading}
+					minHeight={minHeight}
+					onChange={onChange}
+					onSuggestionAccepted={handleSuggestionHandled}
+					onSuggestionRejected={handleSuggestionHandled}
+					renderRange={
+						shownEvidence.length > 0 && onCitationSelect
+							? (text, start, end) =>
+									renderCitedRange(text, start, end, shownEvidence, onCitationSelect)
+							: undefined
+					}
+					suggestedValue={effectiveProposal}
+					value={value}
+				/>
+			</div>
+		);
+	}
 
 	return (
-		<div className="group relative h-full">
-			{isLoading && (
-				<span className="absolute top-2 left-3 z-10 text-muted-foreground text-xs">
-					Wird generiert...
-				</span>
+		<div
+			className={cn(
+				"relative w-full rounded-md border bg-background px-3 py-2 pr-20 shadow-xs",
+				isEditing ? "border-solarized-blue ring-1 ring-solarized-blue/20" : "border-input",
+				disabled && "opacity-50",
 			)}
-
-			{/* Content area - diff editor handles both edit and diff modes */}
-			<MarkdownDiffEditor
-				actionSlot={
-					hasEnhancement ? (
-						<button
-							className={cn(
-								"rounded-md p-1.5 transition-all",
-								"hover:bg-solarized-blue/10",
-								canEnhance
-									? "opacity-50 hover:opacity-100 focus:opacity-100"
-									: "cursor-not-allowed opacity-30",
-								isLoading && "opacity-100",
-							)}
-							disabled={!canEnhance}
-							onClick={handleEnhance}
-							title={isLoading ? "Wird generiert..." : "Mit KI generieren/verbessern (⌘↵)"}
-							type="button"
-						>
-							{isLoading ? (
-								<Loader2 className="h-4 w-4 animate-spin text-solarized-blue" />
-							) : (
-								<Sparkles className="h-4 w-4 text-solarized-blue" />
-							)}
-						</button>
-					) : undefined
-				}
-				className={cn(isLoading && !isInDiffMode && "opacity-50")}
-				disabled={disabled || isLoading}
-				id={`section-${config.id}`}
-				isStreaming={isLoading}
-				minHeight={minHeight}
+			id={`section-${config.id}`}
+			ref={hotkeyRef}
+			style={{ minHeight }}
+		>
+			<SectionText
+				canEdit={canEdit}
+				citedValue={citedValue}
+				isEditing={isEditing}
+				isLoading={isLoading}
 				onChange={onChange}
-				onSubmit={hasEnhancement ? handleEnhance : undefined}
-				onSuggestionAccepted={handleSuggestionAccepted}
-				onSuggestionRejected={handleSuggestionRejected}
+				onCitationSelect={onCitationSelect}
+				onStartEditing={() => setIsEditing(true)}
 				placeholder={config.placeholder}
-				suggestedValue={effectiveProposal}
 				value={value}
 			/>
-			<CitationList
-				draft={completion}
-				message={responseMessage}
-				text={effectiveProposal ?? value}
+			<SectionTools
+				canEdit={canEdit}
+				canEnhance={canEnhance}
+				isEditing={isEditing}
+				isLoading={isLoading}
+				onEnhance={handleEnhance}
+				onToggleEditing={() => setIsEditing((editing) => !editing)}
 			/>
 		</div>
 	);

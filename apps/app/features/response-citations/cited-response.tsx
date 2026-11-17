@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Quote } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useCallback, useEffect, useMemo } from "react";
 
 import { CitationPreviewDialog } from "@/app/_components/citation-preview-dialog";
@@ -9,18 +9,19 @@ import { MemoizedCopySection } from "@/app/aiscribe/_components/memoized-copy-se
 import { addScribeCitations } from "@/features/response-citations/markup";
 import type { OcrResult, OcrUIMessage } from "@/lib/ocr-types";
 
-const NO_FILES: ReadonlyMap<string, File> = new Map();
-const NO_OCR: ReadonlyMap<string, OcrResult> = new Map();
-
-/** Citations, their phase and source previews of one generated message. */
-const useResponseCitations = ({
-	files = NO_FILES,
+/** The answer and source snapshot belong to one generation, not the editable inputs. */
+export const CitedResponse = ({
+	content,
+	files,
+	isStreaming,
 	message,
-	ocrResults = NO_OCR,
+	ocrResults,
 }: {
-	files?: ReadonlyMap<string, File>;
+	content: string;
+	files: ReadonlyMap<string, File>;
+	isStreaming: boolean;
 	message?: OcrUIMessage;
-	ocrResults?: ReadonlyMap<string, OcrResult>;
+	ocrResults: ReadonlyMap<string, OcrResult>;
 }) => {
 	const citations = useMemo(
 		() => message?.parts.flatMap((p) => (p.type === "data-citation" ? [p.data] : [])) ?? [],
@@ -54,29 +55,6 @@ const useResponseCitations = ({
 			prefetch(citations.flatMap((span) => span.citations));
 		}
 	}, [citations, phase, prefetch]);
-	const dialog = <CitationPreviewDialog onOpenChange={onOpenChange} previews={previews} />;
-	return { citations, dialog, phase, selectCitations };
-};
-
-/** The answer and source snapshot belong to one generation, not the editable inputs. */
-export const CitedResponse = ({
-	content,
-	files,
-	isStreaming,
-	message,
-	ocrResults,
-}: {
-	content: string;
-	files: ReadonlyMap<string, File>;
-	isStreaming: boolean;
-	message?: OcrUIMessage;
-	ocrResults: ReadonlyMap<string, OcrResult>;
-}) => {
-	const { citations, dialog, phase, selectCitations } = useResponseCitations({
-		files,
-		message,
-		ocrResults,
-	});
 	const decoratedContent = addScribeCitations(content, citations);
 	let statusText = "";
 	if (phase === "failed") {
@@ -106,66 +84,7 @@ export const CitedResponse = ({
 				) : null}
 				<span>{statusText}</span>
 			</output>
-			{dialog}
-		</>
-	);
-};
-
-/**
- * Cited statements of a generated text as a list, for editors that cannot mark
- * them in place. A statement is listed while `text` still contains it, so edits
- * and rejected suggestions drop their citations.
- */
-export const CitationList = ({
-	draft,
-	message,
-	text,
-}: {
-	/** The generated text the citation offsets refer to. */
-	draft: string;
-	message?: OcrUIMessage;
-	text: string;
-}) => {
-	const { citations, dialog, phase, selectCitations } = useResponseCitations({ message });
-	const statements = citations
-		.map((citation) => ({ citation, statement: draft.slice(citation.start, citation.end) }))
-		.filter(({ statement }) => statement && text.includes(statement));
-	if (phase === "adding") {
-		return (
-			<output
-				aria-live="polite"
-				className="mt-2 flex items-center gap-2 text-muted-foreground text-xs"
-			>
-				<Loader2 aria-hidden className="h-3 w-3 animate-spin" />
-				<span>Quellenhinweise werden ergänzt … ({citations.length})</span>
-			</output>
-		);
-	}
-	if (!statements.length) {
-		return phase === "failed" ? (
-			<p className="mt-2 text-muted-foreground text-xs">
-				Quellenhinweise konnten nicht ergänzt werden.
-			</p>
-		) : null;
-	}
-	return (
-		<>
-			<div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
-				<span className="text-muted-foreground">{statements.length} Quellenhinweise:</span>
-				{statements.map(({ citation, statement }) => (
-					<button
-						className="inline-flex max-w-64 items-center gap-1 rounded-md border border-solarized-blue/30 bg-solarized-blue/5 px-1.5 py-0.5 text-left hover:bg-solarized-blue/15 focus-visible:outline-2 focus-visible:outline-solarized-blue"
-						key={`${citation.start}-${citation.end}`}
-						onClick={() => selectCitations(citation.citations)}
-						title={statement}
-						type="button"
-					>
-						<Quote aria-hidden className="h-3 w-3 shrink-0 text-solarized-blue" />
-						<span className="truncate">{statement}</span>
-					</button>
-				))}
-			</div>
-			{dialog}
+			<CitationPreviewDialog onOpenChange={onOpenChange} previews={previews} />
 		</>
 	);
 };

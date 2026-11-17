@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 import { call } from "@orpc/server";
-import { aiScribeFormConfig, aiScribeWorkspace, eq, template } from "@repo/database";
+import { eq, template } from "@repo/database";
 
 import type { TestServer } from "@/__tests__/setup";
 import {
@@ -45,7 +45,7 @@ describe("Templates oRPC Handlers", () => {
 			'{% switch "x" type="number" %}{% case gt=0 %}positive{% /case %}{% /switch %}',
 		];
 		for (const content of invalid) {
-			const input = { category: "Test", content, examples: [], name: "Invalid" };
+			const input = { content, examples: [], name: "Invalid" };
 			await expect(call(templatesHandler.create, input, { context })).rejects.toThrow(
 				USER_MESSAGES.invalidTemplateTags,
 			);
@@ -72,7 +72,6 @@ describe("Templates oRPC Handlers", () => {
 				// Create a user and template
 				const { user } = await createTestUser(server.db);
 				const testTemplate = await createTestTemplate(server.db, user.id, {
-					category: "Prozeduren",
 					content: "ZVK Anlage Vorlage...",
 					title: "ZVK Anlage",
 				});
@@ -84,7 +83,6 @@ describe("Templates oRPC Handlers", () => {
 				expect(result).not.toBeNull();
 				expect(result?.id).toBe(testTemplate.id);
 				expect(result?.title).toBe("ZVK Anlage");
-				expect(result?.category).toBe("Prozeduren");
 				expect(result?.content).toBe("ZVK Anlage Vorlage...");
 				expect(result?.author).toBeDefined();
 				expect(result?.author?.id).toBe(user.id);
@@ -167,16 +165,11 @@ describe("Templates oRPC Handlers", () => {
 		});
 
 		describe("templates.search", () => {
-			test("fuzzy-matches titles and categories and applies template visibility", async () => {
+			test("fuzzy-matches titles and applies template visibility", async () => {
 				const { user: author } = await createTestUser(server.db);
 				const titleMatch = await createTestTemplate(server.db, author.id, {
 					content: "Allgemeiner Bericht",
 					title: "Hypertonie",
-				});
-				const categoryMatch = await createTestTemplate(server.db, author.id, {
-					category: "Hypertonie",
-					content: "Allgemeiner Bericht",
-					title: "Behandlungsbericht",
 				});
 				const contentOnlyMatch = await createTestTemplate(server.db, author.id, {
 					content: "Behandlung einer Hypertonie",
@@ -203,9 +196,7 @@ describe("Templates oRPC Handlers", () => {
 					},
 				);
 
-				expect(anonymousResult.map((item) => item.id)).toEqual(
-					expect.arrayContaining([titleMatch.id, categoryMatch.id]),
-				);
+				expect(anonymousResult.map((item) => item.id)).toContain(titleMatch.id);
 				expect(anonymousResult.map((item) => item.id)).not.toContain(contentOnlyMatch.id);
 				expect(authorResult.map((item) => item.id)).toContain(privateMatch.id);
 			});
@@ -293,7 +284,6 @@ describe("Templates oRPC Handlers", () => {
 				const result = await call(
 					templatesHandler.create,
 					{
-						category: "Test Category",
 						content: "Template content here",
 						examples: ["Example output one", "Example output two"],
 						information: "Use concise sections.",
@@ -304,7 +294,6 @@ describe("Templates oRPC Handlers", () => {
 
 				expect(result).toBeDefined();
 				expect(result.title).toBe("New Template");
-				expect(result.category).toBe("Test Category");
 				expect(result.content).toBe("Template content here");
 				expect(result.authorId).toBe(user.id);
 				expect(result.visibility).toBe("public");
@@ -328,7 +317,6 @@ describe("Templates oRPC Handlers", () => {
 					call(
 						templatesHandler.create,
 						{
-							category: "Test Category",
 							content: "Private content",
 							examples: [],
 							name: "Private Template",
@@ -350,7 +338,6 @@ describe("Templates oRPC Handlers", () => {
 					call(
 						templatesHandler.create,
 						{
-							category: "Test Category",
 							content: `
 {% info "Gewicht" type="number" /%}
 {% info "Gewicht" type="date" /%}
@@ -380,7 +367,6 @@ describe("Templates oRPC Handlers", () => {
 				const result = await call(
 					templatesHandler.create,
 					{
-						category: "Test Category",
 						content: "Private content",
 						examples: [],
 						name: "Private Template",
@@ -407,7 +393,6 @@ describe("Templates oRPC Handlers", () => {
 				const result = await call(
 					templatesHandler.update,
 					{
-						category: "Updated Category",
 						content: "Updated content",
 						examples: ["Updated example one", "Updated example two"],
 						id: createdTemplate.id,
@@ -418,7 +403,6 @@ describe("Templates oRPC Handlers", () => {
 				);
 
 				expect(result.title).toBe("Updated Title");
-				expect(result.category).toBe("Updated Category");
 				expect(result.content).toBe("Updated content");
 
 				const [savedTemplate] = await server.db
@@ -443,7 +427,6 @@ describe("Templates oRPC Handlers", () => {
 					call(
 						templatesHandler.update,
 						{
-							category: "Updated Category",
 							content: "Updated content",
 							examples: [],
 							id: createdTemplate.id,
@@ -457,7 +440,6 @@ describe("Templates oRPC Handlers", () => {
 				const publicResult = await call(
 					templatesHandler.update,
 					{
-						category: "Updated Category",
 						content: "Updated content",
 						examples: [],
 						id: createdTemplate.id,
@@ -484,7 +466,6 @@ describe("Templates oRPC Handlers", () => {
 					call(
 						templatesHandler.update,
 						{
-							category: "Updated Category",
 							content: `
 {% switch "Status" type="string" %}{% case "A" %}A{% /case %}{% /switch %}
 {% switch "Status" type="boolean" %}{% case "true" %}Ja{% /case %}{% /switch %}
@@ -521,7 +502,6 @@ describe("Templates oRPC Handlers", () => {
 					call(
 						templatesHandler.update,
 						{
-							category: "Hacked",
 							content: "Hacked",
 							examples: [],
 							id: testTemplate.id,
@@ -534,50 +514,11 @@ describe("Templates oRPC Handlers", () => {
 		});
 
 		describe("templates.delete", () => {
-			test("deletes referencing AI templates and resets Brief-Baukasten slots", async () => {
+			test("deletes an owned template", async () => {
 				const { user: owner } = await createTestUser(server.db, {
 					email: "template-owner@test.com",
 				});
-				const { user: aiTemplateOwner } = await createTestUser(server.db, {
-					email: "ai-template-owner@test.com",
-				});
 				const deletedTemplate = await createTestTemplate(server.db, owner.id);
-				const retainedTemplate = await createTestTemplate(server.db, owner.id, {
-					title: "Retained Template",
-				});
-				const deletedFormId = crypto.randomUUID();
-				const retainedFormId = crypto.randomUUID();
-
-				await server.db.insert(aiScribeFormConfig).values([
-					{
-						authorId: aiTemplateOwner.id,
-						id: deletedFormId,
-						inputPreset: "transcript",
-						name: "Delete with template",
-						promptHarness: "diagnosis",
-						slug: "delete-with-template",
-						templateId: deletedTemplate.id,
-					},
-					{
-						authorId: aiTemplateOwner.id,
-						id: retainedFormId,
-						inputPreset: "transcript",
-						name: "Keep with template",
-						promptHarness: "anamnese",
-						slug: "keep-with-template",
-						templateId: retainedTemplate.id,
-					},
-				]);
-				const workspaceId = crypto.randomUUID();
-				await server.db.insert(aiScribeWorkspace).values({
-					anamneseFormId: retainedFormId,
-					authorId: aiTemplateOwner.id,
-					diagnosisFormId: deletedFormId,
-					epikriseFormId: deletedFormId,
-					id: workspaceId,
-					name: "Test-Baukasten",
-					slug: "test-baukasten",
-				});
 
 				const result = await call(
 					templatesHandler.delete,
@@ -590,29 +531,12 @@ describe("Templates oRPC Handlers", () => {
 					},
 				);
 
-				expect(result).toEqual({ deletedAiTemplateCount: 1, success: true });
+				expect(result).toEqual({ success: true });
 				expect(
 					await server.db.query.template.findFirst({
 						where: eq(template.id, deletedTemplate.id),
 					}),
 				).toBeUndefined();
-				expect(
-					await server.db.query.aiScribeFormConfig.findFirst({
-						where: eq(aiScribeFormConfig.id, deletedFormId),
-					}),
-				).toBeUndefined();
-				expect(
-					await server.db.query.aiScribeFormConfig.findFirst({
-						where: eq(aiScribeFormConfig.id, retainedFormId),
-					}),
-				).toBeDefined();
-
-				const workspace = await server.db.query.aiScribeWorkspace.findFirst({
-					where: eq(aiScribeWorkspace.id, workspaceId),
-				});
-				expect(workspace?.diagnosisFormId).toBeNull();
-				expect(workspace?.epikriseFormId).toBeNull();
-				expect(workspace?.anamneseFormId).toBe(retainedFormId);
 			});
 
 			test("does not delete a template owned by another user", async () => {

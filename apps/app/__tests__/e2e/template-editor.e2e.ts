@@ -524,9 +524,6 @@ test("table toolbar prevents unsupported layouts and roundtrips native merged ce
 	await expect(editor.locator('td[colspan="2"]')).toHaveCount(1);
 
 	await page.getByRole("textbox", { exact: true, name: "Name *" }).fill("Table regression");
-	await page.getByRole("combobox").first().click();
-	await page.getByRole("option", { exact: true, name: "Neue Kategorie hinzufügen" }).click();
-	await page.getByRole("textbox", { exact: true, name: "Neue Kategorie *" }).fill("Table tests");
 	let savedSource = "";
 	await page.route("**/api/rpc/templates/create", async (route) => {
 		const payload = route.request().postDataJSON();

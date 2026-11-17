@@ -7,11 +7,9 @@ import { cn } from "@repo/design-system/lib/utils";
 import { createColumnHelper } from "@tanstack/react-table";
 import { ChevronRight } from "lucide-react";
 
-import { isScribeDocType } from "@/app/admin/playground/_lib/scribe-doc-types";
 import { AI_SCRIBE_GENERATION_EVENT_NAME } from "@/lib/usage-event-names";
 import { isByokUsageMetadata } from "@/lib/usage-logging";
 import { USER_MESSAGES } from "@/lib/user-messages";
-import { resolvePromptHarnessId } from "@/orpc/scribe/prompts";
 
 import type { UsageListEvent } from "./types";
 
@@ -230,48 +228,9 @@ const getToolPromptLabel = (name: string, sectionId: string | null): string => {
 	return sectionId ? `${verb}: ${sectionId}` : verb;
 };
 
-export const buildPlaygroundUrl = (event: UsageListEvent): string => {
-	const params = new URLSearchParams();
-	params.set("referenceUsageEvent", event.id);
-
-	if (event.model) {
-		params.set("model", event.model);
-	}
-
-	const metadata = event.metadata as Record<string, unknown> | null;
-	const endpoint = metadata?.endpoint;
-	const promptName = metadata?.promptName;
-	let documentType: string | undefined;
-	if (typeof endpoint === "string" && isScribeDocType(endpoint)) {
-		documentType = endpoint;
-	} else if (typeof promptName === "string") {
-		documentType = resolvePromptHarnessId(promptName);
-	}
-	if (documentType) {
-		params.set("documentType", documentType);
-	}
-
-	const modelConfig = metadata?.modelConfig;
-	if (modelConfig && typeof modelConfig === "object" && !Array.isArray(modelConfig)) {
-		const config = modelConfig as Record<string, unknown>;
-		for (const key of ["maxTokens", "temperature"] as const) {
-			const value = config[key];
-			if (typeof value === "number" && Number.isFinite(value)) {
-				params.set(key, String(value));
-			}
-		}
-		if (typeof config.thinking === "boolean") {
-			params.set("thinking", String(config.thinking));
-		}
-	}
-
-	const reasoningEffort = metadata?.reasoningEffort;
-	if (typeof reasoningEffort === "string") {
-		params.set("reasoningEffort", reasoningEffort);
-	}
-
-	return `/admin/playground?${params.toString()}`;
-};
+/** The Playground loads template, input, model and parameters from the event itself. */
+export const buildPlaygroundUrl = (event: UsageListEvent): string =>
+	`/admin/playground?${new URLSearchParams({ referenceUsageEvent: event.id }).toString()}`;
 
 export const canOpenInPlayground = (event: Pick<UsageListEvent, "name" | "rowKind">): boolean => {
 	const rowKind = event.rowKind ?? "event";

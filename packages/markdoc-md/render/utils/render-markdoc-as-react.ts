@@ -7,7 +7,7 @@ import { markdocConfig } from "../../markdoc-config";
 import { components } from "../../markdoc-config/tags/helpers/components";
 import type { MarkdocComponentMap } from "../../markdoc-config/tags/helpers/components";
 import { sanitizeMarkdocForRendering } from "./sanitize-markdoc-for-rendering";
-import { applyTemplateLayout, templateConfig } from "./template-layout";
+import { applyTemplateLayout, toTemplateConfig } from "./template-layout";
 
 /**
  * Renders a Markdoc string into React elements.
@@ -33,10 +33,8 @@ export default function renderMarkdocAsReact(
 	const source = options.sanitize === false ? content : sanitizeMarkdocForRendering(content);
 	const ast = Markdoc.parse(source);
 	const isTemplate = options.layout === "template";
-	const note = Markdoc.transform(
-		ast,
-		options.config ?? (isTemplate ? templateConfig : markdocConfig),
-	);
+	const config = options.config ?? markdocConfig;
+	const note = Markdoc.transform(ast, isTemplate ? toTemplateConfig(config) : config);
 	if (isTemplate) {
 		applyTemplateLayout(note, options.components);
 	}

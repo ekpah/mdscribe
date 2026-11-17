@@ -12,13 +12,7 @@ import {
 } from "@repo/design-system/components/ui/dialog";
 import { Input } from "@repo/design-system/components/ui/input";
 import { Label } from "@repo/design-system/components/ui/label";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@repo/design-system/components/ui/select";
+import { Switch } from "@repo/design-system/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/design-system/components/ui/tooltip";
@@ -40,11 +34,9 @@ import { TagInspector, TagInspectorSheet } from "./tag-inspector-dynamic";
 import { TemplateEditorSidebar } from "./template-editor-sidebar";
 import TipTap from "./tip-tap-dynamic";
 
-const FALLBACK_CATEGORIES = ["Kardiologie", "Gastroenterologie", "Diverses", "Onkologie"] as const;
 const MAX_TEMPLATE_EXAMPLES = 10;
 const SAVE_TOAST_ID = "template-save";
-const TEMPLATE_VISIBILITIES = ["public", "private"] as const;
-type TemplateVisibility = (typeof TEMPLATE_VISIBILITIES)[number];
+type TemplateVisibility = "public" | "private";
 
 const isActionableError = (error: unknown): error is Error => error instanceof Error;
 
@@ -52,26 +44,14 @@ const hasMarkdocValidationErrors = (diagnostics: MarkdocTemplateDiagnostic[] | n
 	diagnostics?.some((diagnostic) => diagnostic.severity === "error") ?? false;
 
 const isTemplateFormValid = ({
-	category,
 	hasMarkdocErrors,
 	isValidationPending,
 	name,
-	newCategory,
 }: {
-	category: string;
 	hasMarkdocErrors: boolean;
 	isValidationPending: boolean;
 	name: string;
-	newCategory: string;
-}): boolean => {
-	const resolvedCategory = category === "new" ? newCategory : category;
-	return (
-		resolvedCategory.trim() !== "" &&
-		name.trim() !== "" &&
-		!hasMarkdocErrors &&
-		!isValidationPending
-	);
-};
+}): boolean => name.trim() !== "" && !hasMarkdocErrors && !isValidationPending;
 
 const getSaveButtonLabel = ({
 	hasMarkdocErrors,
@@ -94,7 +74,7 @@ const getSaveButtonLabel = ({
 		return USER_MESSAGES.checkingTemplateTags;
 	}
 	if (!isFormValid) {
-		return "Kategorie und Name erforderlich";
+		return "Name erforderlich";
 	}
 	return "Textbaustein speichern";
 };
@@ -264,21 +244,6 @@ const DeleteTemplateButton = ({
 				queryClient.invalidateQueries({
 					queryKey: orpc.user.collections.list.queryOptions().queryKey,
 				}),
-				queryClient.invalidateQueries({
-					queryKey: orpc.scribeForms.list.queryOptions().queryKey,
-				}),
-				queryClient.invalidateQueries({
-					queryKey: orpc.scribeForms.listAvailable.queryOptions().queryKey,
-				}),
-				queryClient.invalidateQueries({
-					queryKey: orpc.scribeForms.editorContext.queryOptions().queryKey,
-				}),
-				queryClient.invalidateQueries({
-					queryKey: orpc.scribeWorkspaces.list.queryOptions().queryKey,
-				}),
-				queryClient.invalidateQueries({
-					queryKey: orpc.scribeWorkspaces.editorContext.queryOptions().queryKey,
-				}),
 			]);
 			toast.success("Textbaustein gelöscht");
 			router.push("/templates");
@@ -321,9 +286,7 @@ const DeleteTemplateButton = ({
 					<DialogHeader>
 						<DialogTitle className="pr-6">Textbaustein wirklich löschen?</DialogTitle>
 						<DialogDescription>
-							Der Textbaustein „{name}“ und alle darauf basierenden AI Vorlagen werden
-							unwiderruflich gelöscht. Betroffene Brief-Baukästen verwenden danach die
-							Standard-Vorlage.
+							Der Textbaustein „{name}“ wird unwiderruflich gelöscht.
 						</DialogDescription>
 					</DialogHeader>
 					<DialogFooter>
@@ -354,8 +317,6 @@ const DeleteTemplateButton = ({
 };
 
 export default function Editor({
-	cat,
-	categorySuggestions = [],
 	tit,
 	note,
 	examples: initialExamples = [],
@@ -365,8 +326,6 @@ export default function Editor({
 	isTemplateAgentEnabled = false,
 	visibility: initialVisibility = "public",
 }: {
-	cat: string;
-	categorySuggestions?: string[];
 	tit: string;
 	note: string;
 	examples?: string[];
@@ -378,14 +337,12 @@ export default function Editor({
 }) {
 	const router = useRouter();
 	const queryClient = useQueryClient();
-	const [category, setCategory] = useState<string>(cat);
 	const [name, setName] = useState(tit);
 	const [content, setContent] = useState(note ? JSON.parse(note) : "");
 	const [examples, setExamples] = useState<string[]>(
 		initialExamples.slice(0, MAX_TEMPLATE_EXAMPLES),
 	);
 	const [information, setInformation] = useState(initialInformation);
-	const [newCategory, setNewCategory] = useState("");
 	const [visibility, setVisibility] = useState<TemplateVisibility>(initialVisibility);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [editorInstance, setEditorInstance] = useState<TagInspectorEditor | null>(null);
@@ -424,54 +381,7 @@ export default function Editor({
 		]);
 	}, [queryClient]);
 
-	const isFormValid = isTemplateFormValid({
-		category,
-		hasMarkdocErrors,
-		isValidationPending,
-		name,
-		newCategory,
-	});
-
-	const suggestedCategories = useMemo(() => {
-		const limit = 10;
-		const result: string[] = [];
-		const seen = new Set<string>();
-
-		const addCategory = (value: string) => {
-			const normalized = value.trim();
-			if (!normalized) {
-				return;
-			}
-
-			const key = normalized.toLowerCase();
-			if (seen.has(key)) {
-				return;
-			}
-
-			seen.add(key);
-			result.push(normalized);
-		};
-
-		if (cat.trim()) {
-			addCategory(cat);
-		}
-
-		for (const value of categorySuggestions) {
-			if (result.length >= limit) {
-				break;
-			}
-			addCategory(value);
-		}
-
-		for (const value of FALLBACK_CATEGORIES) {
-			if (result.length >= limit) {
-				break;
-			}
-			addCategory(value);
-		}
-
-		return result.slice(0, limit);
-	}, [cat, categorySuggestions]);
+	const isFormValid = isTemplateFormValid({ hasMarkdocErrors, isValidationPending, name });
 
 	const hasExampleCapacity = examples.length < MAX_TEMPLATE_EXAMPLES;
 
@@ -547,7 +457,6 @@ export default function Editor({
 			}
 
 			setIsSubmitting(true);
-			const finalCategory = category === "new" ? newCategory : category;
 			const sanitizedExamples = examples
 				.map((example) => example.trim())
 				.filter((example) => example.length > 0)
@@ -559,7 +468,6 @@ export default function Editor({
 				});
 
 				const savePromise = updateMutation.mutateAsync({
-					category: finalCategory,
 					content,
 					examples: sanitizedExamples,
 					id,
@@ -595,7 +503,6 @@ export default function Editor({
 			toast.loading("Textbaustein wird gespeichert...", { id: SAVE_TOAST_ID });
 			try {
 				const newTemplate = await createMutation.mutateAsync({
-					category: finalCategory,
 					content,
 					examples: sanitizedExamples,
 					information: information.trim(),
@@ -619,7 +526,6 @@ export default function Editor({
 			}
 		},
 		[
-			category,
 			content,
 			createMutation,
 			examples,
@@ -630,17 +536,12 @@ export default function Editor({
 			invalidateTemplateQueries,
 			isFormValid,
 			name,
-			newCategory,
 			queryClient,
 			router,
 			updateMutation,
 			visibility,
 		],
 	);
-
-	const handleNewCategoryChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-		setNewCategory(event.target.value);
-	}, []);
 
 	const handleNameChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
 		setName(event.target.value);
@@ -649,31 +550,18 @@ export default function Editor({
 		setInformation(event.target.value);
 	}, []);
 
-	const handleVisibilityChange = useCallback(
-		(value: string) => {
-			if (value === "private" && canCreatePrivateTemplates === false) {
+	const handlePublicChange = useCallback(
+		(isPublic: boolean) => {
+			if (!isPublic && canCreatePrivateTemplates === false) {
 				toast.error(USER_MESSAGES.privateTemplateRequiresPlus);
-				setVisibility("public");
 				return;
 			}
-
-			if (TEMPLATE_VISIBILITIES.includes(value as TemplateVisibility)) {
-				setVisibility(value as TemplateVisibility);
-			}
+			setVisibility(isPublic ? "public" : "private");
 		},
 		[canCreatePrivateTemplates],
 	);
 
-	const resolvedCategory = category === "new" ? newCategory : category;
-	const isCategoryValid = resolvedCategory.trim() !== "";
-	const isNewCategoryValid = newCategory.trim() !== "";
 	const isNameValid = name.trim() !== "";
-	const categoryValidationMessage = isCategoryValid ? null : (
-		<p className="mt-1 text-solarized-red text-xs">Kategorie ist erforderlich</p>
-	);
-	const newCategoryValidationMessage = isNewCategoryValid ? null : (
-		<p className="mt-1 text-solarized-red text-xs">Neue Kategorie ist erforderlich</p>
-	);
 	const nameValidationMessage = isNameValid ? null : (
 		<p className="mt-1 text-solarized-red text-xs">Name ist erforderlich</p>
 	);
@@ -684,41 +572,6 @@ export default function Editor({
 			<Card className="flex flex-1 flex-col gap-4 overflow-hidden p-4">
 				<form onSubmit={handleSubmit} className="flex min-h-0 grow flex-col gap-2">
 					<div className="mb-4 flex shrink-0 flex-col gap-4 md:flex-row md:gap-2">
-						<div className="w-full flex-1">
-							<Label htmlFor="category">
-								Kategorie <span className="text-solarized-red">*</span>
-							</Label>
-							<input name="category" type="hidden" value={resolvedCategory} />
-							<Select onValueChange={setCategory} value={category}>
-								<SelectTrigger className={isCategoryValid ? "" : "border-solarized-red"}>
-									<SelectValue placeholder="Kategorie auswählen" />
-								</SelectTrigger>
-								<SelectContent>
-									{suggestedCategories.map((categoryOption) => (
-										<SelectItem key={categoryOption} value={categoryOption}>
-											{categoryOption}
-										</SelectItem>
-									))}
-									<SelectItem value="new">Neue Kategorie hinzufügen</SelectItem>
-								</SelectContent>
-							</Select>
-							{categoryValidationMessage}
-						</div>
-						{category === "new" && (
-							<div className="flex-1">
-								<Label htmlFor="newCategory">
-									Neue Kategorie <span className="text-solarized-red">*</span>
-								</Label>
-								<Input
-									id="newCategory"
-									onChange={handleNewCategoryChange}
-									placeholder="Füge eine Kategorie hinzu"
-									value={newCategory}
-									className={isNewCategoryValid ? "" : "border-solarized-red"}
-								/>
-								{newCategoryValidationMessage}
-							</div>
-						)}
 						<div className="flex-1">
 							<Label htmlFor="name">
 								Name <span className="text-solarized-red">*</span>
@@ -733,7 +586,7 @@ export default function Editor({
 							/>
 							{nameValidationMessage}
 						</div>
-						<div className="flex-1">
+						<div className="shrink-0">
 							<div className="mb-2 flex items-center gap-1.5">
 								<Label htmlFor="template-visibility">Sichtbarkeit</Label>
 								<Tooltip>
@@ -759,17 +612,14 @@ export default function Editor({
 									</TooltipContent>
 								</Tooltip>
 							</div>
-							<Select onValueChange={handleVisibilityChange} value={visibility}>
-								<SelectTrigger id="template-visibility">
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="public">Öffentlich</SelectItem>
-									<SelectItem disabled={canCreatePrivateTemplates === false} value="private">
-										Privat
-									</SelectItem>
-								</SelectContent>
-							</Select>
+							<div className="flex h-9 items-center gap-2">
+								<Switch
+									checked={visibility === "public"}
+									id="template-visibility"
+									onCheckedChange={handlePublicChange}
+								/>
+								<span className="text-sm">{visibility === "public" ? "Öffentlich" : "Privat"}</span>
+							</div>
 						</div>
 					</div>
 

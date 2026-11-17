@@ -6,6 +6,8 @@ export interface AudioRecording {
 	id: string;
 	mimeType: string;
 	sourceDeviceLabel: string;
+	/** Set once a generation has transcribed the recording, so later generations reuse it. */
+	transcript?: string;
 	url: string;
 }
 
@@ -21,10 +23,9 @@ export interface InputContextAudioFile {
 export type InputContextFile = ContextDocument;
 
 export interface InputContextTextContext {
-	anamnese?: string;
-	befunde?: string;
-	diagnoseblock?: string;
-	epikrise?: string;
+	/** Hintergrundinformationen from before the current presentation: a fact source that is not copied. */
+	background?: string;
+	/** Notizen on the current presentation, the main input. */
 	notes?: string;
 }
 
@@ -54,6 +55,8 @@ export type InputContextPanel = "audio" | "files" | "text";
 export interface InputContextController {
 	addAudioFiles: (files: File[]) => boolean;
 	addContextFiles: (files: File[]) => boolean;
+	/** Empties text, files and recordings: a new case. */
+	clear: () => void;
 	audioRecordings: AudioRecording[];
 	contextFiles: UploadedContextFile[];
 	ocrConfigured: boolean;

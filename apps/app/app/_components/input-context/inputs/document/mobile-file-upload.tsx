@@ -13,15 +13,20 @@ import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { createUploadedFilesFromTransferPayload } from "@/app/_components/context-transfer/hydrate";
-import type { ContextTransferPayload } from "@/app/_components/context-transfer/types";
 import {
 	createTransferKey,
 	createTransferToken,
 	decryptTransferEnvelope,
 	hashTransferToken,
 } from "@/lib/context-transfer-crypto";
+import type { RawContextDocument } from "@/lib/ocr-types";
 import { orpc } from "@/lib/orpc";
+
+/** What the phone encrypts for the desktop: the photo, base64-encoded. */
+export interface MobileUploadPayload {
+	contextFiles: RawContextDocument[];
+	version: 1;
+}
 
 interface MobileUploadSession {
 	key: string;
@@ -86,14 +91,16 @@ export const MobileFileUpload = ({
 				const { ciphertext } = await orpc.contextTransfers.consumeMobile.call({
 					token: session.token,
 				});
-				const payload = await decryptTransferEnvelope<ContextTransferPayload>(
-					ciphertext,
-					session.key,
-				);
+				const payload = await decryptTransferEnvelope<MobileUploadPayload>(ciphertext, session.key);
 				if (payload.version !== 1 || !Array.isArray(payload.contextFiles)) {
 					throw new Error("Ungültige Nutzdaten");
 				}
-				const files = createUploadedFilesFromTransferPayload(payload).map(({ file }) => file);
+				const files = payload.contextFiles.map(
+					({ data, mimeType, name }) =>
+						new File([Uint8Array.from(atob(data), (char) => char.codePointAt(0) ?? 0)], name, {
+							type: mimeType,
+						}),
+				);
 				if (onFilesReceived(files)) {
 					toast.success(files.length === 1 ? "Foto hinzugefügt." : "Fotos hinzugefügt.");
 				}

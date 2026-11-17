@@ -1,6 +1,6 @@
 import { tool } from "ai";
-import { validateMarkdocTemplate } from "markdoc-md";
 
+import { validateAppTemplate } from "@/features/template-tags/config";
 import { templateSectionUpdateSchema } from "@/lib/template-section-update";
 import { formatMarkdocTagDiagnostic } from "@/lib/user-messages";
 
@@ -24,7 +24,7 @@ export const createUpdateTemplateTool = () =>
 			}
 
 			const errors = (
-				parsed.data.content === undefined ? [] : validateMarkdocTemplate(parsed.data.content)
+				parsed.data.content === undefined ? [] : validateAppTemplate(parsed.data.content)
 			).filter((diagnostic) => diagnostic.severity === "error");
 			if (errors.length > 0) {
 				// Every problem with its tag name and line, so the agent can fix all of them at once.

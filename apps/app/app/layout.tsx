@@ -16,6 +16,7 @@ import { getServerSession } from "@/lib/server-session";
 import { sessionQueryKey } from "@/lib/session-query";
 import { USER_MESSAGES } from "@/lib/user-messages";
 
+import { CaseProvider } from "./_components/input-context/case-context";
 import MenubarSkeleton from "./_components/landing/skeletons/menubar-skeleton";
 import QueryProvider from "./providers/query-provider";
 
@@ -64,20 +65,22 @@ export default async function RootLayout({ children }: RootLayoutProperties) {
 					<QueryProvider>
 						<HydrationBoundary state={dehydrate(queryClient)}>
 							<DesignSystemProvider>
-								<div className="flex h-dvh w-full" key="Body">
-									<nav className="fixed top-0 right-0 bottom-[calc(100dvh-(--spacing(16)))] left-0 z-30 h-16">
-										{/*ModeWatcher track="true" />*/}
-										<Suspense fallback={<MenubarSkeleton />}>
-											<Menubar initialIsAdmin={isAdmin} initialSession={session} />
-										</Suspense>
-									</nav>
-									<div
-										className="sticky top-16 flex h-[calc(100dvh-(--spacing(16)))] w-full items-center justify-center"
-										key="Content"
-									>
-										{children}
+								<CaseProvider>
+									<div className="flex h-dvh w-full" key="Body">
+										<nav className="fixed top-0 right-0 bottom-[calc(100dvh-(--spacing(16)))] left-0 z-30 h-16">
+											{/*ModeWatcher track="true" />*/}
+											<Suspense fallback={<MenubarSkeleton />}>
+												<Menubar initialIsAdmin={isAdmin} initialSession={session} />
+											</Suspense>
+										</nav>
+										<div
+											className="sticky top-16 flex h-[calc(100dvh-(--spacing(16)))] w-full items-center justify-center"
+											key="Content"
+										>
+											{children}
+										</div>
 									</div>
-								</div>
+								</CaseProvider>
 							</DesignSystemProvider>
 						</HydrationBoundary>
 					</QueryProvider>

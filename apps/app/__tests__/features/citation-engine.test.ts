@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import { citeMarkdown } from "../../features/citation-engine";
 import type { CitationSource, Decide } from "../../features/citation-engine";
+import { wordCoverage } from "../../features/citation-engine/checks";
 
 const words = (text: string) => new Set(text.toLowerCase().match(/[a-zäöüß]{5,}/gu));
 
@@ -112,5 +113,23 @@ Diagnose: {% info "Diagnose" /%}`,
 				target.kind === "span" ? markdown.slice(target.start, target.end) : target.key,
 			),
 		).toEqual(["Pneumonie rechts basal", "Fieber", "Kalium 3,4 mmol/l"]);
+	});
+
+	test("the wording check counts a lab value's number and reads OCR's spelled-out umlauts", async () => {
+		const markdown = "Bei Aufnahme zeigte sich ein Kalium von 3,4.\nAkutes Delir bei Fieber";
+		const citations = await citeMarkdown({
+			decide,
+			markdown,
+			sources: [notes, lab],
+			// Jev's thresholds: a third of the claim's words must be in the quote.
+			thresholds: { passage: 0.6, stated: 0.6, wording: 0.3 },
+		});
+		expect(
+			citations.map(({ target }) =>
+				target.kind === "span" ? markdown.slice(target.start, target.end) : target.key,
+			),
+		).toEqual(["Bei Aufnahme zeigte sich ein Kalium von 3,4"]);
+		expect(wordCoverage("Das Hämoglobin lag bei 11,8 g/dl", "Haemoglobin: 11,8 g/dl")).toBe(1);
+		expect(wordCoverage("Akutes Delir", "Zunehmende Verwirrtheit, 38,5 °C")).toBe(0);
 	});
 });

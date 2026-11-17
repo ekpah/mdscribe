@@ -1,1 +1,0 @@
-export { documentTypeConfigs } from "./prompts";

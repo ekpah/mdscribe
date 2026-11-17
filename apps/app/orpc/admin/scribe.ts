@@ -1,69 +1,25 @@
-import { ORPCError, streamToEventIterator, type } from "@orpc/server";
+import { streamToEventIterator } from "@orpc/server";
 import { streamText } from "ai";
 import type { ModelMessage } from "ai";
 import { z } from "zod";
 
-import {
-	FILL_INPUT_PAYLOAD_LIMITS,
-	formatPayloadBytes,
-	getBase64DecodedByteLength,
-} from "@/lib/input-fill-limits";
+import { FILL_INPUT_PAYLOAD_LIMITS } from "@/lib/input-fill-limits";
 import { ocrResultSchema } from "@/lib/ocr-types";
 import { extractOpenRouterUsage } from "@/lib/usage-logging";
-import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
-import { composeScribeContext } from "@/orpc/scribe/context";
 import {
-	prepareAudioInputForModel,
-	transcribeAudioFilesWithPrompt,
-} from "@/orpc/scribe/handlers/audio-input";
-import {
-	appendScribeInputAttachmentsToMessages,
-	DEFAULT_SCRIBE_MODEL_CONFIG,
 	validateScribeAudioFiles,
 	validateScribeContextFiles,
-} from "@/orpc/scribe/handlers/scribe-stream";
-import {
-	createPromptVariables,
-	composeDocumentTypePrompt,
-	documentTypeConfigs,
-	getDocumentTypeByPromptName,
-	getPromptHarnessReferences,
-	PROMPT_HARNESS_OPTIONS,
-} from "@/orpc/scribe/prompts";
+} from "@/orpc/scribe/handlers/media-limits";
+import { appendScribeInputAttachmentsToMessages } from "@/orpc/scribe/handlers/scribe-stream";
 import {
 	buildProviderOptions,
-	resolveDefaultModel,
 	resolveModelByRecordId,
 	resolveOcrSelection,
 	resolveProviderModel,
 } from "@/orpc/scribe/providers";
 import type { AudioFile, FillInputsContextFile } from "@/orpc/scribe/types";
-
-const compilePromptInput = z.object({
-	documentType: z.string(),
-	promptJson: z.string().optional(),
-	promptName: z.string().optional(),
-	variables: z.record(z.string(), z.unknown()).optional(),
-});
-
-const parsePromptJson = (promptJson?: string): Record<string, unknown> => {
-	if (!promptJson) {
-		return {};
-	}
-	try {
-		const parsed = JSON.parse(promptJson) as unknown;
-		if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-			throw new Error("Invalid prompt JSON");
-		}
-		return parsed as Record<string, unknown>;
-	} catch {
-		throw new ORPCError("BAD_REQUEST", {
-			message: "Invalid prompt JSON",
-		});
-	}
-};
 
 interface AdminRunMetrics {
 	cost?: number;
@@ -105,13 +61,6 @@ const contextFileInputSchema = z.union([
 		.strict(),
 ]);
 
-const transcribeAudioInput = z.object({
-	audioFiles: z.array(audioFileInputSchema).min(1).max(FILL_INPUT_PAYLOAD_LIMITS.maxAudioFiles),
-	mode: z.enum(["transcription", "native"]).optional(),
-	modelId: z.string().min(1).nullable().optional(),
-	prompt: z.string().max(4000).optional(),
-});
-
 const asFiniteNumber = (value: unknown): number | undefined => {
 	if (typeof value !== "number" || !Number.isFinite(value)) {
 		return undefined;
@@ -119,113 +68,17 @@ const asFiniteNumber = (value: unknown): number | undefined => {
 	return value;
 };
 
-const validateAudioPayload = (audioFiles: AudioFile[]): void => {
-	if (audioFiles.length === 0) {
-		throw new ORPCError("BAD_REQUEST", {
-			message: "Bitte zuerst eine Audioaufnahme erstellen.",
-		});
-	}
-
-	if (audioFiles.length > FILL_INPUT_PAYLOAD_LIMITS.maxAudioFiles) {
-		throw new ORPCError("BAD_REQUEST", {
-			message: `Maximal ${FILL_INPUT_PAYLOAD_LIMITS.maxAudioFiles} Audioaufnahmen möglich.`,
-		});
-	}
-
-	let totalPayloadBytes = 0;
-	for (const [index, audioFile] of audioFiles.entries()) {
-		const payloadBytes = getBase64DecodedByteLength(audioFile.data);
-		const wavFallbackBytes = getBase64DecodedByteLength(audioFile.wavFallback?.data);
-		const totalBytes = payloadBytes + wavFallbackBytes;
-		totalPayloadBytes += totalBytes;
-
-		if (payloadBytes === 0) {
-			throw new ORPCError("BAD_REQUEST", {
-				message: `Audioaufnahme ${index + 1} enthält keine Audiodaten.`,
-			});
-		}
-
-		if (totalBytes > FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording) {
-			throw new ORPCError("BAD_REQUEST", {
-				message: `Aufnahme ${index + 1} ist zu groß. Maximal ${formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording)} pro Aufnahme.`,
-			});
-		}
-	}
-
-	if (totalPayloadBytes > FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesTotal) {
-		throw new ORPCError("BAD_REQUEST", {
-			message: `Audioaufnahmen sind zusammen zu groß. Maximal ${formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesTotal)} möglich.`,
-		});
-	}
-};
-
-const compilePromptHandler = authed
-	.use(requiredAdminMiddleware)
-	.input(type<z.infer<typeof compilePromptInput>>())
-	.handler(async ({ input, context }) => {
-		const parsed = compilePromptInput.parse(input);
-		const config = documentTypeConfigs[parsed.documentType as keyof typeof documentTypeConfigs];
-		if (!config) {
-			throw new ORPCError("BAD_REQUEST", {
-				message: `Unknown document type: ${parsed.documentType}`,
-			});
-		}
-
-		const resolvedPromptName =
-			getDocumentTypeByPromptName(parsed.promptName ?? parsed.documentType) ?? parsed.documentType;
-
-		const variablesUsed = parsed.variables ?? parsePromptJson(parsed.promptJson);
-		const relevantTemplate =
-			typeof variablesUsed.relevantTemplate === "string"
-				? variablesUsed.relevantTemplate
-				: undefined;
-
-		const { contextPrompt, contextXml } = await composeScribeContext({
-			formData: variablesUsed,
-			promptContextKey: parsed.documentType,
-			selectedTemplateReference: relevantTemplate,
-			sessionUser: context.session.user,
-		});
-		const promptVariables = createPromptVariables({
-			contextXml,
-			relevantTemplate,
-		});
-
-		const compiledMessages = composeDocumentTypePrompt(
-			parsed.documentType as keyof typeof documentTypeConfigs,
-			{
-				contextPrompt,
-				contextXml,
-				relevantTemplate,
-			},
-		);
-
-		return {
-			compiledMessages,
-			promptSource: "local",
-			promptVariables,
-			resolvedPromptName,
-			variablesUsed,
-		};
-	});
-
+// The Playground compiles the prompt in the browser with `composeTemplatePrompt`,
+// so admins can edit it before a run; the server only attaches media and streams.
 const runInput = z.object({
 	audioFiles: z.array(audioFileInputSchema).max(FILL_INPUT_PAYLOAD_LIMITS.maxAudioFiles).optional(),
-	compiledMessagesOverride: z
-		.array(
-			z.object({
-				content: z.union([z.string(), z.array(z.unknown())]),
-				role: z.enum(["system", "user", "assistant"]),
-			}),
-		)
-		.optional(),
-	// Backward compatibility while frontend payload migrates fully.
-	connectionId: z.string().optional(),
 	contextFiles: z
 		.array(contextFileInputSchema)
 		.max(FILL_INPUT_PAYLOAD_LIMITS.maxContextFiles)
 		.optional(),
-	documentType: z.string(),
+	messages: z
+		.array(z.object({ content: z.string(), role: z.enum(["system", "user", "assistant"]) }))
+		.min(1),
 	model: z.string(),
 	parameters: z.object({
 		frequencyPenalty: z.number().min(-2).max(2).optional(),
@@ -238,63 +91,25 @@ const runInput = z.object({
 		topK: z.number().min(0).optional(),
 		topP: z.number().min(0).max(1).optional(),
 	}),
-	promptJson: z.string().optional(),
-	promptName: z.string().optional(),
 	providerId: z.string().optional(),
-	requestId: z.string(),
-	variables: z.record(z.string(), z.unknown()).optional(),
 });
 
 const runHandler = authed
 	.use(requiredAdminMiddleware)
-	.input(type<z.infer<typeof runInput>>())
+	.input(runInput)
 	.handler(async ({ input, context }) => {
-		const parsed = runInput.parse(input);
-		const config = documentTypeConfigs[parsed.documentType as keyof typeof documentTypeConfigs];
-		if (!config) {
-			throw new ORPCError("BAD_REQUEST", {
-				message: `Unknown document type: ${parsed.documentType}`,
-			});
-		}
-
-		const variablesUsed = parsed.variables ?? parsePromptJson(parsed.promptJson);
-		const audioFiles = (parsed.audioFiles ?? []) as AudioFile[];
-		const contextFiles = (parsed.contextFiles ?? []) as FillInputsContextFile[];
+		const audioFiles = (input.audioFiles ?? []) as AudioFile[];
+		const contextFiles = (input.contextFiles ?? []) as FillInputsContextFile[];
 		validateScribeAudioFiles(audioFiles);
 		validateScribeContextFiles(contextFiles);
 
-		const providerId = parsed.providerId ?? parsed.connectionId;
-		const resolved = providerId
-			? await resolveProviderModel(providerId, parsed.model, context.db)
-			: await resolveModelByRecordId(parsed.model, context.db);
+		const resolved = input.providerId
+			? await resolveProviderModel(input.providerId, input.model, context.db)
+			: await resolveModelByRecordId(input.model, context.db);
 
-		let messages: ModelMessage[];
-		if (parsed.compiledMessagesOverride) {
-			messages = parsed.compiledMessagesOverride as unknown as ModelMessage[];
-		} else {
-			const relevantTemplate =
-				typeof variablesUsed.relevantTemplate === "string"
-					? variablesUsed.relevantTemplate
-					: undefined;
-			const { contextPrompt, contextXml } = await composeScribeContext({
-				formData: variablesUsed,
-				promptContextKey: parsed.documentType,
-				selectedTemplateReference: relevantTemplate,
-				sessionUser: context.session.user,
-			});
-
-			messages = composeDocumentTypePrompt(
-				parsed.documentType as keyof typeof documentTypeConfigs,
-				{
-					contextPrompt,
-					contextXml,
-					relevantTemplate,
-				},
-			);
-		}
-
+		let messages: ModelMessage[] = input.messages;
 		const reasoningEffort =
-			parsed.parameters.reasoningEffort ?? (parsed.parameters.thinking ? "medium" : undefined);
+			input.parameters.reasoningEffort ?? (input.parameters.thinking ? "medium" : undefined);
 		if (audioFiles.length > 0 || contextFiles.length > 0) {
 			const attachmentsResult = await appendScribeInputAttachmentsToMessages({
 				audioFiles,
@@ -324,15 +139,15 @@ const runHandler = authed
 		}
 		const providerOptions = buildProviderOptions({
 			model: resolved,
-			openRouterReasoningEffort: parsed.parameters.reasoningEffort === "none" ? "none" : undefined,
+			openRouterReasoningEffort: input.parameters.reasoningEffort === "none" ? "none" : undefined,
 			reasoningEffort,
 			userId: context.session.user.id,
 		});
 
 		let latestMetrics: AdminRunMetrics = {};
 		const result = streamText({
-			frequencyPenalty: parsed.parameters.frequencyPenalty,
-			maxOutputTokens: parsed.parameters.maxTokens,
+			frequencyPenalty: input.parameters.frequencyPenalty,
+			maxOutputTokens: input.parameters.maxTokens,
 			messages,
 			model: resolved.model,
 			onStepFinish: (event) => {
@@ -361,11 +176,11 @@ const runHandler = authed
 						latestMetrics.totalTokens,
 				};
 			},
-			presencePenalty: parsed.parameters.presencePenalty,
+			presencePenalty: input.parameters.presencePenalty,
 			providerOptions,
-			temperature: parsed.parameters.temperature,
-			topK: parsed.parameters.topK,
-			topP: parsed.parameters.topP,
+			temperature: input.parameters.temperature,
+			topK: input.parameters.topK,
+			topP: input.parameters.topP,
 		});
 
 		return streamToEventIterator(
@@ -414,152 +229,6 @@ const runHandler = authed
 		);
 	});
 
-const transcribeAudioHandler = authed
-	.use(requiredAdminMiddleware)
-	.input(type<z.infer<typeof transcribeAudioInput>>())
-	.handler(async ({ input, context }) => {
-		const parsed = transcribeAudioInput.parse(input);
-		const audioFiles = parsed.audioFiles as AudioFile[];
-		validateAudioPayload(audioFiles);
-
-		const mode = parsed.mode ?? "transcription";
-		const modelSelection = parsed.modelId
-			? {
-					defaultTemperature: null,
-					model: await resolveModelByRecordId(parsed.modelId, context.db),
-					reasoningEffort: "none" as const,
-					slot: "speech-to-text" as const,
-				}
-			: await resolveDefaultModel(context.db, "speech-to-text").catch((error: unknown) => {
-					const details = error instanceof Error ? error.message : USER_MESSAGES.modelUnavailable;
-					throw new ORPCError("BAD_REQUEST", {
-						message: `Kein Audio-Transkriptionsmodell konfiguriert. (${details})`,
-					});
-				});
-
-		if (mode === "native") {
-			const transcripts = await transcribeAudioFilesWithPrompt({
-				audioFiles,
-				prompt: parsed.prompt,
-				resolvedModel: modelSelection.model,
-				userId: context.session.user.id,
-				zdr: false,
-			}).catch((error: unknown) => {
-				const details = error instanceof Error ? error.message : USER_MESSAGES.audioNotSupported;
-				throw new ORPCError("BAD_REQUEST", {
-					message: `Multimodale Transkription fehlgeschlagen. Bitte ein Audio-fähiges Modell wählen. (${details})`,
-				});
-			});
-
-			const nativeTranscript = transcripts.join("\n\n").trim();
-			if (!nativeTranscript) {
-				throw new ORPCError("BAD_REQUEST", {
-					message: "Die Transkription hat keinen Text zurückgegeben.",
-				});
-			}
-
-			return {
-				modelName: modelSelection.model.modelName,
-				transcript: nativeTranscript,
-				transcripts,
-			};
-		}
-
-		const preparedAudio = await prepareAudioInputForModel({
-			audioFiles,
-			mode: "transcription",
-			resolvedModel: modelSelection.model,
-			userId: context.session.user.id,
-			zdr: false,
-		}).catch((error: unknown) => {
-			const details = error instanceof Error ? error.message : USER_MESSAGES.audioNotSupported;
-			throw new ORPCError("BAD_REQUEST", {
-				message: `Transkription fehlgeschlagen. (${details})`,
-			});
-		});
-
-		const transcript = preparedAudio.transcripts.join("\n\n").trim();
-		if (!transcript) {
-			throw new ORPCError("BAD_REQUEST", {
-				message: "Die Transkription hat keinen Text zurückgegeben.",
-			});
-		}
-
-		return {
-			modelName: modelSelection.model.modelName,
-			transcript,
-			transcripts: preparedAudio.transcripts,
-		};
-	});
-
 export const scribeHandler = {
-	compilePrompt: compilePromptHandler,
-	prompts: {
-		get: authed
-			.use(requiredAdminMiddleware)
-			.input(type<{ name: string }>())
-			.handler(({ input }) => {
-				const documentType = getDocumentTypeByPromptName(input.name);
-				if (!documentType) {
-					throw new ORPCError("NOT_FOUND", {
-						message: `Prompt not found: ${input.name}`,
-					});
-				}
-
-				const config = documentTypeConfigs[documentType];
-
-				const previewDate = new Date().toLocaleDateString("de-DE", {
-					day: "2-digit",
-					month: "2-digit",
-					year: "numeric",
-				});
-				const previewContextXml = "<context>\n<patient_context></patient_context>\n</context>";
-				const messages = composeDocumentTypePrompt(
-					documentType as keyof typeof documentTypeConfigs,
-					{
-						contextPrompt: `Das heutige Datum ist der ${previewDate}.\n\n${previewContextXml}`,
-						contextXml: previewContextXml,
-						relevantTemplate: "[Relevante Vorlage]",
-						todaysDate: previewDate,
-					},
-				);
-
-				return {
-					documentType,
-					label: config.promptName,
-					messages,
-					modelConfig: DEFAULT_SCRIBE_MODEL_CONFIG,
-					name: documentType,
-					source: "local",
-				};
-			}),
-		list: authed
-			.use(requiredAdminMiddleware)
-			.input(
-				type<{
-					query?: string;
-					limit?: number;
-				}>(),
-			)
-			.handler(({ input }) => {
-				let filteredOptions = PROMPT_HARNESS_OPTIONS;
-				if (input.query?.trim()) {
-					const query = input.query.trim().toLowerCase();
-					filteredOptions = PROMPT_HARNESS_OPTIONS.filter((option) =>
-						getPromptHarnessReferences(option.id).some((reference) =>
-							reference.toLowerCase().includes(query),
-						),
-					);
-				}
-
-				const limit = input.limit ?? 200;
-				const options = filteredOptions.slice(0, limit);
-				return {
-					items: options.map((option) => option.id),
-					options,
-				};
-			}),
-	},
 	run: runHandler,
-	transcribeAudio: transcribeAudioHandler,
 };

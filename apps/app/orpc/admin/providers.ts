@@ -816,25 +816,22 @@ const previewProviderInput = z.object({
 	protocol: z.enum(PROVIDER_PROTOCOLS),
 });
 
-const previewProviderHandler = admin
-	.input(type<z.infer<typeof previewProviderInput>>())
-	.handler(async ({ input }) => {
-		const parsed = previewProviderInput.parse(input);
-		const baseUrl = normalizeConfiguredBaseUrl(parsed.protocol, parsed.baseUrl);
-		if (parsed.protocol === "openai-compatible") {
-			requireConfiguredBaseUrl(parsed.protocol, baseUrl);
-		}
-		const models = await fetchProviderModels({
-			apiKey: parsed.apiKey,
-			baseUrl,
-			options: normalizeProviderOptions(parsed.protocol, parsed.options),
-			protocol: parsed.protocol,
-		});
-
-		return {
-			models,
-		};
+const previewProviderHandler = admin.input(previewProviderInput).handler(async ({ input }) => {
+	const baseUrl = normalizeConfiguredBaseUrl(input.protocol, input.baseUrl);
+	if (input.protocol === "openai-compatible") {
+		requireConfiguredBaseUrl(input.protocol, baseUrl);
+	}
+	const models = await fetchProviderModels({
+		apiKey: input.apiKey,
+		baseUrl,
+		options: normalizeProviderOptions(input.protocol, input.options),
+		protocol: input.protocol,
 	});
+
+	return {
+		models,
+	};
+});
 
 const createProviderInput = z.object({
 	apiKey: z.string().optional(),
@@ -845,23 +842,22 @@ const createProviderInput = z.object({
 });
 
 const createProviderHandler = admin
-	.input(type<z.infer<typeof createProviderInput>>())
+	.input(createProviderInput)
 	.handler(async ({ input, context }) => {
-		const parsed = createProviderInput.parse(input);
-		const baseUrl = normalizeConfiguredBaseUrl(parsed.protocol, parsed.baseUrl);
-		if (parsed.protocol === "openai-compatible") {
-			requireConfiguredBaseUrl(parsed.protocol, baseUrl);
+		const baseUrl = normalizeConfiguredBaseUrl(input.protocol, input.baseUrl);
+		if (input.protocol === "openai-compatible") {
+			requireConfiguredBaseUrl(input.protocol, baseUrl);
 		}
 
-		const options = normalizeProviderOptions(parsed.protocol, parsed.options);
+		const options = normalizeProviderOptions(input.protocol, input.options);
 		const models = await fetchProviderModels({
-			apiKey: parsed.apiKey,
+			apiKey: input.apiKey,
 			baseUrl,
 			options,
-			protocol: parsed.protocol,
+			protocol: input.protocol,
 		});
 
-		const encryptedApiKey = parsed.apiKey ? await encrypt(parsed.apiKey) : null;
+		const encryptedApiKey = input.apiKey ? await encrypt(input.apiKey) : null;
 
 		const [provider] = await context.db
 			.insert(aiProvider)
@@ -869,9 +865,9 @@ const createProviderHandler = admin
 				apiKey: encryptedApiKey,
 				baseUrl,
 				id: crypto.randomUUID(),
-				name: parsed.name,
+				name: input.name,
 				options,
-				protocol: parsed.protocol,
+				protocol: input.protocol,
 			})
 			.returning();
 
@@ -903,12 +899,11 @@ const updateProviderInput = z.object({
 });
 
 const updateProviderHandler = admin
-	.input(type<z.infer<typeof updateProviderInput>>())
+	.input(updateProviderInput)
 	.handler(async ({ input, context }) => {
-		const parsed = updateProviderInput.parse(input);
-		const existing = await getProviderById(context.db, parsed.id);
+		const existing = await getProviderById(context.db, input.id);
 
-		const nextProtocol = parsed.protocol ?? (existing.protocol as ProviderProtocol);
+		const nextProtocol = input.protocol ?? (existing.protocol as ProviderProtocol);
 		if (
 			nextProtocol !== existing.protocol &&
 			(isOcrProvider(nextProtocol) || isOcrProvider(existing.protocol))
@@ -918,31 +913,31 @@ const updateProviderHandler = admin
 			});
 		}
 		const nextBaseUrl =
-			parsed.baseUrl === undefined
+			input.baseUrl === undefined
 				? existing.baseUrl
-				: normalizeConfiguredBaseUrl(nextProtocol, parsed.baseUrl);
+				: normalizeConfiguredBaseUrl(nextProtocol, input.baseUrl);
 		if (nextProtocol === "openai-compatible") {
 			requireConfiguredBaseUrl(nextProtocol, nextBaseUrl);
 		}
-		const nextOptions = normalizeProviderOptions(nextProtocol, parsed.options ?? existing.options);
+		const nextOptions = normalizeProviderOptions(nextProtocol, input.options ?? existing.options);
 
 		let nextApiKeyEncrypted = existing.apiKey;
 		let nextApiKeyPlain: string | undefined;
-		if (parsed.apiKey === null) {
+		if (input.apiKey === null) {
 			nextApiKeyEncrypted = null;
 			nextApiKeyPlain = undefined;
-		} else if (typeof parsed.apiKey === "string") {
-			nextApiKeyEncrypted = await encrypt(parsed.apiKey);
-			nextApiKeyPlain = parsed.apiKey;
+		} else if (typeof input.apiKey === "string") {
+			nextApiKeyEncrypted = await encrypt(input.apiKey);
+			nextApiKeyPlain = input.apiKey;
 		} else {
 			nextApiKeyPlain = existing.apiKey ? await decrypt(existing.apiKey) : undefined;
 		}
 
 		const needsValidation =
-			parsed.protocol !== undefined ||
-			parsed.baseUrl !== undefined ||
-			parsed.options !== undefined ||
-			parsed.apiKey !== undefined;
+			input.protocol !== undefined ||
+			input.baseUrl !== undefined ||
+			input.options !== undefined ||
+			input.apiKey !== undefined;
 
 		let syncResult: { inserted: number; updated: number; removed: number } | undefined;
 		if (needsValidation) {
@@ -960,20 +955,20 @@ const updateProviderHandler = admin
 			.set({
 				apiKey: nextApiKeyEncrypted,
 				baseUrl: nextBaseUrl,
-				name: parsed.name ?? existing.name,
+				name: input.name ?? existing.name,
 				options: nextOptions,
 				protocol: nextProtocol,
 			})
-			.where(eq(aiProvider.id, parsed.id))
+			.where(eq(aiProvider.id, input.id))
 			.returning();
 
 		if (!provider) {
 			throw new ORPCError("NOT_FOUND", { message: "Provider not found" });
 		}
 		if (
-			parsed.protocol !== undefined ||
-			parsed.baseUrl !== undefined ||
-			parsed.options !== undefined
+			input.protocol !== undefined ||
+			input.baseUrl !== undefined ||
+			input.options !== undefined
 		) {
 			await context.db
 				.update(userAiProvider)
@@ -996,21 +991,20 @@ const setProviderByokEnabledInput = z.object({
 });
 
 const setProviderByokEnabledHandler = admin
-	.input(type<z.infer<typeof setProviderByokEnabledInput>>())
+	.input(setProviderByokEnabledInput)
 	.handler(async ({ input, context }) => {
-		const parsed = setProviderByokEnabledInput.parse(input);
-		const existing = await getProviderById(context.db, parsed.id);
-		if (parsed.enabled && isOcrProvider(existing.protocol)) {
+		const existing = await getProviderById(context.db, input.id);
+		if (input.enabled && isOcrProvider(existing.protocol)) {
 			throw new ORPCError("BAD_REQUEST", { message: "BYOK ist für OCR HTTP nicht verfügbar" });
 		}
 		// A user's Cloudflare token belongs to their own account, but the account ID is the operator's.
-		if (parsed.enabled && existing.protocol === "workers-ai") {
+		if (input.enabled && existing.protocol === "workers-ai") {
 			throw new ORPCError("BAD_REQUEST", { message: "BYOK ist für Workers AI nicht verfügbar" });
 		}
 		const [provider] = await context.db
 			.update(aiProvider)
-			.set({ byokEnabled: parsed.enabled })
-			.where(eq(aiProvider.id, parsed.id))
+			.set({ byokEnabled: input.enabled })
+			.where(eq(aiProvider.id, input.id))
 			.returning({
 				byokEnabled: aiProvider.byokEnabled,
 				id: aiProvider.id,
@@ -1070,32 +1064,29 @@ const createModelInput = z.object({
 	supportsReasoning: z.boolean().default(false),
 });
 
-const createModelHandler = admin
-	.input(type<z.infer<typeof createModelInput>>())
-	.handler(async ({ input, context }) => {
-		const parsed = createModelInput.parse(input);
-		const provider = await getProviderById(context.db, parsed.providerId);
-		if (isOcrProvider(provider.protocol)) {
-			throw new ORPCError("BAD_REQUEST", {
-				message: "OCR HTTP stellt genau einen OCR-Endpunkt bereit",
-			});
-		}
-		const supportedParameters = normalizeSupportedParameters(parsed.supportedParameters);
-		const [model] = await context.db
-			.insert(aiModel)
-			.values({
-				displayName: parsed.displayName,
-				id: crypto.randomUUID(),
-				modelId: parsed.modelId,
-				providerId: parsed.providerId,
-				supportedParameters,
-				supportsReasoning: parsed.supportsReasoning || supportedParameters.includes("reasoning"),
-			})
-			.returning();
-		invalidateAiProviderResolutionCaches();
+const createModelHandler = admin.input(createModelInput).handler(async ({ input, context }) => {
+	const provider = await getProviderById(context.db, input.providerId);
+	if (isOcrProvider(provider.protocol)) {
+		throw new ORPCError("BAD_REQUEST", {
+			message: "OCR HTTP stellt genau einen OCR-Endpunkt bereit",
+		});
+	}
+	const supportedParameters = normalizeSupportedParameters(input.supportedParameters);
+	const [model] = await context.db
+		.insert(aiModel)
+		.values({
+			displayName: input.displayName,
+			id: crypto.randomUUID(),
+			modelId: input.modelId,
+			providerId: input.providerId,
+			supportedParameters,
+			supportsReasoning: input.supportsReasoning || supportedParameters.includes("reasoning"),
+		})
+		.returning();
+	invalidateAiProviderResolutionCaches();
 
-		return model;
-	});
+	return model;
+});
 
 const updateModelInput = z.object({
 	displayName: z.string().min(1).optional(),
@@ -1106,58 +1097,55 @@ const updateModelInput = z.object({
 	supportsReasoning: z.boolean().optional(),
 });
 
-const updateModelHandler = admin
-	.input(type<z.infer<typeof updateModelInput>>())
-	.handler(async ({ input, context }) => {
-		const parsed = updateModelInput.parse(input);
-		const existing = await context.db.query.aiModel.findFirst({
-			where: eq(aiModel.id, parsed.id),
-			with: { provider: true },
-		});
-		if (!existing) {
-			throw new ORPCError("NOT_FOUND", { message: "Model not found" });
-		}
-		if (
-			isOcrProvider(existing.provider.protocol) &&
-			parsed.modelId !== undefined &&
-			parsed.modelId !== OCR_MODEL_IDS[existing.provider.protocol]
-		) {
-			throw new ORPCError("BAD_REQUEST", {
-				message: "Die OCR-Endpunkt-ID kann nicht geändert werden",
-			});
-		}
-		if (parsed.openRouterRoutingMode !== undefined && existing.provider.protocol !== "openrouter") {
-			throw new ORPCError("BAD_REQUEST", {
-				message: "Routing-Einstellungen sind nur für OpenRouter verfügbar",
-			});
-		}
-		const supportedParameters = parsed.supportedParameters
-			? normalizeSupportedParameters(parsed.supportedParameters)
-			: undefined;
-		const [model] = await context.db
-			.update(aiModel)
-			.set({
-				displayName: parsed.displayName,
-				modelId: parsed.modelId,
-				options:
-					parsed.openRouterRoutingMode === undefined
-						? undefined
-						: {
-								...existing.options,
-								openRouterRoutingMode: normalizeOpenRouterRoutingMode(parsed.openRouterRoutingMode),
-							},
-				supportedParameters,
-				supportsReasoning:
-					parsed.supportsReasoning ??
-					(supportedParameters ? supportedParameters.includes("reasoning") : undefined),
-			})
-			.where(eq(aiModel.id, parsed.id))
-			.returning();
-
-		invalidateAiProviderResolutionCaches();
-
-		return model;
+const updateModelHandler = admin.input(updateModelInput).handler(async ({ input, context }) => {
+	const existing = await context.db.query.aiModel.findFirst({
+		where: eq(aiModel.id, input.id),
+		with: { provider: true },
 	});
+	if (!existing) {
+		throw new ORPCError("NOT_FOUND", { message: "Model not found" });
+	}
+	if (
+		isOcrProvider(existing.provider.protocol) &&
+		input.modelId !== undefined &&
+		input.modelId !== OCR_MODEL_IDS[existing.provider.protocol]
+	) {
+		throw new ORPCError("BAD_REQUEST", {
+			message: "Die OCR-Endpunkt-ID kann nicht geändert werden",
+		});
+	}
+	if (input.openRouterRoutingMode !== undefined && existing.provider.protocol !== "openrouter") {
+		throw new ORPCError("BAD_REQUEST", {
+			message: "Routing-Einstellungen sind nur für OpenRouter verfügbar",
+		});
+	}
+	const supportedParameters = input.supportedParameters
+		? normalizeSupportedParameters(input.supportedParameters)
+		: undefined;
+	const [model] = await context.db
+		.update(aiModel)
+		.set({
+			displayName: input.displayName,
+			modelId: input.modelId,
+			options:
+				input.openRouterRoutingMode === undefined
+					? undefined
+					: {
+							...existing.options,
+							openRouterRoutingMode: normalizeOpenRouterRoutingMode(input.openRouterRoutingMode),
+						},
+			supportedParameters,
+			supportsReasoning:
+				input.supportsReasoning ??
+				(supportedParameters ? supportedParameters.includes("reasoning") : undefined),
+		})
+		.where(eq(aiModel.id, input.id))
+		.returning();
+
+	invalidateAiProviderResolutionCaches();
+
+	return model;
+});
 
 const deleteModelHandler = admin
 	.input(type<{ id: string }>())
@@ -1367,48 +1355,45 @@ const applyDefaultSelection = (next: AiDefaultsDraft, parsed: z.infer<typeof set
 	}
 };
 
-const setDefaultHandler = admin
-	.input(type<z.infer<typeof setDefaultInput>>())
-	.handler(async ({ input, context }) => {
-		const parsed = setDefaultInput.parse(input);
-		if (parsed.modelId) {
-			const existing = await context.db.query.aiModel.findFirst({
-				where: eq(aiModel.id, parsed.modelId),
-				with: { provider: true },
-			});
-			if (!existing) {
-				throw new ORPCError("NOT_FOUND", { message: "Model not found" });
-			}
-			if (isOcrProvider(existing.provider.protocol) && parsed.defaultType !== "file-image") {
-				throw new ORPCError("BAD_REQUEST", {
-					message: "OCR HTTP kann nur als Dokumenten-Modell verwendet werden",
-				});
-			}
-			if (parsed.defaultType === "decision") {
-				if (existing.kind !== "decision" || !isDecisionProtocol(existing.provider.protocol)) {
-					throw new ORPCError("BAD_REQUEST", {
-						message: "Als Entscheidungsmodell ist nur ein Decisions-Modell möglich",
-					});
-				}
-			} else if (existing.kind !== "chat" && existing.kind !== "ocr") {
-				throw new ORPCError("BAD_REQUEST", {
-					message: "Entscheidungs- und Extraktionsmodelle können keine Chat-Slots belegen",
-				});
-			}
-		}
-
-		const current = await context.db.query.aiDefaults.findFirst({
-			where: eq(aiDefaults.id, "global"),
+const setDefaultHandler = admin.input(setDefaultInput).handler(async ({ input, context }) => {
+	if (input.modelId) {
+		const existing = await context.db.query.aiModel.findFirst({
+			where: eq(aiModel.id, input.modelId),
+			with: { provider: true },
 		});
+		if (!existing) {
+			throw new ORPCError("NOT_FOUND", { message: "Model not found" });
+		}
+		if (isOcrProvider(existing.provider.protocol) && input.defaultType !== "file-image") {
+			throw new ORPCError("BAD_REQUEST", {
+				message: "OCR HTTP kann nur als Dokumenten-Modell verwendet werden",
+			});
+		}
+		if (input.defaultType === "decision") {
+			if (existing.kind !== "decision" || !isDecisionProtocol(existing.provider.protocol)) {
+				throw new ORPCError("BAD_REQUEST", {
+					message: "Als Entscheidungsmodell ist nur ein Decisions-Modell möglich",
+				});
+			}
+		} else if (existing.kind !== "chat" && existing.kind !== "ocr") {
+			throw new ORPCError("BAD_REQUEST", {
+				message: "Entscheidungs- und Extraktionsmodelle können keine Chat-Slots belegen",
+			});
+		}
+	}
 
-		const next = buildAiDefaultsDraft(current);
-		applyDefaultSelection(next, parsed);
-
-		await persistAiDefaultsDraft(context.db, Boolean(current), next);
-		invalidateAiProviderResolutionCaches();
-
-		return buildDefaultsResponse(next);
+	const current = await context.db.query.aiDefaults.findFirst({
+		where: eq(aiDefaults.id, "global"),
 	});
+
+	const next = buildAiDefaultsDraft(current);
+	applyDefaultSelection(next, input);
+
+	await persistAiDefaultsDraft(context.db, Boolean(current), next);
+	invalidateAiProviderResolutionCaches();
+
+	return buildDefaultsResponse(next);
+});
 
 const setDefaultOptionsInput = z.object({
 	agentSupportsAudio: z.boolean().optional(),
@@ -1420,32 +1405,30 @@ const setDefaultOptionsInput = z.object({
 });
 
 const setDefaultOptionsHandler = admin
-	.input(type<z.infer<typeof setDefaultOptionsInput>>())
+	.input(setDefaultOptionsInput)
 	.handler(async ({ input, context }) => {
-		const parsed = setDefaultOptionsInput.parse(input);
-
 		const current = await context.db.query.aiDefaults.findFirst({
 			where: eq(aiDefaults.id, "global"),
 		});
 
 		const next = buildAiDefaultsDraft(current);
-		if (parsed.agentSupportsAudio !== undefined) {
-			next.defaultAgentSupportsAudio = parsed.agentSupportsAudio;
+		if (input.agentSupportsAudio !== undefined) {
+			next.defaultAgentSupportsAudio = input.agentSupportsAudio;
 		}
-		if (parsed.agentSupportsDocuments !== undefined) {
-			next.defaultAgentSupportsDocuments = parsed.agentSupportsDocuments;
+		if (input.agentSupportsDocuments !== undefined) {
+			next.defaultAgentSupportsDocuments = input.agentSupportsDocuments;
 		}
-		if (parsed.speechToTextMode !== undefined) {
-			next.defaultSpeechToTextMode = parsed.speechToTextMode;
+		if (input.speechToTextMode !== undefined) {
+			next.defaultSpeechToTextMode = input.speechToTextMode;
 		}
-		if (parsed.standardSupportsAgent !== undefined) {
-			next.defaultStandardSupportsAgent = parsed.standardSupportsAgent;
+		if (input.standardSupportsAgent !== undefined) {
+			next.defaultStandardSupportsAgent = input.standardSupportsAgent;
 		}
-		if (parsed.standardSupportsAudio !== undefined) {
-			next.defaultStandardSupportsAudio = parsed.standardSupportsAudio;
+		if (input.standardSupportsAudio !== undefined) {
+			next.defaultStandardSupportsAudio = input.standardSupportsAudio;
 		}
-		if (parsed.standardSupportsDocuments !== undefined) {
-			next.defaultStandardSupportsDocuments = parsed.standardSupportsDocuments;
+		if (input.standardSupportsDocuments !== undefined) {
+			next.defaultStandardSupportsDocuments = input.standardSupportsDocuments;
 		}
 
 		await persistAiDefaultsDraft(context.db, Boolean(current), next);

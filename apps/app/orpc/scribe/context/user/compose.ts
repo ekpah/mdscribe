@@ -1,6 +1,5 @@
 import type { Session } from "@/lib/auth-types";
-
-const toTrimmedString = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
+import { toTrimmedString } from "@/orpc/scribe/_lib/text";
 
 export const composePersonalPreferences = (personalContext?: string | null): string => {
 	const preferences = toTrimmedString(personalContext);

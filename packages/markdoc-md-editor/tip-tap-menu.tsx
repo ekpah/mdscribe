@@ -34,6 +34,7 @@ import {
 
 import { getPrimaryFromSelection } from "./editor-helpers/get-primary-from-selection";
 import { selectInsertedInlineTag } from "./editor-helpers/select-inserted-inline-tag";
+import { getMarkdocEditorPlugins } from "./plugins";
 import { focusDetailsSummary } from "./tiptap-extension/editorNodes/detailsTag/details-tag-view";
 
 /**
@@ -502,6 +503,11 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
 				>
 					<span>Details</span>
 				</Button>
+				{getMarkdocEditorPlugins().map(({ Toolbar }, index) =>
+					Toolbar ? (
+						<Toolbar editor={editor} key={index} tagButtonClassName={tagButtonClassName} />
+					) : null,
+				)}
 
 				<TooltipProvider delay={200}>
 					<Tooltip>

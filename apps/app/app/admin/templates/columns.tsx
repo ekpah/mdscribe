@@ -8,7 +8,6 @@ import { USER_MESSAGES } from "@/lib/user-messages";
 export interface AdminTemplateRow {
 	id: string;
 	title: string;
-	category: string;
 	authorId: string;
 	updatedAt: Date | string;
 	author: {
@@ -43,21 +42,15 @@ const columnHelper = createColumnHelper<AdminTemplateRow>();
 
 export const columns = [
 	columnHelper.accessor("title", {
-		cell: ({ row, getValue }) => (
-			<div className="space-y-1">
-				<div className="font-medium text-solarized-base00">{getValue()}</div>
-				<div className="text-solarized-base01 text-xs">{row.original.category}</div>
-			</div>
-		),
+		cell: ({ getValue }) => <div className="font-medium text-solarized-base00">{getValue()}</div>,
 		filterFn: (row, id, filterValue: string) => {
 			const title = (row.getValue(id) as string).toLowerCase();
-			const category = row.original.category.toLowerCase();
 			const author = getUserDisplayName(
 				row.original.author ?? { email: "", name: null },
 			).toLowerCase();
 			const search = filterValue.toLowerCase();
 
-			return title.includes(search) || category.includes(search) || author.includes(search);
+			return title.includes(search) || author.includes(search);
 		},
 		header: ({ column }) => (
 			<DataTableColumnHeader column={column} title={USER_MESSAGES.adminTemplates.template} />

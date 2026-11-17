@@ -1,7 +1,9 @@
-import { desc, eq, template, user } from "@repo/database";
+import { ORPCError } from "@orpc/server";
+import { aiDefaults, and, desc, eq, template, templateCollection, user } from "@repo/database";
 import { z } from "zod";
 
 import { authed } from "@/orpc";
+import { convertAiScribeForms } from "@/orpc/admin/convert-ai-scribe-forms";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
 
 const getAdminTemplateHandler = authed
@@ -16,7 +18,6 @@ const getAdminTemplateHandler = authed
 					name: user.name,
 				},
 				authorId: template.authorId,
-				category: template.category,
 				content: template.content,
 				examples: template.examples,
 				id: template.id,
@@ -44,7 +45,6 @@ const listAdminTemplatesHandler = authed
 					name: user.name,
 				},
 				authorId: template.authorId,
-				category: template.category,
 				id: template.id,
 				title: template.title,
 				updatedAt: template.updatedAt,
@@ -60,7 +60,57 @@ const listAdminTemplatesHandler = authed
 		}));
 	});
 
+const getAiScribeCollectionHandler = authed
+	.use(requiredAdminMiddleware)
+	.handler(async ({ context }) => {
+		const [row] = await context.db
+			.select({ collectionId: aiDefaults.aiScribeCollectionId })
+			.from(aiDefaults)
+			.where(eq(aiDefaults.id, "global"));
+		return { collectionId: row?.collectionId ?? null };
+	});
+
+/** Picks one of the admin's own collections as the default list on `/aiscribe`. */
+const setAiScribeCollectionHandler = authed
+	.use(requiredAdminMiddleware)
+	.input(z.object({ collectionId: z.string().nullable() }))
+	.handler(async ({ context, input }) => {
+		if (input.collectionId) {
+			const [owned] = await context.db
+				.select({ id: templateCollection.id })
+				.from(templateCollection)
+				.where(
+					and(
+						eq(templateCollection.id, input.collectionId),
+						eq(templateCollection.userId, context.session.user.id),
+					),
+				);
+			if (!owned) {
+				throw new ORPCError("NOT_FOUND", { message: "Sammlung wurde nicht gefunden" });
+			}
+		}
+		await context.db
+			.insert(aiDefaults)
+			.values({ aiScribeCollectionId: input.collectionId, id: "global", updatedAt: new Date() })
+			.onConflictDoUpdate({
+				set: { aiScribeCollectionId: input.collectionId, updatedAt: new Date() },
+				target: aiDefaults.id,
+			});
+		return { collectionId: input.collectionId };
+	});
+
+/** Converts the remaining AI Vorlagen and Brief-Baukästen; `dryRun` only lists them. */
+const convertAiScribeFormsHandler = authed
+	.use(requiredAdminMiddleware)
+	.input(z.object({ dryRun: z.boolean() }))
+	.handler(({ context, input }) =>
+		convertAiScribeForms(context.db, { dryRun: input.dryRun, ownerId: context.session.user.id }),
+	);
+
 export const templatesHandler = {
+	aiScribeCollection: getAiScribeCollectionHandler,
+	convertAiScribeForms: convertAiScribeFormsHandler,
 	get: getAdminTemplateHandler,
 	list: listAdminTemplatesHandler,
+	setAiScribeCollection: setAiScribeCollectionHandler,
 };

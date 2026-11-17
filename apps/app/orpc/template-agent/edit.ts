@@ -1,5 +1,4 @@
 import { ORPCError, streamToEventIterator, type } from "@orpc/server";
-import type { ModelMessage } from "ai";
 import { convertToModelMessages, stepCountIs, streamText } from "ai";
 
 import { templateAgentFlag } from "@/flags";
@@ -7,7 +6,10 @@ import { AI_SCRIBE_AGENT_EVENT_NAME } from "@/lib/usage-event-names";
 import { authed } from "@/orpc";
 import { scribeEntitlementsMiddleware } from "@/orpc/middlewares/entitlements";
 import { requiredFlagMiddleware } from "@/orpc/middlewares/flags";
-import { prepareAgentMedia } from "@/orpc/scribe-agent/lib/prepare-media";
+import {
+	injectMediaIntoLastUserMessage,
+	prepareAgentMedia,
+} from "@/orpc/scribe-agent/lib/prepare-media";
 import { enforceScribeUsageLimit } from "@/orpc/scribe/handlers/usage-limit";
 import { scheduleScribeUsageLogging } from "@/orpc/scribe/handlers/usage-logging";
 import {
@@ -19,36 +21,6 @@ import {
 import { buildTemplateAgentSystemPrompt } from "./prompt";
 import type { TemplateAgentChatInput } from "./types";
 import { createUpdateTemplateTool } from "./update-template-tool";
-
-const injectMediaIntoLastUserMessage = (
-	messages: ModelMessage[],
-	media: Awaited<ReturnType<typeof prepareAgentMedia>>,
-): ModelMessage[] => {
-	if (media.injectedTextBlocks.length === 0 && media.nativeContentParts.length === 0) {
-		return messages;
-	}
-
-	const lastIndex = messages.length - 1;
-	const lastMessage = messages[lastIndex];
-	if (!lastMessage || lastMessage.role !== "user") {
-		return messages;
-	}
-
-	const baseParts =
-		typeof lastMessage.content === "string"
-			? [{ text: lastMessage.content, type: "text" as const }]
-			: lastMessage.content;
-	const next = [...messages];
-	next[lastIndex] = {
-		...lastMessage,
-		content: [
-			...baseParts,
-			...media.injectedTextBlocks.map((text) => ({ text, type: "text" as const })),
-			...media.nativeContentParts,
-		],
-	} as ModelMessage;
-	return next;
-};
 
 export const templateAgentEditHandler = authed
 	.use(requiredFlagMiddleware(templateAgentFlag))

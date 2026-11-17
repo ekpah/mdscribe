@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, setSystemTime, spyOn, test } from "bun:test";
 
-import { ORPCError, call } from "@orpc/server";
+import { call } from "@orpc/server";
 import { aiDefaults, aiModel, aiProvider, eq, usageEvent } from "@repo/database";
 import * as ai from "ai";
 import { z } from "zod";
@@ -10,6 +10,7 @@ import type { TestServer } from "@/__tests__/setup";
 import {
 	createMockSession,
 	createTestAiDefaults,
+	createTestTemplate,
 	createTestDecisionModel,
 	createTestContext,
 	createTestSubscription,
@@ -26,19 +27,15 @@ import {
 	AI_SCRIBE_STT_EVENT_NAME,
 } from "@/lib/usage-event-names";
 import { USER_MESSAGES } from "@/lib/user-messages";
+import { scribeAgentChatHandler } from "@/orpc/scribe-agent";
 import { scribeAgentGenerateSectionHandler } from "@/orpc/scribe-agent/generate-section";
-import { documentTypeConfigs } from "@/orpc/scribe/config";
-import { composeScribeContext } from "@/orpc/scribe/context";
+import { composeFillInputsContext } from "@/orpc/scribe/context";
+import { composeUserContext } from "@/orpc/scribe/context/user";
 import { scribeStreamHandler } from "@/orpc/scribe/handlers";
 import { prepareAudioInputForModel } from "@/orpc/scribe/handlers/audio-input";
 import { fillInputsHandler, fillInputsStreamHandler } from "@/orpc/scribe/handlers/fill-inputs";
 import type { FillInputsEvent } from "@/orpc/scribe/handlers/fill-inputs";
 import { DEFAULT_SCRIBE_MODEL_CONFIG } from "@/orpc/scribe/handlers/scribe-stream";
-import {
-	getDocumentTypeByPromptName,
-	PROMPT_HARNESS_IDS,
-	PROMPT_HARNESS_OPTIONS,
-} from "@/orpc/scribe/prompts";
 import { composeFillInputsPrompt } from "@/orpc/scribe/prompts/core/fill-inputs";
 import {
 	buildProviderOptions,
@@ -47,7 +44,6 @@ import {
 	resolveGenerationStrategy,
 } from "@/orpc/scribe/providers";
 import type { ResolvedModel } from "@/orpc/scribe/providers";
-import type { DocumentType } from "@/orpc/scribe/types";
 import { personalContextHandler } from "@/orpc/user/personal-context";
 
 /** Lower-case words of five or more letters, for matching mocked decision evidence. */
@@ -57,29 +53,11 @@ const longWords = (text: string) => new Set(text.toLowerCase().match(/[a-zäöü
  * Comprehensive tests for scribe oRPC handlers
  *
  * Includes:
- * - Unit tests for document type configurations
  * - Integration tests for streaming handlers (with mocked AI SDK)
  * - Usage limit and subscription tests
  */
 
-describe("Document Type Configurations", () => {
-	test("all document types have required config", () => {
-		const documentTypes: DocumentType[] = [
-			"discharge",
-			"anamnese",
-			"diagnosis",
-			"procedures",
-			"befunde",
-			"outpatient",
-			"icu-transfer",
-		];
-
-		for (const type of documentTypes) {
-			expect(documentTypeConfigs[type]).toBeDefined();
-			expect(documentTypeConfigs[type].promptName).toBeDefined();
-		}
-	});
-
+describe("Scribe model config", () => {
 	test("uses one default model config for all scribe generations", () => {
 		// Temperature is intentionally omitted here: it resolves per model slot from
 		// the admin-configured AiDefaults.default*Temperature at generation time.
@@ -87,91 +65,52 @@ describe("Document Type Configurations", () => {
 			maxTokens: 8000,
 		});
 	});
-
-	test("keeps prompt harness references stable while display names can change", () => {
-		expect(PROMPT_HARNESS_IDS).toContain("procedures");
-		expect(PROMPT_HARNESS_OPTIONS).toContainEqual({
-			id: "procedures",
-			label: "Eingriffsdokumentation",
-		});
-		expect(getDocumentTypeByPromptName("procedures")).toBe("procedures");
-		expect(getDocumentTypeByPromptName("procedure")).toBe("procedures");
-		expect(getDocumentTypeByPromptName("Befund")).toBe("procedures");
-		expect(getDocumentTypeByPromptName("Procedure_chat")).toBe("procedures");
-	});
 });
 
 describe("Context Builder", () => {
-	test("builds unified context envelope with patient sections and omits empty tags", async () => {
-		const { contextXml } = await composeScribeContext({
-			formData: {
-				anamnese: "Akute Dyspnoe",
-				diagnoseblock: "I10 Hypertonie",
-				notes: "Zusätzliche Notizen",
+	test("builds the autofill context with fill hints before the case and omits empty tags", () => {
+		const contextXml = composeFillInputsContext({
+			template: {
+				content: "",
+				examples: ["Beispiel A", "Beispiel B"],
+				information: "Kurze Werte.",
+				title: "Ausfüllhinweise",
 			},
-			sessionUser: null,
+			textContext: {
+				background: "I10 Hypertonie",
+				notes: "Akute Dyspnoe",
+			},
 		});
 
-		expect(contextXml).toContain("<context>");
-		expect(contextXml).toContain("<patient_context>");
-		expect(contextXml).toContain("<diagnoseblock>");
-		expect(contextXml).toContain("<anamnese>");
+		expect(contextXml).toStartWith("<context>\n<template_context>");
+		expect(contextXml).toContain("<markdoc_tag_guidance>");
+		// An empty template body gets no <content> block; the hints follow the title.
+		expect(contextXml).toContain(
+			"<title>\nAusfüllhinweise\n</title>\n<information>\nKurze Werte.\n</information>",
+		);
+		expect(contextXml).toContain("<example>\nBeispiel A\n</example>");
+		expect(contextXml).toContain("<example>\nBeispiel B\n</example>");
+		expect(contextXml.indexOf("<template_context>")).toBeLessThan(
+			contextXml.indexOf("<patient_context>"),
+		);
 		expect(contextXml).toContain("<notizen>");
-		expect(contextXml).not.toContain("<befunde>");
+		expect(contextXml).toContain("<hintergrund>");
 	});
 
-	test("includes user_context when name is provided", async () => {
+	test("includes user_context when name is provided", () => {
 		const session = createMockSession({
 			email: "doctor@test.com",
 			id: crypto.randomUUID(),
 			name: "Dr. Test",
 		});
-		const { contextXml } = await composeScribeContext({
-			formData: {},
-			sessionUser: session.user,
-		});
+		const userContext = composeUserContext(session.user);
 
-		expect(contextXml).toContain("<context>");
-		expect(contextXml).toContain("<user_context>");
-		expect(contextXml).toContain(
+		expect(userContext).toContain("<user_context>");
+		expect(userContext).toContain(
 			"<purpose>Informationen über den Arzt/Nutzer, der den Prompt ausfüllt</purpose>",
 		);
-		expect(contextXml).toContain("Diese Daten gehören NICHT zum Patientenfall");
-		expect(contextXml).toContain("<name>Dr. Test</name>");
-	});
-
-	test("emits template_context with template content and examples", async () => {
-		const { contextXml } = await composeScribeContext({
-			formData: {},
-			sessionUser: null,
-			template: {
-				content: "## Abschnitt",
-				examples: ["Beispiel A", "Beispiel B"],
-				title: "ER Vorlage",
-			},
-		});
-
-		expect(contextXml).toContain("<template_context>");
-		expect(contextXml).toContain("<markdoc_tag_guidance>");
-		expect(contextXml).toContain("<title>\nER Vorlage\n</title>");
-		expect(contextXml).toContain("<content>\n## Abschnitt\n</content>");
-		expect(contextXml).toContain("<example>\nBeispiel A\n</example>");
-		expect(contextXml).toContain("<example>\nBeispiel B\n</example>");
-		expect(contextXml).toContain("<context>");
-	});
-
-	test("uses fallback template when promptContextKey is set and no explicit template exists", async () => {
-		const { contextXml } = await composeScribeContext({
-			formData: { notes: "Kurznotiz" },
-			promptContextKey: "discharge",
-			sessionUser: null,
-		});
-
-		expect(contextXml).toContain("<template_context>");
-		expect(contextXml).toContain("Standardstruktur Entlassbrief");
-		expect(contextXml.indexOf("<template_context>")).toBeLessThan(
-			contextXml.indexOf("<patient_context>"),
-		);
+		expect(userContext).toContain("Diese Daten gehören NICHT zum Patientenfall");
+		expect(userContext).toContain("<name>Dr. Test</name>");
 	});
 });
 
@@ -954,14 +893,14 @@ describe("buildProviderOptions", () => {
 
 describe("Fill Inputs Handler", () => {
 	test("builds the autofill prompt around the shared context block", () => {
-		const { contextXml } = composeScribeContext({
-			formData: { diagnoseblock: "I50.1 Akute Linksherzinsuffizienz" },
+		const contextXml = composeFillInputsContext({
 			template: {
 				content: "",
 				examples: ["Beispielwert: NYHA II"],
 				information: "Bevorzuge kurze, eindeutige Werte.",
 				title: "Ausfüllhinweise",
 			},
+			textContext: { notes: "I50.1 Akute Linksherzinsuffizienz" },
 		});
 		const inputFields = [
 			{
@@ -974,7 +913,7 @@ describe("Fill Inputs Handler", () => {
 		const messages = composeFillInputsPrompt({ contextXml, inputFields });
 
 		expect(messages[1].content).toContain("<patient_context>");
-		expect(messages[1].content).toContain("<diagnoseblock>");
+		expect(messages[1].content).toContain("<notizen>");
 		expect(messages[1].content).toContain("I50.1 Akute Linksherzinsuffizienz");
 		expect(messages[1].content).toContain("<information>");
 		expect(messages[1].content).toContain("Bevorzuge kurze, eindeutige Werte.");
@@ -1488,7 +1427,7 @@ describe("Fill Inputs Handler", () => {
 					templateExamples: ["Aufnahmediagnose: I50.1"],
 					templateInformation: "Nur gesicherte Angaben übernehmen.",
 					textContext: {
-						diagnoseblock: "I50.1 Akute Linksherzinsuffizienz",
+						background: "I50.1 Akute Linksherzinsuffizienz",
 					},
 				},
 				{ context },
@@ -1499,7 +1438,7 @@ describe("Fill Inputs Handler", () => {
 					citations: [
 						{
 							quote: "I50.1 Akute Linksherzinsuffizienz",
-							source: "mdscribe://input/diagnoseblock",
+							source: "mdscribe://input/background",
 						},
 					],
 					value: "I50.1 Akute Linksherzinsuffizienz",
@@ -1531,7 +1470,7 @@ describe("Fill Inputs Handler", () => {
 				templateExamplesCharacters: "Aufnahmediagnose: I50.1".length,
 				templateInformationCharacters: "Nur gesicherte Angaben übernehmen.".length,
 				textContext: {
-					diagnoseblock: "I50.1 Akute Linksherzinsuffizienz",
+					background: "I50.1 Akute Linksherzinsuffizienz",
 				},
 			});
 		} finally {
@@ -1551,7 +1490,10 @@ describe("Fill Inputs Handler", () => {
 					{ label: "beurteilung", type: "string" as const },
 					{ label: "dlco", type: "number" as const },
 				],
-				textContext: { befunde: "TLC: 3,78 L (92 %), z-score: -0,55", notes: "FEV1/FVC: 81,26 %" },
+				textContext: {
+					background: "TLC: 3,78 L (92 %), z-score: -0,55",
+					notes: "FEV1/FVC: 81,26 %",
+				},
 			};
 			const values = {
 				beurteilung: { value: "Keine Obstruktion, keine Restriktion." },
@@ -1582,11 +1524,13 @@ describe("Fill Inputs Handler", () => {
 					...values.beurteilung,
 					citations: [
 						{ quote: input.textContext.notes, source: "mdscribe://input/notes" },
-						{ quote: input.textContext.befunde, source: "mdscribe://input/befunde" },
+						{ quote: input.textContext.background, source: "mdscribe://input/background" },
 					],
 				},
 				tlc_abs: {
-					citations: [{ quote: input.textContext.befunde, source: "mdscribe://input/befunde" }],
+					citations: [
+						{ quote: input.textContext.background, source: "mdscribe://input/background" },
+					],
 					value: 3.78,
 				},
 			});
@@ -1935,7 +1879,7 @@ describe("Fill Inputs Handler", () => {
 							},
 						],
 						inputFields: [{ label: "Aufnahmediagnose", type: "string" }],
-						textContext: { diagnoseblock: "I50.1" },
+						textContext: { notes: "I50.1" },
 					},
 					{
 						context: createTestContext({
@@ -2146,25 +2090,57 @@ describe("Fill Inputs Handler", () => {
 	});
 });
 
+const createPublicTestTemplate = async (db: TestServer["db"]) => {
+	const { user: author } = await createTestUser(db, {
+		email: `author-${crypto.randomUUID()}@test.com`,
+	});
+	const created = await createTestTemplate(db, author.id);
+	return created.id;
+};
+
 describe("Scribe Agent section generation", () => {
+	test("refuses the agent chat while the MDScribe Agent is hidden", async () => {
+		const server = await startTestServer("agent-chat-hidden");
+		try {
+			await createTestAiDefaults(server.db);
+			const { user } = await createTestUser(server.db);
+			await expect(
+				call(
+					scribeAgentChatHandler,
+					{
+						messages: [{ id: "1", parts: [{ text: "Hallo", type: "text" }], role: "user" }],
+						sections: [],
+						templateId: await createPublicTestTemplate(server.db),
+					},
+					{ context: { db: server.db, session: createMockSession(user) } },
+				),
+			).rejects.toMatchObject({ code: "FORBIDDEN" });
+		} finally {
+			await server.close();
+		}
+	});
+
 	test("uses the normal scribe generation pipeline for an agent section", async () => {
 		const server = await startTestServer("agent-generate-section-usage-input");
 		try {
 			await createTestAiDefaults(server.db);
 			const { user } = await createTestUser(server.db);
 			const session = createMockSession(user);
+			const templateId = await createPublicTestTemplate(server.db);
 			const result = await call(
 				scribeAgentGenerateSectionHandler,
 				{
-					documentType: "anamnese",
 					formData: {
-						befunde: "Basale Rasselgeräusche beidseits.",
-						diagnoseblock: "I50.1 Akute Linksherzinsuffizienz",
 						notes: "Bitte Anamnese aus Agentenhinweis erzeugen.",
+						sections: {
+							befunde: "Basale Rasselgeräusche beidseits.",
+							diagnosen: "I50.1 Akute Linksherzinsuffizienz",
+						},
+						targetSectionId: "anamnese",
 					},
 					preparedAttachmentText:
 						'<audio_transkripte>\\n<aufnahme index="1">\\nPatient berichtet seit gestern Belastungsdyspnoe.\\n</aufnahme>\\n</audio_transkripte>\\n\\nLabor: NT-proBNP deutlich erhöht.',
-					source: "documentType",
+					templateId,
 					traceContext: { agentRunId: "agent-run-1", agentSectionId: "anamnese" },
 				},
 				{ context: { db: server.db, session } },
@@ -2181,16 +2157,19 @@ describe("Scribe Agent section generation", () => {
 			expect(event?.metadata).toMatchObject({
 				agentRunId: "agent-run-1",
 				agentSectionId: "anamnese",
-				endpoint: "anamnese",
-				promptName: "anamnese",
+				endpoint: `template:${templateId}`,
+				promptName: "template",
 			});
 			const metadata = event?.metadata as Record<string, unknown> | undefined;
 			const modelConfig = metadata?.modelConfig as Record<string, unknown> | undefined;
 			expect(modelConfig).toBeDefined();
 			expect(modelConfig).toHaveProperty("maxTokens", 8000);
 			expect(event?.inputData).toMatchObject({
-				befunde: "Basale Rasselgeräusche beidseits.",
-				diagnoseblock: "I50.1 Akute Linksherzinsuffizienz",
+				sections: {
+					befunde: "Basale Rasselgeräusche beidseits.",
+					diagnosen: "I50.1 Akute Linksherzinsuffizienz",
+				},
+				targetSectionId: "anamnese",
 			});
 			const inputData = event?.inputData as Record<string, unknown> | undefined;
 			const notes = String(inputData?.notes ?? "");
@@ -2215,10 +2194,12 @@ describe("Scribe Agent section generation", () => {
  */
 describe("Scribe Stream Handler", () => {
 	let server: TestServer;
+	let templateId: string;
 
 	beforeEach(async () => {
 		server = await startTestServer("scribe-test");
 		await createTestAiDefaults(server.db);
+		templateId = await createPublicTestTemplate(server.db);
 	});
 
 	afterEach(async () => {
@@ -2237,14 +2218,14 @@ describe("Scribe Stream Handler", () => {
 			const result = await call(
 				scribeStreamHandler,
 				{
-					documentType: "discharge",
 					messages: [
 						{
 							id: "1",
-							parts: [{ text: '{"anamnese":"test"}', type: "text" as const }],
+							parts: [{ text: '{"notes":"test"}', type: "text" as const }],
 							role: "user" as const,
 						},
 					],
+					templateId,
 				},
 				{ context },
 			);
@@ -2255,7 +2236,7 @@ describe("Scribe Stream Handler", () => {
 	});
 
 	describe("Input Validation", () => {
-		test("rejects unknown document type", async () => {
+		test("rejects an unknown template", async () => {
 			const { user } = await createTestUser(server.db);
 			const session = createMockSession(user);
 			const context = createTestContext({ db: server.db, session });
@@ -2264,18 +2245,40 @@ describe("Scribe Stream Handler", () => {
 				call(
 					scribeStreamHandler,
 					{
-						documentType: "unknown-type" as DocumentType,
 						messages: [
 							{
 								id: "1",
-								parts: [{ text: "{}", type: "text" as const }],
+								parts: [{ text: '{"notes":"test"}', type: "text" as const }],
 								role: "user" as const,
 							},
 						],
+						templateId: "missing-template",
 					},
 					{ context },
 				),
-			).rejects.toThrow(ORPCError);
+			).rejects.toThrow("Template wurde nicht gefunden");
+		});
+
+		test("refuses another user's private template like an unknown one", async () => {
+			const { user } = await createTestUser(server.db);
+			const { user: author } = await createTestUser(server.db, { email: "author@test.com" });
+			const privateTemplate = await createTestTemplate(server.db, author.id, {
+				visibility: "private",
+			});
+			const context = createTestContext({ db: server.db, session: createMockSession(user) });
+
+			await expect(
+				call(
+					scribeStreamHandler,
+					{
+						messages: [
+							{ id: "1", parts: [{ text: '{"notes":"test"}', type: "text" }], role: "user" },
+						],
+						templateId: privateTemplate.id,
+					},
+					{ context },
+				),
+			).rejects.toThrow("Template wurde nicht gefunden");
 		});
 
 		test("rejects empty prompt input with helpful message", async () => {
@@ -2287,15 +2290,12 @@ describe("Scribe Stream Handler", () => {
 				call(
 					scribeStreamHandler,
 					{
-						documentType: "anamnese",
 						messages: [
 							{
 								id: "1",
 								parts: [
 									{
 										text: JSON.stringify({
-											befunde: "",
-											diagnoseblock: "",
 											notes: "",
 										}),
 										type: "text" as const,
@@ -2304,44 +2304,39 @@ describe("Scribe Stream Handler", () => {
 								role: "user" as const,
 							},
 						],
+						templateId,
 					},
 					{ context },
 				),
 			).rejects.toThrow("Bitte füllen Sie mindestens ein Pflichtfeld aus.");
 		});
 
-		test("accepts valid document types", async () => {
+		test("rejects regenerating a template section when nothing has been written", async () => {
 			const { user } = await createTestUser(server.db);
-			const session = createMockSession(user);
-			const context = createTestContext({ db: server.db, session });
+			const context = createTestContext({ db: server.db, session: createMockSession(user) });
+			// The target id alone is no input; the section's own draft would be.
+			const payload = {
+				notes: "",
+				sections: { anamnese: " " },
+				targetSectionId: "anamnese",
+			};
 
-			const validTypes: DocumentType[] = ["discharge", "anamnese", "diagnosis"];
-
-			for (const docType of validTypes) {
-				// Should not throw for valid types
-				// Note: May still fail on usage limits, but not on validation
-				try {
-					await call(
-						scribeStreamHandler,
-						{
-							documentType: docType,
-							messages: [
-								{
-									id: "1",
-									parts: [{ text: '{"notes":"test"}', type: "text" as const }],
-									role: "user" as const,
-								},
-							],
-						},
-						{ context },
-					);
-				} catch (error) {
-					// Only usage limit errors are acceptable here
-					if (error instanceof ORPCError) {
-						expect(error.code).not.toBe("BAD_REQUEST");
-					}
-				}
-			}
+			await expect(
+				call(
+					scribeStreamHandler,
+					{
+						messages: [
+							{
+								id: "1",
+								parts: [{ text: JSON.stringify(payload), type: "text" as const }],
+								role: "user" as const,
+							},
+						],
+						templateId,
+					},
+					{ context },
+				),
+			).rejects.toThrow("Bitte füllen Sie mindestens ein Pflichtfeld aus.");
 		});
 	});
 
@@ -2380,14 +2375,14 @@ describe("Scribe Stream Handler", () => {
 								size: 8,
 							},
 						],
-						documentType: "discharge",
 						messages: [
 							{
 								id: "1",
-								parts: [{ text: '{"anamnese":"test"}', type: "text" as const }],
+								parts: [{ text: '{"notes":"test"}', type: "text" as const }],
 								role: "user" as const,
 							},
 						],
+						templateId,
 					},
 					{ context },
 				),
@@ -2423,16 +2418,13 @@ describe("Scribe Stream Handler", () => {
 			const result = await call(
 				scribeStreamHandler,
 				{
-					documentType: "discharge",
 					messages: [
 						{
 							id: "1",
 							parts: [
 								{
 									text: JSON.stringify({
-										anamnese: "test",
-										befunde: "test",
-										diagnoseblock: "test",
+										background: "test",
 										notes: "test",
 									}),
 									type: "text" as const,
@@ -2441,6 +2433,7 @@ describe("Scribe Stream Handler", () => {
 							role: "user" as const,
 						},
 					],
+					templateId,
 				},
 				{ context },
 			);
@@ -2476,14 +2469,14 @@ describe("Scribe Stream Handler", () => {
 				call(
 					scribeStreamHandler,
 					{
-						documentType: "discharge",
 						messages: [
 							{
 								id: "1",
-								parts: [{ text: '{"anamnese":"test"}', type: "text" as const }],
+								parts: [{ text: '{"notes":"test"}', type: "text" as const }],
 								role: "user" as const,
 							},
 						],
+						templateId,
 					},
 					{ context },
 				),
@@ -2522,10 +2515,14 @@ describe("Scribe Stream Handler", () => {
 				const events = await call(
 					scribeStreamHandler,
 					{
-						documentType: "befunde",
 						messages: [
-							{ id: "1", parts: [{ text: JSON.stringify({ notes }), type: "text" }], role: "user" },
+							{
+								id: "1",
+								parts: [{ text: JSON.stringify({ background: notes }), type: "text" }],
+								role: "user",
+							},
 						],
+						templateId,
 					},
 					{ context },
 				);
@@ -2552,7 +2549,7 @@ describe("Scribe Stream Handler", () => {
 				const first = seen.at(-1)?.data as ScribeCitation;
 				expect(draft.slice(first.start, first.end)).toBe("Fieber seit gestern.");
 				expect(first.citations).toEqual([
-					{ quote: "Fieber seit gestern.", source: "mdscribe://input/notes" },
+					{ quote: "Fieber seit gestern.", source: "mdscribe://input/background" },
 				]);
 				// A later element is deliberately blocked: the first citation must
 				// already be delivered rather than waiting for the complete array.
@@ -2591,7 +2588,7 @@ describe("Scribe Stream Handler", () => {
 			}
 		});
 
-		test("cites with one decision-model request, keeping multi-source evidence and dropping claims with ungrounded numbers", async () => {
+		test("cites the background with one decision-model request, dropping claims with ungrounded numbers", async () => {
 			const { providerId } = await createTestAiDefaults(server.db);
 			await server.db
 				.update(aiProvider)
@@ -2601,7 +2598,8 @@ describe("Scribe Stream Handler", () => {
 			const { user } = await createTestUser(server.db);
 			const context = createTestContext({ db: server.db, session: createMockSession(user) });
 			const draft = "Fieber seit gestern, kein Husten. Kalium 3,4 mmol/l. Kreatinin 2,1 mg/dl.";
-			const notes = "Fieber seit gestern. Kein Husten. Kalium 3,4 mmol/l. Kreatinin 1,2 mg/dl.";
+			const background =
+				"Fieber seit gestern. Kein Husten. Kalium 3,4 mmol/l. Kreatinin 1,2 mg/dl.";
 			aiMockState.nextStreamTextText = draft;
 			// The LLM annotation pass must not run when the decision model answers.
 			aiMockState.nextCitationElements = (async function* elements() {
@@ -2662,22 +2660,20 @@ describe("Scribe Stream Handler", () => {
 				const events = await call(
 					scribeStreamHandler,
 					{
-						documentType: "befunde",
+						audioTranscripts: ["Kalium 3,4 mmol/l"],
 						messages: [
 							{
 								id: "1",
 								parts: [
 									{
-										text: JSON.stringify({
-											befunde: "Kalium 3,4 mmol/l",
-											notes,
-										}),
+										text: JSON.stringify({ background }),
 										type: "text",
 									},
 								],
 								role: "user",
 							},
 						],
+						templateId,
 					},
 					{ context },
 				);
@@ -2694,12 +2690,9 @@ describe("Scribe Stream Handler", () => {
 						citation.citations.map(({ quote, source }) => `${source} ${quote}`),
 					]),
 				).toEqual([
-					["Fieber seit gestern", [`mdscribe://input/notes ${notes}`]],
-					["kein Husten", [`mdscribe://input/notes ${notes}`]],
-					[
-						"Kalium 3,4 mmol/l",
-						["mdscribe://input/befunde Kalium 3,4 mmol/l", `mdscribe://input/notes ${notes}`],
-					],
+					["Fieber seit gestern", [`mdscribe://input/background ${background}`]],
+					["kein Husten", [`mdscribe://input/background ${background}`]],
+					["Kalium 3,4 mmol/l", [`mdscribe://input/background ${background}`]],
 				]);
 				expect(addScribeCitations(draft, citations).replaceAll(/\{%.*?%\}/g, "")).toBe(draft);
 			} finally {
@@ -2737,14 +2730,19 @@ describe("Scribe Stream Handler", () => {
 				const events = await call(
 					scribeStreamHandler,
 					{
-						documentType: "anamnese",
 						messages: [
 							{
 								id: "1",
-								parts: [{ text: JSON.stringify({ notes: draft }), type: "text" }],
+								parts: [
+									{
+										text: JSON.stringify({ background: draft }),
+										type: "text",
+									},
+								],
 								role: "user",
 							},
 						],
+						templateId,
 					},
 					{ context },
 				);
@@ -2752,9 +2750,13 @@ describe("Scribe Stream Handler", () => {
 				for await (const event of events) {
 					seen.push(event);
 				}
-				expect(seen.filter((e) => e.type === "data-citation").map((e) => e.data)).toEqual([
+				// The client keeps the last part per id, as the AI SDK does.
+				const parts = new Map(
+					seen.flatMap((e) => (e.type === "data-citation" ? [[e.id, e.data] as const] : [])),
+				);
+				expect([...parts.values()]).toEqual([
 					{
-						citations: [{ quote: draft, source: "mdscribe://input/notes" }],
+						citations: [{ quote: draft, source: "mdscribe://input/background" }],
 						end: draft.length,
 						start: 0,
 					},
@@ -2812,16 +2814,16 @@ describe("Scribe Stream Handler", () => {
 					const events = await call(
 						scribeStreamHandler,
 						{
-							documentType: "anamnese",
 							messages: [
 								{
 									id: "1",
 									parts: [
-										{ text: JSON.stringify({ notes: "Fieber seit gestern." }), type: "text" },
+										{ text: JSON.stringify({ background: "Fieber seit gestern." }), type: "text" },
 									],
 									role: "user",
 								},
 							],
+							templateId,
 						},
 						{ context },
 					);
@@ -2851,6 +2853,75 @@ describe("Scribe Stream Handler", () => {
 				}
 			},
 		);
+
+		test("does not cite notes, the letter's own sections or audio, and skips the citation pass without evidence", async () => {
+			const { user } = await createTestUser(server.db);
+			const context = createTestContext({ db: server.db, session: createMockSession(user) });
+			const fact = "Fieber seit gestern.";
+			aiMockState.nextStreamTextText = fact;
+			aiMockState.nextCitationElements = (async function* elements() {
+				yield { passageId: "p1", quote: fact, text: fact, unitId: "u1" };
+			})();
+			try {
+				const events = await call(
+					scribeStreamHandler,
+					{
+						audioTranscripts: [fact],
+						messages: [
+							{
+								id: "1",
+								parts: [
+									{
+										text: JSON.stringify({
+											notes: fact,
+											sections: { epikrise: fact },
+										}),
+										type: "text",
+									},
+								],
+								role: "user",
+							},
+						],
+						templateId,
+					},
+					{ context },
+				);
+				const seen = [];
+				for await (const event of events) {
+					seen.push(event);
+				}
+				expect(seen.some((e) => e.type.startsWith("data-citation"))).toBe(false);
+				expect(seen.at(-1)).toEqual({ finishReason: "stop", type: "finish" });
+			} finally {
+				delete aiMockState.nextCitationElements;
+				delete aiMockState.nextStreamTextText;
+			}
+		});
+
+		test("uses transcripts sent back instead of audio as prompt input", async () => {
+			const { user } = await createTestUser(server.db);
+			const context = createTestContext({ db: server.db, session: createMockSession(user) });
+			const answer = "Fieber seit gestern.";
+			const transcript = `Patient berichtet ${answer}`;
+			aiMockState.nextStreamTextText = answer;
+			try {
+				const events = await call(
+					scribeStreamHandler,
+					{
+						audioTranscripts: [transcript],
+						messages: [{ id: "1", parts: [{ text: "{}", type: "text" }], role: "user" }],
+						templateId,
+					},
+					{ context },
+				);
+				for await (const _event of events) {
+					// Drain the stream.
+				}
+				expect(JSON.stringify(aiMockState.lastStreamTextOptions)).toContain(transcript);
+			} finally {
+				delete aiMockState.nextStreamTextText;
+			}
+		});
 
 		test.each([
 			{
@@ -2899,8 +2970,8 @@ describe("Scribe Stream Handler", () => {
 								ocrResult: { backend: "llm", text: source },
 							},
 						],
-						documentType: "anamnese",
 						messages: [{ id: "1", parts: [{ text: "{}", type: "text" }], role: "user" }],
+						templateId,
 					},
 					{ context },
 				);
@@ -2928,15 +2999,13 @@ describe("Scribe Stream Handler", () => {
 			const result = await call(
 				scribeStreamHandler,
 				{
-					documentType: "anamnese",
 					messages: [
 						{
 							id: "1",
 							parts: [
 								{
 									text: JSON.stringify({
-										befunde: "ECG normal",
-										diagnoseblock: "Hypertension",
+										background: "ECG normal, hypertension",
 										notes: "Patient with chest pain",
 									}),
 									type: "text" as const,
@@ -2945,6 +3014,7 @@ describe("Scribe Stream Handler", () => {
 							role: "user" as const,
 						},
 					],
+					templateId,
 				},
 				{ context },
 			);
@@ -2971,7 +3041,6 @@ describe("Scribe Stream Handler", () => {
 			await call(
 				scribeStreamHandler,
 				{
-					documentType: "discharge",
 					messages: [
 						{
 							id: "1",
@@ -2979,6 +3048,7 @@ describe("Scribe Stream Handler", () => {
 							role: "user" as const,
 						},
 					],
+					templateId,
 				},
 				{ context },
 			);
@@ -2992,9 +3062,34 @@ describe("Scribe Stream Handler", () => {
 				userContent.indexOf("</personal_preferences>"),
 			);
 			expect(preferences).toContain('Schreibe "Pat." statt "Patient".');
-			expect(userContent.indexOf("</user_context>")).toBeLessThan(
-				userContent.indexOf("<patient_context>"),
+			expect(userContent.indexOf("</user_context>")).toBeLessThan(userContent.indexOf("<notizen"));
+		});
+
+		test("Hintergrundinformationen alone are input and reach the model as <kontext>", async () => {
+			const { user } = await createTestUser(server.db);
+			const context = createTestContext({ db: server.db, session: createMockSession(user) });
+
+			await call(
+				scribeStreamHandler,
+				{
+					messages: [
+						{
+							id: "1",
+							parts: [{ text: '{"notes":"","background":"Labor: Na 139"}', type: "text" as const }],
+							role: "user" as const,
+						},
+					],
+					templateId,
+				},
+				{ context },
 			);
+
+			const { messages } = aiMockState.lastStreamTextOptions as {
+				messages: { content: string; role: string }[];
+			};
+			const userContent = messages.findLast((message) => message.role === "user")?.content ?? "";
+			expect(userContent).toContain('<kontext id="background">\nLabor: Na 139\n</kontext>');
+			expect(userContent).not.toContain("<notizen");
 		});
 
 		test("resolves admin-configured default model", async () => {
@@ -3005,15 +3100,12 @@ describe("Scribe Stream Handler", () => {
 			const result = await call(
 				scribeStreamHandler,
 				{
-					documentType: "anamnese" as const,
 					messages: [
 						{
 							id: "1",
 							parts: [
 								{
 									text: JSON.stringify({
-										befunde: "",
-										diagnoseblock: "",
 										notes: "test",
 									}),
 									type: "text" as const,
@@ -3022,6 +3114,7 @@ describe("Scribe Stream Handler", () => {
 							role: "user" as const,
 						},
 					],
+					templateId,
 				},
 				{ context },
 			);

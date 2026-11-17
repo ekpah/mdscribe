@@ -4,8 +4,6 @@ import { QueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 
 interface TemplateEditorData {
-	cat: string;
-	categorySuggestions: string[];
 	tit: string;
 	note: string;
 	examples: string[];
@@ -17,7 +15,6 @@ interface TemplateEditorData {
 }
 
 interface EditorContextData {
-	categorySuggestions: string[];
 	canCreatePrivateTemplates: boolean;
 	isTemplateAgentEnabled: boolean;
 }
@@ -38,7 +35,6 @@ export const getCreateTemplateEditorData = async ({
 
 	return {
 		...sharedData,
-		cat: forkedTemplate?.category || "",
 		examples: forkedTemplate?.examples ?? [],
 		information: forkedTemplate?.information ?? "",
 		note: JSON.stringify(forkedTemplate?.content || ""),
@@ -65,7 +61,6 @@ export const getEditTemplateEditorData = async ({
 
 	return {
 		...sharedData,
-		cat: doc.category || "",
 		examples: doc.examples ?? [],
 		id,
 		information: doc.information ?? "",

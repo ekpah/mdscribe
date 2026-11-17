@@ -1,3 +1,31 @@
+import { toast } from "sonner";
+
+const isBreakOrEdge = (node: ChildNode | null) => !node || node.nodeName === "BR";
+const isEmptyLine = (line: Element | null) =>
+	line?.matches("[data-template-line]") === true && line.textContent === "\u00A0";
+
+// AI instructions guide generation and are never part of the text. A line that
+// held nothing else goes with them, so no empty line is left behind.
+const removeAiInstructions = (clone: HTMLElement) => {
+	for (const instruction of clone.querySelectorAll("[data-markdoc-ai]")) {
+		const line = instruction.closest("[data-template-line]");
+		// An instruction on its own row of a multi-line paragraph takes one of its breaks along.
+		const { nextSibling, previousSibling } = instruction;
+		if (isBreakOrEdge(previousSibling) && isBreakOrEdge(nextSibling)) {
+			(nextSibling ?? previousSibling)?.remove();
+		}
+		instruction.remove();
+		if (line && !line.textContent?.trim() && !line.querySelector("img, input, select, textarea")) {
+			// Between two empty lines, one empty line keeps the paragraph gap.
+			const next = line.nextElementSibling;
+			if (isEmptyLine(line.previousElementSibling) && isEmptyLine(next)) {
+				next?.remove();
+			}
+			line.remove();
+		}
+	}
+};
+
 /** Copy the rendered line structure without changing the visible disclosure state. */
 export const getRenderedClipboardContent = (
 	element: HTMLElement,
@@ -7,6 +35,7 @@ export const getRenderedClipboardContent = (
 	for (const citation of clone.querySelectorAll("mark[data-citation-source]")) {
 		citation.replaceWith(...citation.childNodes);
 	}
+	removeAiInstructions(clone);
 	const html = clone.innerHTML;
 	for (const section of clone.querySelectorAll<HTMLDetailsElement>("details")) {
 		section.open = true;
@@ -40,5 +69,24 @@ export const getRenderedClipboardContent = (
 		return { html, text };
 	} finally {
 		clone.remove();
+	}
+};
+
+/** Writes rich text with a plain-text fallback and reports the result as a toast. */
+export const copyToClipboard = async ({ html, text }: { html: string; text: string }) => {
+	try {
+		await (typeof ClipboardItem === "undefined"
+			? navigator.clipboard.writeText(text)
+			: navigator.clipboard.write([
+					new ClipboardItem({
+						"text/html": new Blob([html], { type: "text/html" }),
+						"text/plain": new Blob([text], { type: "text/plain" }),
+					}),
+				]));
+		toast.success("Text kopiert");
+		return true;
+	} catch {
+		toast.error("Kopieren fehlgeschlagen. Bitte manuell kopieren.");
+		return false;
 	}
 };

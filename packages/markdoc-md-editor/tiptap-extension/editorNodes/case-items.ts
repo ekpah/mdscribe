@@ -1,8 +1,8 @@
 import { getHTMLFromFragment } from "@tiptap/core";
 import { Fragment } from "@tiptap/pm/model";
 import type { DOMOutputSpec, Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { htmlToMarkdoc } from "markdoc-md/editor";
 
+import { toMarkdoc } from "../../plugins";
 import type { CaseConditionAttrs } from "./case-condition";
 import { CASE_CONDITION_KEYS } from "./case-condition";
 
@@ -126,4 +126,4 @@ export const toBranchingAttrs = (node: ProseMirrorNode): BranchingTagAttrs => ({
  * editor saves with, so plain-text copies match saved templates exactly.
  */
 export const nodeToMarkdoc = (node: ProseMirrorNode): string =>
-	htmlToMarkdoc(getHTMLFromFragment(Fragment.from(node), node.type.schema)).trim();
+	toMarkdoc(getHTMLFromFragment(Fragment.from(node), node.type.schema)).trim();

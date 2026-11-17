@@ -4,6 +4,8 @@ export const FILL_INPUT_PAYLOAD_LIMITS = {
 	maxAudioFiles: 3,
 	maxAudioPayloadBytesPerRecording: 12 * 1024 * 1024,
 	maxAudioPayloadBytesTotal: 30 * 1024 * 1024,
+	/** A transcript sent back instead of its recording: about 100 minutes of speech. */
+	maxAudioTranscriptCharacters: 100_000,
 	maxContextFileBytes: 10 * 1024 * 1024,
 	maxContextFiles: 5,
 	maxContextFilesTotalBytes: 25 * 1024 * 1024,

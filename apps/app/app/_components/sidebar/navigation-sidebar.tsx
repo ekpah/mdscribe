@@ -11,7 +11,6 @@ import {
 	SidebarGroup,
 	SidebarGroupContent,
 	SidebarHeader,
-	SidebarInput,
 	SidebarMenu,
 	SidebarMenuButton,
 	SidebarMenuItem,
@@ -21,12 +20,11 @@ import {
 	SidebarRail,
 	useSidebar,
 } from "@repo/design-system/components/ui/sidebar";
-import { cn } from "@repo/design-system/lib/utils";
-import { ChevronRight, Minus, Plus, Search } from "lucide-react";
+import { ChevronRight, Minus, Plus } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ChangeEvent, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { useCallback } from "react";
 
 export interface NavigationSidebarItem {
@@ -68,17 +66,6 @@ interface NavigationSidebarBrandProps {
 	readonly subtitle?: string;
 }
 
-interface NavigationSidebarSearchProps {
-	readonly id: string;
-	readonly label: string;
-	readonly placeholder: string;
-	readonly value: string;
-	readonly onChange: (event: ChangeEvent<HTMLInputElement>) => void;
-	readonly className?: string;
-	readonly iconPosition?: "left" | "right";
-	readonly trailing?: ReactNode;
-}
-
 export const NavigationSidebarBrand = ({
 	href,
 	icon: Icon,
@@ -103,41 +90,6 @@ export const NavigationSidebarBrand = ({
 			/>
 		</SidebarMenuItem>
 	</SidebarMenu>
-);
-
-export const NavigationSidebarSearch = ({
-	id,
-	label,
-	placeholder,
-	value,
-	onChange,
-	className,
-	iconPosition = "right",
-	trailing,
-}: NavigationSidebarSearchProps) => (
-	<form>
-		<SidebarGroup className="py-0">
-			<SidebarGroupContent className="relative">
-				<label className="sr-only" htmlFor={id}>
-					{label}
-				</label>
-				<SidebarInput
-					className={cn(iconPosition === "left" && "pl-8", className)}
-					id={id}
-					onChange={onChange}
-					placeholder={placeholder}
-					value={value}
-				/>
-				<Search
-					className={cn(
-						"pointer-events-none absolute top-1/2 size-4 -translate-y-1/2 select-none opacity-50",
-						iconPosition === "left" ? "left-2" : "right-3",
-					)}
-				/>
-				{trailing}
-			</SidebarGroupContent>
-		</SidebarGroup>
-	</form>
 );
 
 export const NavigationSidebar = ({
@@ -265,33 +217,4 @@ export const NavigationSidebar = ({
 			<SidebarRail />
 		</Sidebar>
 	);
-};
-
-export const groupNavigationItemsByCategory = <
-	TItem extends {
-		readonly category: string;
-		readonly title: string;
-		readonly url: string;
-	},
->(
-	items: readonly TItem[],
-): NavigationSidebarSection[] => {
-	const groups = new Map<string, NavigationSidebarItem[]>();
-
-	for (const item of items) {
-		const existing = groups.get(item.category) ?? [];
-		existing.push({
-			href: item.url,
-			title: item.title,
-		});
-		groups.set(item.category, existing);
-	}
-
-	return [...groups.entries()]
-		.map(([category, categoryItems]) => ({
-			items: categoryItems.toSorted((a, b) => a.title.localeCompare(b.title)),
-			key: category,
-			title: category,
-		}))
-		.toSorted((a, b) => a.title.localeCompare(b.title));
 };

@@ -5,14 +5,12 @@ import { useMemo } from "react";
 
 import { USER_MESSAGES } from "@/lib/user-messages";
 
-const UNCATEGORIZED_LABEL = "Ohne Kategorie";
 const compareTemplateText = new Intl.Collator(undefined, {
 	numeric: true,
 	sensitivity: "base",
 }).compare;
 
 interface TemplateSelectorTemplate {
-	category?: string | null;
 	id: string;
 	title: string;
 }
@@ -32,32 +30,6 @@ interface TemplateSelectorProps<TTemplate extends TemplateSelectorTemplate> {
 	value: string;
 }
 
-const getCategoryLabel = (template: TemplateSelectorTemplate): string =>
-	template.category?.trim() || UNCATEGORIZED_LABEL;
-
-const groupTemplatesByCategory = <TTemplate extends TemplateSelectorTemplate>(
-	templates: TTemplate[],
-) => {
-	const groups = new Map<string, TTemplate[]>();
-
-	for (const template of templates) {
-		const category = getCategoryLabel(template);
-		const existing = groups.get(category);
-		if (existing) {
-			existing.push(template);
-		} else {
-			groups.set(category, [template]);
-		}
-	}
-
-	return [...groups.entries()]
-		.map(([category, entries]) => ({
-			category,
-			entries: entries.toSorted((a, b) => compareTemplateText(a.title, b.title)),
-		}))
-		.toSorted((a, b) => compareTemplateText(a.category, b.category));
-};
-
 export const TemplateSelector = <TTemplate extends TemplateSelectorTemplate>({
 	className,
 	disabled = false,
@@ -75,13 +47,9 @@ export const TemplateSelector = <TTemplate extends TemplateSelectorTemplate>({
 	const options = useMemo(
 		() => [
 			{ label: noneLabel, value: noneValue },
-			...groupTemplatesByCategory(templates).flatMap((group) =>
-				group.entries.map((template) => ({
-					group: group.category,
-					label: template.title,
-					value: template.id,
-				})),
-			),
+			...templates
+				.toSorted((a, b) => compareTemplateText(a.title, b.title))
+				.map((template) => ({ label: template.title, value: template.id })),
 		],
 		[noneLabel, noneValue, templates],
 	);

@@ -49,31 +49,28 @@ test.describe("Stripe-disabled instance", () => {
 		await page.goto("/subscription");
 		await expect(page).toHaveURL(/\/dashboard$/);
 		await page.setViewportSize({ height: 900, width: 1280 });
-		await page.goto("/profile/ai-scribe");
-		for (const [button, comboboxIndex] of [
-			["Neue AI Vorlage", 2],
-			["Neuer Brief-Baukasten", 0],
-		] as const) {
-			await page.getByRole("button", { name: button }).click();
-			const dialog = page.getByRole("dialog");
-			await dialog.getByRole("combobox").nth(comboboxIndex).click();
-			await expect(page.getByRole("option", { exact: true, name: "Privat" })).toBeDisabled();
-			await expect(dialog).not.toContainText(/Plus|Abonnement|Upgrade/);
-			await page.keyboard.press("Escape");
-			await dialog.getByRole("button", { name: "Abbrechen" }).click();
-			await expect(dialog).toBeHidden();
-		}
-		for (const path of ["/templates/create", "/documents/create"]) {
-			await page.goto(path);
-			await page.getByRole("combobox", { name: "Sichtbarkeit" }).click();
-			await expect(page.getByRole("option", { exact: true, name: "Privat" })).toBeDisabled();
-			await page.getByRole("option", { exact: true, name: "Öffentlich" }).click();
-			await page.getByRole("button", { name: "Hinweis zur Sichtbarkeit" }).hover();
-			await expect(
-				page.getByText(/Private (?:Textbausteine|Dokumente) sind für Ihr Konto nicht verfügbar/),
-			).toBeVisible();
-			await expect(page.locator("body")).not.toContainText(/Plus|Abonnement|Upgrade/);
-		}
+		// Free accounts keep text templates public: switching off "Öffentlich" is refused.
+		await page.goto("/templates/create");
+		const isPublic = page.getByRole("switch", { name: "Sichtbarkeit" });
+		await expect(isPublic).toBeChecked();
+		await isPublic.click();
+		await expect(isPublic).toBeChecked();
+		await page.getByRole("button", { name: "Hinweis zur Sichtbarkeit" }).hover();
+		await expect(
+			// The refused switch also shows it as a toast.
+			page.getByText(/Private Textbausteine sind für Ihr Konto nicht verfügbar/).first(),
+		).toBeVisible();
+		await expect(page.locator("body")).not.toContainText(/Plus|Abonnement|Upgrade/);
+
+		await page.goto("/documents/create");
+		await page.getByRole("combobox", { name: "Sichtbarkeit" }).click();
+		await expect(page.getByRole("option", { exact: true, name: "Privat" })).toBeDisabled();
+		await page.getByRole("option", { exact: true, name: "Öffentlich" }).click();
+		await page.getByRole("button", { name: "Hinweis zur Sichtbarkeit" }).hover();
+		await expect(
+			page.getByText(/Private Dokumente sind für Ihr Konto nicht verfügbar/),
+		).toBeVisible();
+		await expect(page.locator("body")).not.toContainText(/Plus|Abonnement|Upgrade/);
 	});
 });
 

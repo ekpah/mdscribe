@@ -2,35 +2,39 @@
 
 import { Button } from "@repo/design-system/components/ui/button";
 import { Card } from "@repo/design-system/components/ui/card";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@repo/design-system/components/ui/dropdown-menu";
 import { cn } from "@repo/design-system/lib/utils";
-import { Bot, Eraser, Redo2, Undo2 } from "lucide-react";
+import { Bot, Ellipsis, Eraser, Redo2, Undo2 } from "lucide-react";
 import { createMdscribeSource } from "markdoc-md/citations";
 import type { CitationRequest, CitationTextSource } from "markdoc-md/citations";
 import type { InputTagType } from "markdoc-md/parse";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
 
 import { CitationPreviewDialog } from "@/app/_components/citation-preview-dialog";
-import { consumeContextTransferFromFragment } from "@/app/_components/context-transfer/client";
-import { hydrateInputContextController } from "@/app/_components/context-transfer/hydrate";
-import {
-	InputContextControls,
-	useInputContextState,
-} from "@/app/_components/input-context/input-context-controls";
-import type { UploadedContextFile } from "@/app/_components/input-context/types";
+import { InputContextControls } from "@/app/_components/input-context/input-context-controls";
+import type {
+	InputContextController,
+	InputContextTextContext,
+	UploadedContextFile,
+} from "@/app/_components/input-context/types";
 import { useCitationPreview } from "@/app/_components/use-citation-preview";
 import { trackEvent } from "@/lib/analytics";
 import { useSession } from "@/lib/auth-client";
 import type { OcrResult } from "@/lib/ocr-types";
 import { orpc } from "@/lib/orpc";
+import { inputName } from "@/orpc/scribe/prompts/template";
 
 import type {
 	FillInputsAudioFile,
 	FillInputsContextFile,
 	FillInputsInputField,
 	FillInputsResult,
-	FillInputsTextContext,
 	TemplateFields,
 } from "./inputs/inputs";
 import { collectFillInputFields, useTemplateFields } from "./inputs/inputs";
@@ -43,6 +47,8 @@ const fieldEditorSelector = "[data-markdoc-input], [data-inline-panel], [data-fi
 interface InputPreviewSectionProps {
 	contentType: "document" | "template";
 	edgeTabs?: ReactNode;
+	/** The case input; the caller owns it to pass it on, such as to AI Scribe. */
+	inputContextController: InputContextController;
 	inputTags: InputTagType[];
 	/** Shows a field for review; templates focus its inline tag by default. */
 	onReviewField?: (inputName: string) => void;
@@ -63,29 +69,21 @@ interface InputPreviewSectionProps {
 	toolbarActions?: ReactNode;
 }
 
-const TEXT_CONTEXT_LABELS: Record<keyof FillInputsTextContext, string> = {
-	anamnese: "Anamnese",
-	befunde: "Befunde",
-	diagnoseblock: "Diagnosen",
-	epikrise: "Epikrise",
-	notes: "Notizen",
-};
-
 const createTextSourceSnapshot = (
-	textContext: FillInputsTextContext,
+	textContext: InputContextTextContext,
 ): ReadonlyMap<string, CitationTextSource> =>
 	new Map(
 		Object.entries(textContext)
-			.filter((entry): entry is [keyof FillInputsTextContext, string] => Boolean(entry[1]?.trim()))
-			.map(([id, text]) => [
-				createMdscribeSource("input", id),
-				{ label: TEXT_CONTEXT_LABELS[id], text },
-			]),
+			.filter((entry): entry is [keyof InputContextTextContext, string] =>
+				Boolean(entry[1]?.trim()),
+			)
+			.map(([id, text]) => [createMdscribeSource("input", id), { label: inputName(id), text }]),
 	);
 
 export const InputPreviewSection = ({
 	contentType,
 	edgeTabs,
+	inputContextController,
 	inputTags,
 	onReviewField,
 	onValuesChange,
@@ -97,8 +95,6 @@ export const InputPreviewSection = ({
 	toolbarActions,
 }: InputPreviewSectionProps) => {
 	const [previewPanelElement, setPreviewPanelElement] = useState<HTMLDivElement | null>(null);
-	const [usesPreviewPanelPortal, setUsesPreviewPanelPortal] = useState(false);
-	const inputContextController = useInputContextState();
 	const citationFilesRef = useRef<ReadonlyMap<string, File>>(new Map());
 	// Submission rotates images into new files with new IDs; cite those, not stale state.
 	const submittedFilesRef = useRef<readonly UploadedContextFile[]>([]);
@@ -111,45 +107,9 @@ export const InputPreviewSection = ({
 
 	const inputContextControllerRef = useRef(inputContextController);
 	inputContextControllerRef.current = inputContextController;
-	const hasHydratedTransferRef = useRef(false);
-
-	useEffect(() => {
-		if (hasHydratedTransferRef.current) {
-			return;
-		}
-		hasHydratedTransferRef.current = true;
-
-		const hydrateTransfer = async () => {
-			try {
-				const payload = await consumeContextTransferFromFragment();
-				if (payload) {
-					hydrateInputContextController(inputContextControllerRef.current, payload);
-				}
-			} catch (error) {
-				console.error("Failed to hydrate context transfer:", error);
-				toast.error("Kontext konnte nicht übernommen werden.");
-			}
-		};
-
-		void hydrateTransfer();
-	}, []);
 
 	const handlePreviewPanelRef = useCallback((node: HTMLDivElement | null) => {
 		setPreviewPanelElement(node);
-	}, []);
-
-	useEffect(() => {
-		const mediaQuery = window.matchMedia("(min-width: 768px)");
-		const handleChange = () => {
-			setUsesPreviewPanelPortal(mediaQuery.matches);
-		};
-
-		handleChange();
-		mediaQuery.addEventListener("change", handleChange);
-
-		return () => {
-			mediaQuery.removeEventListener("change", handleChange);
-		};
 	}, []);
 
 	const {
@@ -172,7 +132,7 @@ export const InputPreviewSection = ({
 		async (
 			inputFields: FillInputsInputField[],
 			audioFiles: FillInputsAudioFile[],
-			textContext: FillInputsTextContext,
+			textContext: InputContextTextContext,
 			contextFiles: FillInputsContextFile[],
 			onProgress?: (result: FillInputsResult, stage: "decisions" | "values") => void,
 		) => {
@@ -331,7 +291,8 @@ export const InputPreviewSection = ({
 					submittedFilesRef.current = preparedContextFiles;
 					await fields.fill?.(audioFiles, textContext, contextFiles);
 				}}
-				panelPortalTarget={usesPreviewPanelPortal ? previewPanelElement : null}
+				// Panels open over the preview at every width, so the bar keeps its buttons in place.
+				panelPortalTarget={previewPanelElement}
 				// The fill toast continues where document recognition left off.
 				progressToastId="fill-inputs"
 			/>
@@ -341,6 +302,8 @@ export const InputPreviewSection = ({
 			{/* Inline-size containment keeps a wide PDF or step bar from widening the page on phones. */}
 			<Card className="relative flex h-[calc(100dvh-(--spacing(16))-(--spacing(10))-2rem)] flex-col gap-0 overflow-hidden py-0 [contain:inline-size]">
 				{edgeTabs}
+				{/* On phones the focused field's bar docks here, at the card's fixed top edge. */}
+				<div className="absolute inset-x-0 top-0 z-40" data-inline-keyboard-slot />
 				<div
 					className={cn(
 						"relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-4",
@@ -351,15 +314,15 @@ export const InputPreviewSection = ({
 					{previewToolbar ? (
 						<div className="mb-3 flex flex-wrap items-center gap-2">{previewToolbar}</div>
 					) : null}
-					<div className="min-h-0 flex-1 overflow-y-auto overscroll-none">
+					{/* Scroll padding keeps a focused field clear of the docked field bar. */}
+					<div className="min-h-0 flex-1 scroll-pt-14 overflow-y-auto overscroll-none">
 						{preview(values, handleCitationsSelect, inlineFields, fields)}
 					</div>
 				</div>
 				{hasInputTags ? (
-					// Context, fill and the actions that apply to every field.
-					// It covers the side tabs where a short screen runs them into it, and wraps
-					// the field actions onto a second row instead of squeezing the buttons.
-					<div className="relative z-30 flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1.5 border-t border-t-solarized-blue/30 bg-card bg-linear-to-b from-solarized-blue/5 to-solarized-blue/5 px-3 py-2">
+					// Context, fill and the actions that apply to every field, always in one row:
+					// on phones undo, redo and clearing move into a menu.
+					<div className="relative z-30 flex shrink-0 items-center gap-2 border-t border-t-solarized-blue/30 bg-card bg-linear-to-b from-solarized-blue/5 to-solarized-blue/5 px-3 py-2">
 						{fillControls}
 						<div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-1.5">
 							{aiFieldNames.length ? (
@@ -381,40 +344,70 @@ export const InputPreviewSection = ({
 									</span>
 								</Button>
 							) : null}
-							<Button
-								aria-label="Rückgängig"
-								disabled={!fields.canUndo}
-								onClick={undo}
-								size="icon"
-								title="Rückgängig (⌘Z / Strg+Z)"
-								type="button"
-								variant="outline"
-							>
-								<Undo2 aria-hidden className="h-4 w-4" />
-							</Button>
-							<Button
-								aria-label="Wiederholen"
-								disabled={!fields.canRedo}
-								onClick={redo}
-								size="icon"
-								title="Wiederholen (⇧⌘Z / Strg+Y)"
-								type="button"
-								variant="outline"
-							>
-								<Redo2 aria-hidden className="h-4 w-4" />
-							</Button>
-							<Button
-								aria-label="Alle Eingaben leeren"
-								className="h-8 max-sm:w-8 max-sm:px-0"
-								onClick={() => reset()}
-								size="sm"
-								title="Alle Eingaben leeren"
-								type="button"
-								variant="outline"
-							>
-								<Eraser aria-hidden className="h-4 w-4" />
-								<span className="max-sm:sr-only">Alle leeren</span>
-							</Button>
+							<div className="flex items-center gap-1.5 max-sm:hidden">
+								<Button
+									aria-label="Rückgängig"
+									disabled={!fields.canUndo}
+									onClick={undo}
+									size="icon"
+									title="Rückgängig (⌘Z / Strg+Z)"
+									type="button"
+									variant="outline"
+								>
+									<Undo2 aria-hidden className="h-4 w-4" />
+								</Button>
+								<Button
+									aria-label="Wiederholen"
+									disabled={!fields.canRedo}
+									onClick={redo}
+									size="icon"
+									title="Wiederholen (⇧⌘Z / Strg+Y)"
+									type="button"
+									variant="outline"
+								>
+									<Redo2 aria-hidden className="h-4 w-4" />
+								</Button>
+								<Button
+									aria-label="Alle Eingaben leeren"
+									onClick={() => reset()}
+									size="sm"
+									title="Alle Eingaben leeren"
+									type="button"
+									variant="outline"
+								>
+									<Eraser aria-hidden className="h-4 w-4" />
+									Alle leeren
+								</Button>
+							</div>
+							<DropdownMenu>
+								<DropdownMenuTrigger
+									render={
+										<Button
+											aria-label="Weitere Aktionen"
+											className="sm:hidden"
+											size="icon"
+											type="button"
+											variant="outline"
+										>
+											<Ellipsis aria-hidden className="h-4 w-4" />
+										</Button>
+									}
+								/>
+								<DropdownMenuContent align="end">
+									<DropdownMenuItem disabled={!fields.canUndo} onClick={undo}>
+										<Undo2 aria-hidden className="h-4 w-4" />
+										Rückgängig
+									</DropdownMenuItem>
+									<DropdownMenuItem disabled={!fields.canRedo} onClick={redo}>
+										<Redo2 aria-hidden className="h-4 w-4" />
+										Wiederholen
+									</DropdownMenuItem>
+									<DropdownMenuItem onClick={() => reset()}>
+										<Eraser aria-hidden className="h-4 w-4" />
+										Alle leeren
+									</DropdownMenuItem>
+								</DropdownMenuContent>
+							</DropdownMenu>
 							{toolbarActions}
 						</div>
 					</div>

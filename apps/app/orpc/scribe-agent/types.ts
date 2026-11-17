@@ -1,26 +1,25 @@
 import type { UIMessage } from "ai";
 
-import type { PromptHarnessId } from "@/orpc/scribe/prompts";
 import type { AudioFile, FillInputsContextFile } from "@/orpc/scribe/types";
 
 /**
  * A section of the doctor's note the agent can read and edit. The editor sends
  * the current state with every turn so the agent always reasons over the
- * up-to-date letter. `harness`/`templateId` mirror the section's AI Vorlage so
- * the agent generates with the same prompt + template as the editor.
+ * up-to-date letter. Sections are the `{% section %}` blocks of `templateId`.
  */
 export interface ScribeAgentSection {
 	id: string;
 	label: string;
 	content: string;
-	harness: PromptHarnessId;
-	formId?: string | null;
-	templateId?: string | null;
 }
 
 export interface ScribeAgentChatInput {
 	messages: UIMessage[];
+	/** Hintergrundinformationen of the letter: a fact source that is not copied. */
+	background?: string;
 	sections: ScribeAgentSection[];
+	/** The template whose sections the letter consists of; generateSection uses it. */
+	templateId: string;
 	/**
 	 * Audio recordings attached to the latest user turn. Attached natively when
 	 * the standard model supports audio, otherwise transcribed via the

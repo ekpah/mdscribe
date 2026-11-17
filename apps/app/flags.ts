@@ -28,3 +28,21 @@ export const templateAgentFlag = flag<boolean, FlagEntities>({
 	identify,
 	key: "template-agent",
 });
+
+export const unifiedAiscribeFlag = flag<boolean, FlagEntities>({
+	// Admin-only preview.
+	decide: ({ entities }) => Boolean(entities?.isAdmin),
+	defaultValue: false,
+	description: "AI Scribe opens every template in the letter editor, without sections as one",
+	identify,
+	key: "unified-aiscribe",
+});
+
+export const doctorsNoteAgentFlag = flag<boolean, FlagEntities>({
+	// Hidden for everyone, the admin included, while the letter editor is reworked.
+	decide: () => false,
+	defaultValue: false,
+	description: "MDScribe Agent beside the AI Scribe letter editor",
+	identify,
+	key: "doctors-note-agent",
+});

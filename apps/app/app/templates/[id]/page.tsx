@@ -1,20 +1,12 @@
-import {
-	Breadcrumb,
-	BreadcrumbItem,
-	BreadcrumbList,
-	BreadcrumbPage,
-	BreadcrumbSeparator,
-} from "@repo/design-system/components/ui/breadcrumb";
-import { SidebarTrigger } from "@repo/design-system/components/ui/sidebar";
 import { QueryClient } from "@tanstack/react-query";
 import type { Metadata } from "next";
-import Link from "next/link";
+import { notFound } from "next/navigation";
 
+import { TemplateNavigation } from "@/app/templates/_components/template-navigation";
 import { orpc } from "@/lib/orpc";
 import { getServerSession } from "@/lib/server-session";
 
 import ContentSection from "./_components/content-section";
-import { NavActions } from "./_components/nav-actions";
 
 type TemplateContentView = "template" | "examples" | "information";
 
@@ -41,37 +33,25 @@ const NotePage = async ({ params, searchParams }: PageProps<"/templates/[id]">) 
 		view === "examples" || view === "information" ? view : "template";
 	const doc = await queryClient.fetchQuery(orpc.templates.get.queryOptions({ input: { id } }));
 	if (!doc) {
-		throw new Error("Document not found");
+		notFound();
 	}
 
 	const isAuthor = doc.authorId === session?.user?.id;
 
 	return (
 		<div className="flex h-full w-full flex-col">
-			<div className="flex h-10 items-center justify-between gap-2">
-				{session?.user && <SidebarTrigger className="ml-4 block md:hidden" />}
-				<Breadcrumb>
-					<BreadcrumbList>
-						<BreadcrumbItem className="hidden md:block">
-							<Link href="/templates">Textbausteine</Link>
-						</BreadcrumbItem>
-						<BreadcrumbSeparator className="hidden md:block" />
-						<BreadcrumbItem>
-							<BreadcrumbPage>{doc?.title}</BreadcrumbPage>
-						</BreadcrumbItem>
-					</BreadcrumbList>
-				</Breadcrumb>
-				<NavActions
-					author={doc.author?.name ?? undefined}
-					isAuthor={isAuthor}
-					isLoggedIn={!!session?.user?.id}
-					lastEdited={doc.updatedAt}
-					templateId={doc.id}
-					visibility={doc.visibility === "private" ? "private" : "public"}
-				/>
-			</div>
 			<ContentSection
+				key={doc.id}
 				contentView={contentView}
+				navActions={{
+					author: doc.author?.name ?? undefined,
+					isAuthor,
+					isLoggedIn: !!session?.user?.id,
+					lastEdited: doc.updatedAt,
+					templateId: doc.id,
+					visibility: doc.visibility === "private" ? "private" : "public",
+				}}
+				navigation={<TemplateNavigation entry={{ id: doc.id, kind: "text", title: doc.title }} />}
 				examples={doc.examples}
 				information={doc.information}
 				note={doc.content}

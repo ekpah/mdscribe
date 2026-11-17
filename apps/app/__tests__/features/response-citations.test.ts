@@ -14,10 +14,11 @@ const tag = (body: string) =>
 describe("AIScribe presentation code normalization", () => {
 	test.each([
 		["Before `CRP 112` after.", "Before CRP 112 after."],
-		["```text\nCRP 112\n```\nAfter.", "\nCRP 112\n\nAfter."],
-		["~~~text\nCRP 112\n~~~", "\nCRP 112\n"],
-		["```text\nCRP 112", "\nCRP 112"],
-		["~~~text\nCRP 112\n~~", "\nCRP 112\n"],
+		// Fenced lines continue the surrounding paragraph; a blank line would show as an empty line.
+		["Before.\n```text\nCRP 112\n```\nAfter.", "Before.\nCRP 112\nAfter."],
+		["~~~text\nCRP 112\n~~~", "CRP 112\n"],
+		["```text\nCRP 112", "CRP 112"],
+		["~~~text\nCRP 112\n~~", "CRP 112\n"],
 		["`", ""],
 		["``", ""],
 		["```med", ""],

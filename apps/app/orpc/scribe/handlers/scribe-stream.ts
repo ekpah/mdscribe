@@ -1,5 +1,5 @@
 import { ORPCError, streamToEventIterator, type } from "@orpc/server";
-import { aiScribeFormConfig, and, eq, or } from "@repo/database";
+import { and, eq, or, template as templateTable } from "@repo/database";
 import type { Database } from "@repo/database";
 import { createUIMessageStream, streamText } from "ai";
 import type { ModelMessage, UIMessage } from "ai";
@@ -9,19 +9,14 @@ import {
 	writeResponseCitations,
 } from "@/features/response-citations/server";
 import type { Session } from "@/lib/auth-types";
-import {
-	FILL_INPUT_PAYLOAD_LIMITS,
-	formatPayloadBytes,
-	getBase64DecodedByteLength,
-	getContextDocumentPayloadByteLength,
-} from "@/lib/input-fill-limits";
+import { FILL_INPUT_PAYLOAD_LIMITS } from "@/lib/input-fill-limits";
 import type { OcrResult, OcrUIMessage } from "@/lib/ocr-types";
 import { AI_SCRIBE_GENERATION_EVENT_NAME } from "@/lib/usage-event-names";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
 import { scribeEntitlementsMiddleware } from "@/orpc/middlewares/entitlements";
-import { composeScribeContext } from "@/orpc/scribe/context";
-import type { ContextBuildInput, TemplateContextInput } from "@/orpc/scribe/context";
+import { toTrimmedString } from "@/orpc/scribe/_lib/text";
+import { composeUserContext } from "@/orpc/scribe/context/user";
 import { resolveCitationDecisionModel } from "@/orpc/scribe/decisions/cite";
 import {
 	formatAudioTranscriptsForPrompt,
@@ -33,16 +28,20 @@ import {
 	extractContextFiles,
 	formatContextFileMetadataForPrompt,
 } from "@/orpc/scribe/handlers/context-file-input";
+import {
+	assertAtMost,
+	validateScribeAudioFiles,
+	validateScribeContextFiles,
+} from "@/orpc/scribe/handlers/media-limits";
 import { logMediaPreprocessingUsage } from "@/orpc/scribe/handlers/preprocessing-usage";
 import { enforceScribeUsageLimit } from "@/orpc/scribe/handlers/usage-limit";
 import { scheduleScribeUsageLogging } from "@/orpc/scribe/handlers/usage-logging";
 import {
-	composeDocumentTypePrompt,
-	composePromptHarnessPrompt,
-	documentTypeConfigs,
-	getPromptHarnessLabel,
-	resolvePromptHarnessId,
-} from "@/orpc/scribe/prompts";
+	composeTemplatePrompt,
+	evidenceInputs,
+	TEXT_INPUT_IDS,
+} from "@/orpc/scribe/prompts/template";
+import type { NamedInput } from "@/orpc/scribe/prompts/template";
 import {
 	buildProviderOptions,
 	isGenerationStrategyFullyByok,
@@ -51,7 +50,6 @@ import {
 } from "@/orpc/scribe/providers";
 import type {
 	AudioFile,
-	DocumentType,
 	FillInputsContextFile,
 	ModelConfig,
 	PromptMessage,
@@ -142,93 +140,6 @@ const hasFileLikeInput = (value: unknown): boolean => {
 	return false;
 };
 
-export const validateScribeContextFiles = (contextFiles: FillInputsContextFile[]) => {
-	if (contextFiles.length > FILL_INPUT_PAYLOAD_LIMITS.maxContextFiles) {
-		throw new ORPCError("BAD_REQUEST", {
-			message: `Maximal ${FILL_INPUT_PAYLOAD_LIMITS.maxContextFiles} Dateien können berücksichtigt werden.`,
-		});
-	}
-
-	let totalBytes = 0;
-	for (const file of contextFiles) {
-		const payloadBytes = getContextDocumentPayloadByteLength(file);
-		totalBytes += payloadBytes;
-
-		if (payloadBytes > FILL_INPUT_PAYLOAD_LIMITS.maxContextFileBytes) {
-			throw new ORPCError("BAD_REQUEST", {
-				message: `Die Datei "${file.name}" ist zu groß. Maximal erlaubt sind ${formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxContextFileBytes)} pro Datei.`,
-			});
-		}
-	}
-
-	if (totalBytes > FILL_INPUT_PAYLOAD_LIMITS.maxContextFilesTotalBytes) {
-		throw new ORPCError("BAD_REQUEST", {
-			message: `Die Dateien sind zusammen zu groß. Maximal erlaubt sind ${formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxContextFilesTotalBytes)}.`,
-		});
-	}
-};
-
-export const validateScribeAudioFiles = (audioFiles: AudioFile[]) => {
-	if (audioFiles.length > FILL_INPUT_PAYLOAD_LIMITS.maxAudioFiles) {
-		throw new ORPCError("BAD_REQUEST", {
-			message: `Maximal ${FILL_INPUT_PAYLOAD_LIMITS.maxAudioFiles} Audioaufnahmen können berücksichtigt werden.`,
-		});
-	}
-
-	let totalBytes = 0;
-	for (const [index, audioFile] of audioFiles.entries()) {
-		const payloadBytes = getBase64DecodedByteLength(audioFile.data);
-		const wavFallbackBytes = getBase64DecodedByteLength(audioFile.wavFallback?.data);
-		const recordingBytes = payloadBytes + wavFallbackBytes;
-		totalBytes += recordingBytes;
-
-		if (payloadBytes === 0) {
-			throw new ORPCError("BAD_REQUEST", {
-				message: `Audioaufnahme ${index + 1} enthält keine Audiodaten.`,
-			});
-		}
-
-		if (recordingBytes > FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording) {
-			throw new ORPCError("BAD_REQUEST", {
-				message: `Audioaufnahme ${index + 1} ist zu groß. Maximal erlaubt sind ${formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording)} pro Aufnahme.`,
-			});
-		}
-	}
-
-	if (totalBytes > FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesTotal) {
-		throw new ORPCError("BAD_REQUEST", {
-			message: `Die Audioaufnahmen sind zusammen zu groß. Maximal erlaubt sind ${formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesTotal)}.`,
-		});
-	}
-};
-
-const summarizeContextFilesForUsage = (contextFiles: FillInputsContextFile[]) =>
-	contextFiles.map((file, index) => ({
-		index: index + 1,
-		...(file.kind === "ocr" ? {} : { mediaType: file.mimeType, size: file.size }),
-		name: file.name,
-		payloadBytes: getContextDocumentPayloadByteLength(file),
-	}));
-
-/**
- * Scribe input type - uses UIMessage[] for AI SDK useChat compatibility
- */
-interface BuiltInScribeStreamInput {
-	documentType: DocumentType;
-	messages: UIMessage[];
-	audioFiles?: AudioFile[];
-	contextFiles?: FillInputsContextFile[];
-	source?: "documentType";
-}
-
-interface CustomFormScribeStreamInput {
-	formId: string;
-	messages: UIMessage[];
-	audioFiles?: AudioFile[];
-	contextFiles?: FillInputsContextFile[];
-	source: "customForm";
-}
-
 const appendTextToLastUserMessage = (messages: ModelMessage[], text: string): ModelMessage[] => {
 	if (!text) {
 		return messages;
@@ -298,7 +209,18 @@ const appendFilePartsToLastUserMessage = (
 	});
 };
 
-export type ScribeStreamInput = BuiltInScribeStreamInput | CustomFormScribeStreamInput;
+/** Generates text from a template; the payload is `{ notes, background?, sections?, targetSectionId? }`. */
+export interface ScribeStreamInput {
+	templateId: string;
+	messages: UIMessage[];
+	audioFiles?: AudioFile[];
+	/**
+	 * Transcripts of the case's recordings from an earlier generation, sent instead of
+	 * the audio so it is not transcribed again; ignored when `audioFiles` are sent.
+	 */
+	audioTranscripts?: string[];
+	contextFiles?: FillInputsContextFile[];
+}
 
 export interface ScribeGenerationContext {
 	db: Database;
@@ -320,11 +242,11 @@ interface ResolvedScribeRequest {
 		promptName: string;
 	};
 	endpoint: string;
+	/** Evidence text inputs; the citation pass cites these, files and audio. */
+	inputs: NamedInput[];
 	promptMessages: PromptMessage[];
 	usageMetadata?: {
-		customFormId?: string;
-		customFormSlug?: string;
-		templateId?: string | null;
+		templateId: string;
 	};
 }
 
@@ -356,128 +278,56 @@ const extractPromptFromMessages = (messages: UIMessage[]): string => {
 	return "";
 };
 
-const toTemplateContextInput = (template: {
-	content: string;
-	examples: string[];
-	information: string;
-	title: string;
-}): TemplateContextInput => ({
-	content: template.content,
-	examples: template.examples,
-	information: template.information,
-	title: template.title,
-});
+const toStringRecord = (value: unknown): Record<string, string> =>
+	value && typeof value === "object"
+		? Object.fromEntries(
+				Object.entries(value).filter(
+					(entry): entry is [string, string] => typeof entry[1] === "string",
+				),
+			)
+		: {};
 
-const resolveBuiltInRequest = ({
-	documentType,
-	formData,
-	personalContext,
-	sessionUser,
-}: {
-	documentType: DocumentType;
-	formData: Record<string, unknown>;
-	personalContext: string;
-	sessionUser: ContextBuildInput["sessionUser"];
-}): ResolvedScribeRequest => {
-	const config = documentTypeConfigs[documentType];
-	if (!config) {
-		throw new ORPCError("BAD_REQUEST", {
-			message: `Unknown document type: ${documentType}`,
-		});
-	}
-
-	const { contextPrompt, contextXml } = composeScribeContext({
-		formData,
-		personalContext,
-		promptContextKey: documentType,
-		sessionUser,
-	});
-
-	return {
-		config: {
-			modelConfig: DEFAULT_SCRIBE_MODEL_CONFIG,
-			promptLabel: config.promptName,
-			promptName: documentType,
-		},
-		endpoint: documentType,
-		promptMessages: composeDocumentTypePrompt(documentType, {
-			contextPrompt,
-			contextXml,
-		}),
-	};
-};
-
-const resolveCustomFormRequest = async ({
+// Payload: { notes, background?, sections?: { [sectionId]: text }, targetSectionId? }.
+const resolveTemplateRequest = async ({
 	db,
 	formData,
-	formId,
 	personalContext,
 	sessionUser,
+	templateId,
 }: {
 	db: Database;
 	formData: Record<string, unknown>;
-	formId: string;
 	personalContext: string;
-	sessionUser: NonNullable<ContextBuildInput["sessionUser"]>;
+	sessionUser: Session["user"];
+	templateId: string;
 }): Promise<ResolvedScribeRequest> => {
-	const customForm = await db.query.aiScribeFormConfig.findFirst({
+	const found = await db.query.template.findFirst({
 		where: and(
-			eq(aiScribeFormConfig.id, formId),
-			or(
-				eq(aiScribeFormConfig.visibility, "public"),
-				eq(aiScribeFormConfig.authorId, sessionUser.id),
-			),
+			eq(templateTable.id, templateId),
+			or(eq(templateTable.visibility, "public"), eq(templateTable.authorId, sessionUser.id)),
 		),
-		with: {
-			template: true,
-		},
 	});
-
-	if (!customForm || !customForm.enabled) {
-		throw new ORPCError("NOT_FOUND", {
-			message: "AI Form wurde nicht gefunden",
-		});
+	if (!found) {
+		throw new ORPCError("NOT_FOUND", { message: "Template wurde nicht gefunden" });
 	}
 
-	const promptHarnessId = resolvePromptHarnessId(customForm.promptHarness);
-	if (!promptHarnessId) {
-		throw new ORPCError("BAD_REQUEST", {
-			message: `Unknown prompt harness: ${customForm.promptHarness}`,
-		});
-	}
-
-	const template = customForm.template ? toTemplateContextInput(customForm.template) : null;
-	const { contextPrompt, contextXml } = composeScribeContext({
-		formData,
-		personalContext,
-		promptContextKey: promptHarnessId,
-		sessionUser,
-		template,
-	});
-
-	const promptMessages = composePromptHarnessPrompt(promptHarnessId, {
-		contextPrompt,
-		contextXml,
-	});
-	if (!promptMessages) {
-		throw new ORPCError("BAD_REQUEST", {
-			message: `Unknown prompt harness: ${customForm.promptHarness}`,
-		});
-	}
-
+	const promptInput = {
+		...Object.fromEntries(TEXT_INPUT_IDS.map((id) => [id, toTrimmedString(formData[id])])),
+		sections: toStringRecord(formData.sections),
+		targetSectionId: toTrimmedString(formData.targetSectionId) || undefined,
+		template: found,
+		userContext: composeUserContext(sessionUser, personalContext),
+	};
 	return {
 		config: {
 			modelConfig: DEFAULT_SCRIBE_MODEL_CONFIG,
-			promptLabel: getPromptHarnessLabel(promptHarnessId),
-			promptName: promptHarnessId,
+			promptLabel: found.title,
+			promptName: "template",
 		},
-		endpoint: `custom:${customForm.slug}`,
-		promptMessages,
-		usageMetadata: {
-			customFormId: customForm.id,
-			customFormSlug: customForm.slug,
-			templateId: customForm.templateId,
-		},
+		endpoint: `template:${found.id}`,
+		inputs: evidenceInputs(promptInput),
+		promptMessages: composeTemplatePrompt(promptInput),
+		usageMetadata: { templateId: found.id },
 	};
 };
 
@@ -722,6 +572,31 @@ export const appendScribeInputAttachmentsToMessages = async ({
 };
 
 /**
+ * Transcripts an earlier generation returned for the same recordings. They take
+ * the place of the audio, so they keep the audio count limit and a transcript of
+ * at most the longest recording.
+ */
+const toReusedTranscripts = (transcripts: unknown): string[] => {
+	const reused = (Array.isArray(transcripts) ? transcripts : []).filter(
+		(transcript): transcript is string =>
+			typeof transcript === "string" && Boolean(transcript.trim()),
+	);
+	assertAtMost(
+		reused.length,
+		FILL_INPUT_PAYLOAD_LIMITS.maxAudioFiles,
+		`Maximal ${FILL_INPUT_PAYLOAD_LIMITS.maxAudioFiles} Audioaufnahmen können berücksichtigt werden.`,
+	);
+	for (const transcript of reused) {
+		assertAtMost(
+			transcript.length,
+			FILL_INPUT_PAYLOAD_LIMITS.maxAudioTranscriptCharacters,
+			"Ein Transkript ist zu lang. Bitte die Aufnahme erneut hochladen.",
+		);
+	}
+	return reused;
+};
+
+/**
  * Main streaming handler for all scribe document types
  */
 /**
@@ -747,16 +622,22 @@ export const runScribeGeneration = async ({
 	const audioFiles = input.audioFiles ?? [];
 	const contextFiles = input.contextFiles ?? [];
 	validateScribeAudioFiles(audioFiles);
-	validateScribeContextFiles(contextFiles);
+	const contextFileSummaries = validateScribeContextFiles(contextFiles);
 
 	// Extract prompt from the last user message
 	const prompt = extractPromptFromMessages(inputMessages);
 
 	// Validate input
+	const reusedTranscripts =
+		audioFiles.length > 0 ? [] : toReusedTranscripts(input.audioTranscripts);
 	const hasAudio = audioFiles.length > 0;
 	const hasContextFiles = contextFiles.length > 0;
 	const rawPrompt = parsePromptPayload(prompt);
-	if (!(hasAudio || hasContextFiles || hasNonEmptyInput(rawPrompt))) {
+	const promptFacts = [
+		...TEXT_INPUT_IDS.map((id) => rawPrompt[id]),
+		...Object.values(toStringRecord(rawPrompt.sections)),
+	];
+	if (!(hasAudio || reusedTranscripts.length || hasContextFiles || hasNonEmptyInput(promptFacts))) {
 		throw new ORPCError("BAD_REQUEST", {
 			message: USER_MESSAGES.missingInput,
 		});
@@ -764,21 +645,13 @@ export const runScribeGeneration = async ({
 
 	const hasFileInput = hasFileLikeInput(rawPrompt);
 	const personalContext = await getUserPersonalContext(context.db, context.session.user.id);
-	const resolvedRequestPromise =
-		input.source === "customForm"
-			? resolveCustomFormRequest({
-					db: context.db,
-					formData: rawPrompt,
-					formId: input.formId,
-					personalContext,
-					sessionUser: context.session.user,
-				})
-			: resolveBuiltInRequest({
-					documentType: input.documentType,
-					formData: rawPrompt,
-					personalContext,
-					sessionUser: context.session.user,
-				});
+	const resolvedRequestPromise = resolveTemplateRequest({
+		db: context.db,
+		formData: rawPrompt,
+		personalContext,
+		sessionUser: context.session.user,
+		templateId: input.templateId,
+	});
 
 	const [resolvedRequest, generationStrategy] = await Promise.all([
 		resolvedRequestPromise,
@@ -806,17 +679,21 @@ export const runScribeGeneration = async ({
 		userId: context.session.user.id,
 		zdr: entitlements.hasActiveSubscription,
 	});
+	const audioTranscripts = [...attachmentsResult.audioTranscripts, ...reusedTranscripts];
 	const messages = appendTextToLastUserMessage(
 		attachmentsResult.messages,
-		preparedAttachmentText ?? "",
+		[
+			reusedTranscripts.length ? formatAudioTranscriptsForPrompt(reusedTranscripts) : "",
+			preparedAttachmentText ?? "",
+		]
+			.filter(Boolean)
+			.join("\n\n"),
 	);
 
 	// Media that a preprocessing model parsed to text becomes part of the
 	// logged notes so the event stays reviewable and replayable as text.
 	const parsedMediaSections = [
-		attachmentsResult.audioTranscripts.length > 0
-			? formatAudioTranscriptsForPrompt(attachmentsResult.audioTranscripts)
-			: "",
+		audioTranscripts.length > 0 ? formatAudioTranscriptsForPrompt(audioTranscripts) : "",
 		attachmentsResult.fileTextContext,
 		preparedAttachmentText ?? "",
 	].filter(Boolean);
@@ -824,7 +701,7 @@ export const runScribeGeneration = async ({
 	const usageInputData = {
 		...rawPrompt,
 		...(hasContextFiles && !("_contextFiles" in rawPrompt)
-			? { _contextFiles: summarizeContextFilesForUsage(contextFiles) }
+			? { _contextFiles: contextFileSummaries }
 			: {}),
 		...(parsedMediaSections.length > 0
 			? { notes: [baseNotes, ...parsedMediaSections].filter(Boolean).join("\n\n") }
@@ -911,13 +788,14 @@ export const runScribeGeneration = async ({
 	});
 
 	const citationSources = createResponseCitationSources({
-		audioTranscripts: attachmentsResult.audioTranscripts,
 		contextFiles,
-		formData: rawPrompt,
+		inputs: resolvedRequest.inputs,
 		ocrResults: attachmentsResult.ocrResults,
 	});
 
 	return {
+		/** Recordings transcribed for this request; the client sends them back instead of the audio. */
+		audioTranscripts: attachmentsResult.audioTranscripts,
 		citationSources,
 		generation: result,
 		ocrResults: attachmentsResult.ocrResults,
@@ -995,11 +873,12 @@ export const scribeStreamHandler = authed
 	.use(scribeEntitlementsMiddleware)
 	.input(type<ScribeStreamInput>())
 	.handler(async ({ input, context, signal }) => {
-		const { citationSources, generation, ocrResults, writeCitations } = await runScribeGeneration({
-			context,
-			input,
-			signal,
-		});
+		const { audioTranscripts, citationSources, generation, ocrResults, writeCitations } =
+			await runScribeGeneration({
+				context,
+				input,
+				signal,
+			});
 		const stream = createUIMessageStream<OcrUIMessage>({
 			execute: async ({ writer }) => {
 				if (ocrResults.length > 0) {
@@ -1008,6 +887,11 @@ export const scribeStreamHandler = authed
 						transient: true,
 						type: "data-ocr-results",
 					});
+				}
+				// Only one transcript per recording can be matched to its recording; a
+				// combined or partial transcription is not sent back for reuse.
+				if (audioTranscripts.length > 0 && audioTranscripts.length === input.audioFiles?.length) {
+					writer.write({ data: audioTranscripts, transient: true, type: "data-audio-transcripts" });
 				}
 				// Forward the original text immediately, but keep the transport open
 				// after text-end so citations can arrive individually on the same message.

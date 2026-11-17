@@ -6,12 +6,7 @@ import { createMdscribeSource } from "markdoc-md/citations";
 import { z } from "zod";
 
 import type { CitationSource } from "@/features/citation-engine";
-import {
-	FILL_INPUT_PAYLOAD_LIMITS,
-	formatPayloadBytes,
-	getBase64DecodedByteLength,
-	getContextDocumentPayloadByteLength,
-} from "@/lib/input-fill-limits";
+import { FILL_INPUT_PAYLOAD_LIMITS } from "@/lib/input-fill-limits";
 import type { OcrResult } from "@/lib/ocr-types";
 import { AI_INPUT_FILL_EVENT_NAME } from "@/lib/usage-event-names";
 import { buildUsageEventData, extractOpenRouterUsage } from "@/lib/usage-logging";
@@ -19,7 +14,7 @@ import type { StandardUsage, UsageInputData, UsageMetadata } from "@/lib/usage-l
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
 import { scribeEntitlementsMiddleware } from "@/orpc/middlewares/entitlements";
-import { composeScribeContext } from "@/orpc/scribe/context";
+import { composeFillInputsContext } from "@/orpc/scribe/context";
 import { citeWithDecisionModel, resolveCitationDecisionModel } from "@/orpc/scribe/decisions/cite";
 import type { DecisionResponse } from "@/orpc/scribe/decisions/client";
 import { citeFillInputs } from "@/orpc/scribe/fill-inputs/cite";
@@ -32,6 +27,7 @@ import {
 	FILL_INPUTS_PROMPT_NAME,
 } from "@/orpc/scribe/prompts/core/fill-inputs";
 import type { FillInputsCitationSource } from "@/orpc/scribe/prompts/core/fill-inputs";
+import { inputName } from "@/orpc/scribe/prompts/template";
 import {
 	buildProviderOptions,
 	isGenerationStrategyFullyByok,
@@ -47,29 +43,15 @@ import {
 	transcribeAudioFilesWithPrompt,
 } from "./audio-input";
 import { createContextFileParts, extractContextFiles } from "./context-file-input";
+import { assertAtMost, validateScribeAudioFiles, validateScribeContextFiles } from "./media-limits";
+import type { AudioPayloadSummary, ContextFilePayloadSummary } from "./media-limits";
 import { logMediaPreprocessingUsage } from "./preprocessing-usage";
 import { enforceScribeUsageLimit } from "./usage-limit";
 import { scheduleDeferredTask } from "./usage-logging";
 
-interface FillInputAudioPayloadSummary {
-	index: number;
-	mediaType: string;
-	payloadBytes: number;
-	wavFallbackBytes: number;
-	totalBytes: number;
-}
-
-interface FillInputContextFilePayloadSummary {
-	index: number;
-	mediaType?: string;
-	name: string;
-	payloadBytes: number;
-	size?: number;
-}
-
 interface FillInputPayloadSummary {
-	audioFiles: FillInputAudioPayloadSummary[];
-	contextFiles: FillInputContextFilePayloadSummary[];
+	audioFiles: AudioPayloadSummary[];
+	contextFiles: ContextFilePayloadSummary[];
 	inputFieldCount: number;
 	templateExampleCount: number;
 	templateExamplesCharacters: number;
@@ -173,7 +155,7 @@ const getCitationSources = (input: FillInputsInputPayload): FillInputsCitationSo
 	const sources = Object.entries(input.textContext ?? {})
 		.filter((entry): entry is [string, string] => Boolean(entry[1]?.trim()))
 		.map(([id]) => ({
-			label: `Textkontext: ${id}`,
+			label: inputName(id),
 			source: createMdscribeSource("input", id),
 		}));
 	const seen = new Set(sources.map(({ source }) => source));
@@ -222,16 +204,6 @@ const readStructuredOutput = (result: { output?: unknown; text?: string }): unkn
 const hasTextContext = (input: FillInputsInputPayload) =>
 	Boolean(input.textContext && Object.values(input.textContext).some((value) => value?.trim()));
 
-const throwPayloadLimitError = (message: string): never => {
-	throw new ORPCError("BAD_REQUEST", { message });
-};
-
-const assertAtMost = (value: number, limit: number, message: string) => {
-	if (value > limit) {
-		throwPayloadLimitError(message);
-	}
-};
-
 const getTextContextCharacterCount = (
 	textContext: FillInputsInputPayload["textContext"],
 ): number => {
@@ -261,16 +233,6 @@ const summarizeAndValidatePayload = (input: FillInputsInputPayload): FillInputPa
 		input.inputFields.length,
 		FILL_INPUT_PAYLOAD_LIMITS.maxInputFields,
 		`Maximal ${FILL_INPUT_PAYLOAD_LIMITS.maxInputFields} Eingabefelder können automatisch gefüllt werden.`,
-	);
-	assertAtMost(
-		audioFiles.length,
-		FILL_INPUT_PAYLOAD_LIMITS.maxAudioFiles,
-		`Maximal ${FILL_INPUT_PAYLOAD_LIMITS.maxAudioFiles} Audioaufnahmen können berücksichtigt werden.`,
-	);
-	assertAtMost(
-		contextFiles.length,
-		FILL_INPUT_PAYLOAD_LIMITS.maxContextFiles,
-		`Maximal ${FILL_INPUT_PAYLOAD_LIMITS.maxContextFiles} Dateien können berücksichtigt werden.`,
 	);
 	assertAtMost(
 		templateExamples.length,
@@ -306,59 +268,11 @@ const summarizeAndValidatePayload = (input: FillInputsInputPayload): FillInputPa
 		);
 	}
 
-	let totalPayloadBytes = 0;
-	const audioSummaries: FillInputAudioPayloadSummary[] = [];
-	for (const [index, audioFile] of audioFiles.entries()) {
-		const payloadBytes = getBase64DecodedByteLength(audioFile.data);
-		const wavFallbackBytes = getBase64DecodedByteLength(audioFile.wavFallback?.data);
-		const totalBytes = payloadBytes + wavFallbackBytes;
-		totalPayloadBytes += totalBytes;
-
-		if (payloadBytes === 0) {
-			throwPayloadLimitError(`Audioaufnahme ${index + 1} enthält keine Audiodaten.`);
-		}
-
-		assertAtMost(
-			totalBytes,
-			FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording,
-			`Audioaufnahme ${index + 1} ist zu groß. Maximal erlaubt sind ${formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording)} pro Aufnahme.`,
-		);
-
-		audioSummaries.push({
-			index: index + 1,
-			mediaType: audioFile.mimeType,
-			payloadBytes,
-			totalBytes,
-			wavFallbackBytes,
-		});
-	}
-	assertAtMost(
-		audioSummaries.reduce((sum, file) => sum + file.totalBytes, 0),
-		FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesTotal,
-		`Die Audioaufnahmen sind zusammen zu groß. Maximal erlaubt sind ${formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesTotal)}.`,
-	);
-
-	const fileSummaries: FillInputContextFilePayloadSummary[] = [];
-	for (const [index, file] of contextFiles.entries()) {
-		const payloadBytes = getContextDocumentPayloadByteLength(file);
-		totalPayloadBytes += payloadBytes;
-		assertAtMost(
-			payloadBytes,
-			FILL_INPUT_PAYLOAD_LIMITS.maxContextFileBytes,
-			`Die Datei "${file.name}" ist zu groß. Maximal erlaubt sind ${formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxContextFileBytes)} pro Datei.`,
-		);
-		fileSummaries.push({
-			index: index + 1,
-			...(file.kind === "ocr" ? {} : { mediaType: file.mimeType, size: file.size }),
-			name: file.name,
-			payloadBytes,
-		});
-	}
-	assertAtMost(
-		fileSummaries.reduce((sum, file) => sum + file.payloadBytes, 0),
-		FILL_INPUT_PAYLOAD_LIMITS.maxContextFilesTotalBytes,
-		`Die Dateien sind zusammen zu groß. Maximal erlaubt sind ${formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxContextFilesTotalBytes)}.`,
-	);
+	const audioSummaries = validateScribeAudioFiles(audioFiles);
+	const fileSummaries = validateScribeContextFiles(contextFiles);
+	const totalPayloadBytes =
+		audioSummaries.reduce((sum, file) => sum + file.totalBytes, 0) +
+		fileSummaries.reduce((sum, file) => sum + file.payloadBytes, 0);
 
 	return {
 		audioFiles: audioSummaries,
@@ -612,13 +526,13 @@ const resolveFillInputDecisionProvider = async (
 const buildFillInputContext = (input: FillInputsInputPayload) => {
 	const examples = (input.templateExamples ?? []).map((example) => example.trim()).filter(Boolean);
 	const information = input.templateInformation?.trim();
-	return composeScribeContext({
-		formData: { ...input.textContext },
+	return composeFillInputsContext({
 		template:
 			information || examples.length
 				? { content: "", examples, information, title: "Ausfüllhinweise" }
 				: null,
-	}).contextXml;
+		textContext: input.textContext ?? {},
+	});
 };
 
 // Every decision transport reports a cost, recorded through the OpenRouter usage shape.
@@ -979,7 +893,9 @@ const runFillInputs = async function* runFillInputs({
 	const nativeContextFiles = filesAreNative ? contextFiles : [];
 	const sources: CitationSource[] = [
 		...Object.entries(input.textContext ?? {}).flatMap(([id, text]) =>
-			text?.trim() ? [{ label: id, source: createMdscribeSource("input", id), text }] : [],
+			text?.trim()
+				? [{ label: inputName(id), source: createMdscribeSource("input", id), text }]
+				: [],
 		),
 		...extractedFiles.ocrResults.flatMap((result, index) =>
 			toFileSource(contextFiles[index], result),

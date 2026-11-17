@@ -1,12 +1,6 @@
-import { ORPCError } from "@orpc/server";
 import type { Database } from "@repo/database";
+import type { ModelMessage } from "ai";
 
-import {
-	FILL_INPUT_PAYLOAD_LIMITS,
-	formatPayloadBytes,
-	getBase64DecodedByteLength,
-	getContextDocumentPayloadByteLength,
-} from "@/lib/input-fill-limits";
 import {
 	formatAudioTranscriptsForPrompt,
 	prepareAudioInputForModel,
@@ -17,6 +11,14 @@ import {
 	extractContextFileText,
 	formatContextFileMetadataForPrompt,
 } from "@/orpc/scribe/handlers/context-file-input";
+import {
+	validateScribeAudioFiles,
+	validateScribeContextFiles,
+} from "@/orpc/scribe/handlers/media-limits";
+import type {
+	AudioPayloadSummary,
+	ContextFilePayloadSummary,
+} from "@/orpc/scribe/handlers/media-limits";
 import type { AgentGenerationStrategy, MediaPlan } from "@/orpc/scribe/providers";
 import type { AudioFile, FillInputsContextFile } from "@/orpc/scribe/types";
 
@@ -31,20 +33,6 @@ interface PreparedFilePart {
 	type: "file";
 }
 
-interface AgentAudioPayloadSummary {
-	index: number;
-	mediaType: string;
-	totalBytes: number;
-}
-
-interface AgentFilePayloadSummary {
-	index: number;
-	mediaType?: string;
-	name: string;
-	payloadBytes: number;
-	size?: number;
-}
-
 export interface PreparedAgentMedia {
 	/** File parts attached natively to the standard model's user turn. */
 	nativeContentParts: PreparedFilePart[];
@@ -52,10 +40,10 @@ export interface PreparedAgentMedia {
 	injectedTextBlocks: string[];
 	/** Audio transcripts produced by preprocessing. Empty when audio was native or absent. */
 	audioTranscripts: string[];
-	audioSummaries: AgentAudioPayloadSummary[];
+	audioSummaries: AudioPayloadSummary[];
 	/** Extracted text from preprocessed files. Empty when files were native or absent. */
 	fileTextContext: string;
-	fileSummaries: AgentFilePayloadSummary[];
+	fileSummaries: ContextFilePayloadSummary[];
 	usedNativeAudio: boolean;
 	usedTranscription: boolean;
 	usedFilePreprocessing: boolean;
@@ -80,84 +68,6 @@ const describeMediaMode = (plan: MediaPlan<unknown> | undefined): string | undef
 		return undefined;
 	}
 	return plan.mode === "native" ? "native" : `preprocess-${plan.strategy}`;
-};
-
-const throwLimit = (message: string): never => {
-	throw new ORPCError("BAD_REQUEST", { message });
-};
-
-const assertAtMost = (value: number, limit: number, message: string) => {
-	if (value > limit) {
-		throwLimit(message);
-	}
-};
-
-/**
- * Validates the per-turn audio/file payload against the shared input-fill
- * limits. Mirrors the media portion of the fill-inputs validation so the agent
- * enforces the same ceilings as the rest of the scribe flow.
- */
-const validateAgentMediaPayload = (
-	audioFiles: AudioFile[],
-	contextFiles: FillInputsContextFile[],
-): { audioSummaries: AgentAudioPayloadSummary[]; fileSummaries: AgentFilePayloadSummary[] } => {
-	assertAtMost(
-		audioFiles.length,
-		FILL_INPUT_PAYLOAD_LIMITS.maxAudioFiles,
-		`Maximal ${FILL_INPUT_PAYLOAD_LIMITS.maxAudioFiles} Audioaufnahmen können berücksichtigt werden.`,
-	);
-	assertAtMost(
-		contextFiles.length,
-		FILL_INPUT_PAYLOAD_LIMITS.maxContextFiles,
-		`Maximal ${FILL_INPUT_PAYLOAD_LIMITS.maxContextFiles} Dateien können berücksichtigt werden.`,
-	);
-
-	const audioSummaries: AgentAudioPayloadSummary[] = [];
-	let audioTotalBytes = 0;
-	for (const [index, audioFile] of audioFiles.entries()) {
-		const payloadBytes = getBase64DecodedByteLength(audioFile.data);
-		const totalBytes = payloadBytes + getBase64DecodedByteLength(audioFile.wavFallback?.data);
-		audioTotalBytes += totalBytes;
-		if (payloadBytes === 0) {
-			throwLimit(`Audioaufnahme ${index + 1} enthält keine Audiodaten.`);
-		}
-		assertAtMost(
-			totalBytes,
-			FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording,
-			`Audioaufnahme ${index + 1} ist zu groß. Maximal erlaubt sind ${formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording)} pro Aufnahme.`,
-		);
-		audioSummaries.push({ index: index + 1, mediaType: audioFile.mimeType, totalBytes });
-	}
-	assertAtMost(
-		audioTotalBytes,
-		FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesTotal,
-		`Die Audioaufnahmen sind zusammen zu groß. Maximal erlaubt sind ${formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesTotal)}.`,
-	);
-
-	const fileSummaries: AgentFilePayloadSummary[] = [];
-	let fileTotalBytes = 0;
-	for (const [index, file] of contextFiles.entries()) {
-		const payloadBytes = getContextDocumentPayloadByteLength(file);
-		fileTotalBytes += payloadBytes;
-		assertAtMost(
-			payloadBytes,
-			FILL_INPUT_PAYLOAD_LIMITS.maxContextFileBytes,
-			`Die Datei "${file.name}" ist zu groß. Maximal erlaubt sind ${formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxContextFileBytes)} pro Datei.`,
-		);
-		fileSummaries.push({
-			index: index + 1,
-			...(file.kind === "ocr" ? {} : { mediaType: file.mimeType, size: file.size }),
-			name: file.name,
-			payloadBytes,
-		});
-	}
-	assertAtMost(
-		fileTotalBytes,
-		FILL_INPUT_PAYLOAD_LIMITS.maxContextFilesTotalBytes,
-		`Die Dateien sind zusammen zu groß. Maximal erlaubt sind ${formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxContextFilesTotalBytes)}.`,
-	);
-
-	return { audioSummaries, fileSummaries };
 };
 
 /**
@@ -189,7 +99,8 @@ export const prepareAgentMedia = async ({
 		return EMPTY_PREPARED_MEDIA;
 	}
 
-	const { audioSummaries, fileSummaries } = validateAgentMediaPayload(audioFiles, contextFiles);
+	const audioSummaries = validateScribeAudioFiles(audioFiles);
+	const fileSummaries = validateScribeContextFiles(contextFiles);
 
 	const nativeContentParts: PreparedFilePart[] = [];
 	const injectedTextBlocks: string[] = [];
@@ -275,4 +186,42 @@ export const prepareAgentMedia = async ({
 		usedNativeAudio,
 		usedTranscription,
 	};
+};
+
+/**
+ * Appends the prepared media to the latest user turn so the standard model sees
+ * it alongside the instruction: injected transcripts/extracted text as a text
+ * part, and native recordings/files as file parts. Earlier turns are left
+ * untouched — attachments belong to the message that carried them.
+ */
+export const injectMediaIntoLastUserMessage = (
+	messages: ModelMessage[],
+	media: PreparedAgentMedia,
+): ModelMessage[] => {
+	if (media.injectedTextBlocks.length === 0 && media.nativeContentParts.length === 0) {
+		return messages;
+	}
+
+	const lastIndex = messages.length - 1;
+	const lastMessage = messages[lastIndex];
+	if (!lastMessage || lastMessage.role !== "user") {
+		return messages;
+	}
+
+	const baseParts =
+		typeof lastMessage.content === "string"
+			? [{ text: lastMessage.content, type: "text" as const }]
+			: lastMessage.content;
+
+	const injectedTextParts =
+		media.injectedTextBlocks.length > 0
+			? [{ text: media.injectedTextBlocks.join("\n\n"), type: "text" as const }]
+			: [];
+
+	const next = [...messages];
+	next[lastIndex] = {
+		...lastMessage,
+		content: [...baseParts, ...injectedTextParts, ...media.nativeContentParts],
+	} as ModelMessage;
+	return next;
 };

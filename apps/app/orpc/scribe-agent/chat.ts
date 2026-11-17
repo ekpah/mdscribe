@@ -1,12 +1,13 @@
 import { ORPCError, streamToEventIterator, type } from "@orpc/server";
-import type { ModelMessage } from "ai";
 import { convertToModelMessages, stepCountIs, streamText } from "ai";
 
+import { doctorsNoteAgentFlag } from "@/flags";
 import { AI_SCRIBE_AGENT_EVENT_NAME } from "@/lib/usage-event-names";
 import { finishUsageTrace, startUsageTrace } from "@/lib/usage-tracing";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
 import { scribeEntitlementsMiddleware } from "@/orpc/middlewares/entitlements";
+import { requiredFlagMiddleware } from "@/orpc/middlewares/flags";
 import { enforceScribeUsageLimit } from "@/orpc/scribe/handlers/usage-limit";
 import { scheduleScribeUsageLogging } from "@/orpc/scribe/handlers/usage-logging";
 import {
@@ -16,7 +17,7 @@ import {
 } from "@/orpc/scribe/providers";
 import { getUserPersonalContext } from "@/orpc/user/personal-context";
 
-import { prepareAgentMedia } from "./lib/prepare-media";
+import { injectMediaIntoLastUserMessage, prepareAgentMedia } from "./lib/prepare-media";
 import type { PreparedAgentMedia } from "./lib/prepare-media";
 import { buildAgentSystemPrompt } from "./prompt";
 import { createAgentTools } from "./tools";
@@ -53,44 +54,6 @@ const buildAgentUsageInputData = ({
 };
 
 /**
- * Appends the prepared media to the latest user turn so the standard model sees
- * it alongside the instruction: injected transcripts/extracted text as a text
- * part, and native recordings/files as file parts. Earlier turns are left
- * untouched — attachments belong to the message that carried them.
- */
-const injectMediaIntoLastUserMessage = (
-	messages: ModelMessage[],
-	media: PreparedAgentMedia,
-): ModelMessage[] => {
-	if (media.injectedTextBlocks.length === 0 && media.nativeContentParts.length === 0) {
-		return messages;
-	}
-
-	const lastIndex = messages.length - 1;
-	const lastMessage = messages[lastIndex];
-	if (!lastMessage || lastMessage.role !== "user") {
-		return messages;
-	}
-
-	const baseParts =
-		typeof lastMessage.content === "string"
-			? [{ text: lastMessage.content, type: "text" as const }]
-			: lastMessage.content;
-
-	const injectedTextParts =
-		media.injectedTextBlocks.length > 0
-			? [{ text: media.injectedTextBlocks.join("\n\n"), type: "text" as const }]
-			: [];
-
-	const next = [...messages];
-	next[lastIndex] = {
-		...lastMessage,
-		content: [...baseParts, ...injectedTextParts, ...media.nativeContentParts],
-	} as ModelMessage;
-	return next;
-};
-
-/**
  * Documentation-agent chat. A tool-calling loop on the standard (text) model
  * that can rewrite individual doctor's-note sections via the `editSection` /
  * `generateSection` tools. The client applies the edits and feeds the current
@@ -99,6 +62,7 @@ const injectMediaIntoLastUserMessage = (
  * supports the kind, otherwise slot preprocessing into text).
  */
 export const scribeAgentChatHandler = authed
+	.use(requiredFlagMiddleware(doctorsNoteAgentFlag))
 	.use(scribeEntitlementsMiddleware)
 	.input(type<ScribeAgentChatInput>())
 	.handler(async ({ input, context }) => {
@@ -160,6 +124,7 @@ export const scribeAgentChatHandler = authed
 			activeSubscription: entitlements.hasActiveSubscription,
 			agentRunId,
 			audioFiles: input.audioFiles ?? [],
+			background: input.background ?? "",
 			contextFiles: input.contextFiles ?? [],
 			db: context.db,
 			generation,
@@ -169,6 +134,7 @@ export const scribeAgentChatHandler = authed
 			sections,
 			session: context.session,
 			temperature: effectiveTemperature,
+			templateId: input.templateId,
 			toolTrace,
 			traceId,
 			userId: context.session.user.id,
@@ -241,7 +207,7 @@ export const scribeAgentChatHandler = authed
 			},
 			providerOptions,
 			stopWhen: stepCountIs(AGENT_MAX_STEPS),
-			system: buildAgentSystemPrompt(sections, personalContext),
+			system: buildAgentSystemPrompt(sections, personalContext, input.background),
 			temperature: effectiveTemperature,
 			tools,
 		});

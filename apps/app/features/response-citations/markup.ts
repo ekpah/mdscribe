@@ -43,8 +43,9 @@ const removeBlockDelimiters = (text: string, removed: Uint8Array): void => {
 				: delimiter[1][0] !== "`" || !delimiter[2].includes("`"))
 		) {
 			fence = fence ? undefined : { character: delimiter[1][0], length: delimiter[1].length };
-			// Keep the line break, so facts on either side cannot be concatenated.
-			remove(start, start + line.replace(/[\r\n]+$/u, "").length);
+			// A delimiter fills its whole line, so the line before keeps its own break and
+			// the fenced lines continue the surrounding paragraph without a blank line.
+			remove(start, start + line.length);
 			paragraph = false;
 			continue;
 		}

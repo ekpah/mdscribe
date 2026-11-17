@@ -2,18 +2,18 @@ import type { Config, RenderableTreeNode } from "@markdoc/markdoc";
 import { Tag } from "@markdoc/markdoc";
 import type { CSSProperties } from "react";
 
-import { markdocConfig } from "../../markdoc-config";
 import type { MarkdocComponentMap } from "../../markdoc-config/tags/helpers/components";
 import { DEFAULT_DETAILS_SUMMARY } from "../../markdoc-config/tags/helpers/config";
-import { showDetailsGapsAsEmptyLines } from "../../markdoc-config/tags/helpers/details-line-flow";
+import { showLineGapsAsEmptyLines } from "../../markdoc-config/tags/helpers/details-line-flow";
 
-export const templateConfig: Config = {
-	...markdocConfig,
+/** The template layout shows soft breaks, in the package config or a host's extended one. */
+export const toTemplateConfig = (config: Config): Config => ({
+	...config,
 	nodes: {
-		...markdocConfig.nodes,
+		...config.nodes,
 		softbreak: { render: "br" },
 	},
-};
+});
 
 /** Inline typography travels with rich-text copies instead of depending on app CSS. */
 const styles: Record<string, CSSProperties> = {
@@ -96,6 +96,6 @@ export const applyTemplateLayout = (
 	tree: RenderableTreeNode,
 	components?: MarkdocComponentMap,
 ): void => {
-	showDetailsGapsAsEmptyLines(tree);
+	showLineGapsAsEmptyLines(tree);
 	applyStyles(tree, components);
 };

@@ -2,7 +2,7 @@
 
 import { Button } from "@repo/design-system/components/ui/button";
 import { cn } from "@repo/design-system/lib/utils";
-import { ChevronDown, FileText, Mic, Paperclip } from "lucide-react";
+import { ChevronDown, FileText, LoaderCircle, Mic, Paperclip } from "lucide-react";
 import type { Dispatch, DragEvent, ReactNode, RefObject, SetStateAction } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -15,7 +15,12 @@ import { AudioInput } from "./inputs/audio/audio-input";
 import type { AudioInputHandle } from "./inputs/audio/audio-input";
 import { DocumentInput } from "./inputs/document/document-input";
 import { TextInput } from "./inputs/text/text-input";
-import type { InputContextController, InputContextPanel, InputContextSubmission } from "./types";
+import type {
+	InputContextController,
+	InputContextPanel,
+	InputContextSubmission,
+	InputContextTextContextKey,
+} from "./types";
 import { useInputContextClipboardPaste } from "./use-input-context-clipboard-paste";
 
 export { useInputContextState } from "./use-input-context-state";
@@ -34,6 +39,8 @@ interface InputContextControlsProps {
 	controller: InputContextController;
 	defaultPanel?: InputContextPanel | null;
 	disabled?: boolean;
+	/** Tabs: a strip between the tab row and the open tab, such as a privacy notice. */
+	notice?: ReactNode;
 	onSubmit?: (payload: InputContextSubmission) => Promise<void>;
 	onFocusShortcut?: () => void;
 	onSubmitShortcut?: () => void | Promise<void>;
@@ -42,10 +49,8 @@ interface InputContextControlsProps {
 	showSubmit?: boolean;
 	submitShortcutDisabled?: boolean;
 	submitLabel?: string;
-	textPanelContent?: ReactNode;
-	textPanelDescription?: string;
-	textPanelHasValue?: boolean;
-	textPanelTitle?: string;
+	/** Text fields to show; a field that holds text from the case always shows. Default: all. */
+	textFields?: InputContextTextContextKey[];
 	title?: string;
 	trailingAction?: ReactNode;
 	variant?: InputContextControlsVariant;
@@ -61,9 +66,12 @@ const getPanelShellClassName = ({
 	let placementClassName =
 		"static mb-3 max-h-[min(60svh,32rem)] overflow-y-auto overscroll-contain rounded-lg lg:absolute lg:right-4 lg:bottom-full lg:left-4 lg:mb-2 lg:max-h-96";
 	if (isTabVariant) {
-		placementClassName = "static min-h-[min(68svh,36rem)] rounded-t-lg shadow-none";
+		// Below the toolbar, as tall as its content: each tab keeps its own height.
+		placementClassName =
+			"static flex min-h-0 flex-1 flex-col overflow-y-auto rounded-b-lg border border-t-0 border-solarized-blue/20 shadow-none";
 	} else if (hasPortalTarget) {
-		placementClassName = "absolute inset-0 flex min-h-0 flex-col overflow-hidden rounded-none";
+		placementClassName =
+			"absolute inset-0 flex min-h-0 flex-col overflow-y-auto overscroll-contain rounded-none";
 	}
 
 	return cn("z-20 bg-solarized-blue/10 p-4 shadow-lg backdrop-blur", placementClassName);
@@ -334,21 +342,22 @@ const ToolbarTitle = ({ title }: { title?: string }) => {
 };
 
 const SubmitButton = ({
+	busy,
 	canShow,
+	compactLabel,
 	disabled,
 	hasTrailingAction,
-	isSubmitting,
+	label,
 	onClick,
-	pendingLabel,
-	submitLabel,
 }: {
+	busy: boolean;
 	canShow: boolean;
+	/** Shown on phones, also while busy, so the bar keeps one row. */
+	compactLabel: string;
 	disabled: boolean;
 	hasTrailingAction: boolean;
-	isSubmitting: boolean;
+	label: string;
 	onClick: () => void;
-	pendingLabel: string;
-	submitLabel: string;
 }) => {
 	if (!canShow) {
 		return null;
@@ -362,7 +371,9 @@ const SubmitButton = ({
 			type="button"
 			variant="default"
 		>
-			{isSubmitting ? pendingLabel : submitLabel}
+			{busy ? <LoaderCircle aria-hidden className="h-3.5 w-3.5 animate-spin" /> : null}
+			<span className="max-sm:hidden">{label}</span>
+			<span className="sm:hidden">{compactLabel}</span>
 		</Button>
 	);
 };
@@ -403,7 +414,14 @@ const renderInputContextPanels = ({
 }) => {
 	const mountedPanelNodes = INPUT_CONTEXT_PANELS.map((panel) =>
 		mountedPanels.has(panel) ? (
-			<div className={openPanel === panel ? undefined : "hidden"} key={panel}>
+			<div
+				className={cn(
+					openPanel !== panel && "hidden",
+					// Tabs: the open panel takes the height left below the tab row.
+					isTabVariant && openPanel === panel && "flex min-h-0 flex-1 flex-col",
+				)}
+				key={panel}
+			>
 				{panels[panel]}
 			</div>
 		) : null,
@@ -454,8 +472,11 @@ const InputContextToolbar = ({
 	<div
 		className={cn(
 			"flex min-w-0 items-center gap-2",
-			controller.hasPendingOcr && "flex-wrap",
-			isTabVariant && "rounded-b-lg border border-solarized-blue/20 bg-solarized-blue/5 px-3 py-2",
+			isTabVariant &&
+				cn(
+					"border border-solarized-blue/20 bg-solarized-blue/5 px-3 py-2",
+					openPanel ? "rounded-t-lg" : "rounded-lg",
+				),
 		)}
 	>
 		<ToolbarTitle title={title} />
@@ -495,13 +516,17 @@ const InputContextToolbar = ({
 			<div className="ml-auto flex shrink-0 items-center">{trailingAction}</div>
 		) : null}
 		<SubmitButton
+			busy={isSubmitting || controller.hasPendingOcr}
 			canShow={showSubmit}
+			compactLabel={submitLabel}
 			disabled={!controller.hasAnyContext || isSubmitting}
 			hasTrailingAction={Boolean(trailingAction)}
-			isSubmitting={isSubmitting}
+			label={
+				controller.hasPendingOcr
+					? "Dokumenterkennung…"
+					: (isSubmitting && pendingLabel) || submitLabel
+			}
 			onClick={handleSubmit}
-			pendingLabel={controller.hasPendingOcr ? "Dokumenterkennung…" : pendingLabel}
-			submitLabel={controller.hasPendingOcr ? "Dokumenterkennung…" : submitLabel}
 		/>
 	</div>
 );
@@ -512,6 +537,7 @@ export const InputContextControls = ({
 	controller,
 	defaultPanel = null,
 	disabled = false,
+	notice,
 	onSubmit,
 	onFocusShortcut,
 	onSubmitShortcut,
@@ -521,10 +547,7 @@ export const InputContextControls = ({
 	showSubmit = true,
 	submitShortcutDisabled = false,
 	submitLabel = "Füllen",
-	textPanelContent,
-	textPanelDescription = `Hier kannst du Text aus dem aktuellen Fall einfügen. Maximal ${FILL_INPUT_PAYLOAD_LIMITS.maxTextContextCharacters.toLocaleString("de-DE")} Zeichen.`,
-	textPanelHasValue,
-	textPanelTitle = "Textkontext",
+	textFields,
 	title,
 	trailingAction,
 	variant = "overlay",
@@ -702,23 +725,22 @@ export const InputContextControls = ({
 
 	const textPanel = (
 		<PanelShell
-			description={textPanelDescription}
+			description={`Alles hier ist Kontext aus dem aktuellen Fall. Maximal ${FILL_INPUT_PAYLOAD_LIMITS.maxTextContextCharacters.toLocaleString("de-DE")} Zeichen.`}
 			isTabVariant={isTabVariant}
 			onClose={handlePanelClose}
 			panel="text"
 			panelPortalTarget={panelPortalTarget}
-			title={textPanelTitle}
+			title="Textkontext"
 		>
-			{textPanelContent ?? (
-				<TextInput
-					disabled={isPanelDisabled}
-					maxCharacters={FILL_INPUT_PAYLOAD_LIMITS.maxTextContextCharacters}
-					onMaxCharactersExceeded={handleTextContextLimitExceeded}
-					onValueChange={controller.setTextContext}
-					stretchFields={Boolean(panelPortalTarget)}
-					value={controller.textContext}
-				/>
-			)}
+			<TextInput
+				disabled={isPanelDisabled}
+				keys={textFields}
+				stretch={isTabVariant}
+				maxCharacters={FILL_INPUT_PAYLOAD_LIMITS.maxTextContextCharacters}
+				onMaxCharactersExceeded={handleTextContextLimitExceeded}
+				onValueChange={controller.setTextContext}
+				value={controller.textContext}
+			/>
 		</PanelShell>
 	);
 
@@ -776,11 +798,11 @@ export const InputContextControls = ({
 		panelPortalTarget,
 		panels,
 	});
-	const hasVisibleText = textPanelHasValue ?? controller.hasTextContext;
+	const hasVisibleText = controller.hasTextContext;
 
 	return (
 		<div
-			className={cn("relative w-full space-y-2", className)}
+			className={cn("relative w-full", isTabVariant ? "flex flex-col" : "space-y-2", className)}
 			data-align={isTabVariant ? "block-start" : undefined}
 			onDragEnter={handleRootDragEnter}
 			onDragLeave={handleRootDragLeave}
@@ -790,7 +812,7 @@ export const InputContextControls = ({
 			ref={rootRef}
 		>
 			<InputContextDropOverlay active={isDraggingFiles} />
-			{renderedActivePanel}
+			{isTabVariant ? null : renderedActivePanel}
 
 			<InputContextToolbar
 				controller={controller}
@@ -807,6 +829,13 @@ export const InputContextControls = ({
 				title={title}
 				trailingAction={trailingAction}
 			/>
+			{/* Tabs: the toolbar is the tab row on top, the open panel below it. */}
+			{isTabVariant && notice && openPanel ? (
+				<div className="border-x border-b border-solarized-red/20 bg-solarized-red/5 px-3 py-1.5 text-solarized-red text-xs">
+					{notice}
+				</div>
+			) : null}
+			{isTabVariant ? renderedActivePanel : null}
 		</div>
 	);
 };

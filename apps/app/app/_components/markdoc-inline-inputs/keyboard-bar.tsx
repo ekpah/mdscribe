@@ -19,29 +19,23 @@ import {
 // Only the mouse event: Safari drops the click after a cancelled pointerdown.
 const keepFocus = (event: { preventDefault: () => void }) => event.preventDefault();
 /**
- * On phones, a bar above the keyboard names the field being typed and
- * moves to the previous or next tag; the field's details open from its ⓘ.
+ * On phones, a bar docked at the top of the template card names the field being
+ * typed and moves to the previous or next tag; the field's details open from its ⓘ.
+ * Docked there, it stays clear of the keyboard and of Safari's bottom address bar.
  */
 export const InlineKeyboardBar = () => {
 	// The focused tag's own control: a text field, a selection, a calculation or a condition.
 	const [field, setField] = useState<HTMLElement | null>(null);
-	const [bottom, setBottom] = useState(0);
 
 	useEffect(() => {
 		if (!isPhoneLayout()) {
 			return;
 		}
-		const viewport = window.visualViewport;
-		const place = () =>
-			setBottom(
-				viewport ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop) : 0,
-			);
 		const handleFocusIn = (event: FocusEvent) => {
 			const { target } = event;
 			// Controls inside an open tag's details keep the bar on that tag.
 			if (target instanceof HTMLElement && target.matches(tagFocusSelector)) {
 				setField(target);
-				place();
 			}
 		};
 		const handleFocusOut = (event: FocusEvent) => {
@@ -52,22 +46,14 @@ export const InlineKeyboardBar = () => {
 		};
 		document.addEventListener("focusin", handleFocusIn);
 		document.addEventListener("focusout", handleFocusOut);
-		viewport?.addEventListener("resize", place);
-		viewport?.addEventListener("scroll", place);
 		return () => {
 			document.removeEventListener("focusin", handleFocusIn);
 			document.removeEventListener("focusout", handleFocusOut);
-			viewport?.removeEventListener("resize", place);
-			viewport?.removeEventListener("scroll", place);
 		};
 	}, []);
 
-	// Keep the focused field above the bar once the keyboard has opened.
-	useEffect(() => {
-		field?.scrollIntoView({ block: "nearest" });
-	}, [bottom, field]);
-
-	if (!field) {
+	const slot = field ? document.querySelector("[data-inline-keyboard-slot]") : null;
+	if (!field || !slot) {
 		return null;
 	}
 	const tag = field.closest<HTMLElement>("[data-markdoc-input]");
@@ -78,9 +64,8 @@ export const InlineKeyboardBar = () => {
 
 	return createPortal(
 		<div
-			className="fixed inset-x-0 z-50 flex touch-manipulation items-center gap-1 border-t bg-muted/95 px-2 py-1 text-sm shadow-[0_-2px_8px_rgba(0,0,0,0.08)] backdrop-blur"
+			className="flex touch-manipulation items-center gap-1 border-b bg-muted px-2 py-1 text-sm shadow-[0_2px_8px_rgba(0,0,0,0.08)]"
 			data-inline-keyboard-bar
-			style={{ bottom }}
 		>
 			<span className="min-w-0 truncate font-semibold">{label}</span>
 			{field.dataset.unit ? (
@@ -133,6 +118,6 @@ export const InlineKeyboardBar = () => {
 				Fertig
 			</button>
 		</div>,
-		document.body,
+		slot,
 	);
 };

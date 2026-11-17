@@ -1,59 +1,11 @@
-import type { Session } from "@/lib/auth-types";
+import type { TextInputId } from "@/orpc/scribe/prompts/template";
 
-export interface PatientContextData {
-	diagnoseblock: string;
-	anamnese: string;
-	befunde: string;
-	epikrise: string;
-	notes: string;
-}
+/** The text fields of a request by id; see `TEXT_INPUTS` in `prompts/template.ts`. */
+export type PatientContextData = Record<TextInputId, string>;
 
-export interface TemplateContextInput extends Record<string, unknown> {
+export interface TemplateContextInput {
 	content: string;
 	examples: string[];
 	information?: string;
 	title: string;
-}
-
-export type ContextSource =
-	| {
-			kind: "form";
-			data: Record<string, unknown>;
-	  }
-	| {
-			kind: "template";
-			data: Record<string, unknown>;
-	  }
-	| {
-			kind: "fhir";
-			data: unknown;
-	  }
-	| {
-			kind: "hl7";
-			data: unknown;
-	  };
-
-export interface ContextBuildInput {
-	sources: ContextSource[];
-	promptContextKey?: string;
-	selectedTemplateReference?: string;
-	sessionUser?: Session["user"] | null;
-}
-
-export interface ComposeScribeContextInput {
-	formData: Record<string, unknown>;
-	/** The signed-in user's saved documentation preferences. */
-	personalContext?: string | null;
-	promptContextKey?: string;
-	sessionUser?: Session["user"] | null;
-	selectedTemplateReference?: string;
-	todaysDate?: string;
-	template?: TemplateContextInput | null;
-}
-
-export interface ComposedScribeContext {
-	contextPrompt: string;
-	contextXml: string;
-	patientContext: PatientContextData;
-	sources: ContextSource[];
 }

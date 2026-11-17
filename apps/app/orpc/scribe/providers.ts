@@ -166,9 +166,6 @@ const getProcessCachedValue = <T>(
 	return promise;
 };
 
-const normalizeSupportedParameters = (parameters: string[] | undefined): string[] =>
-	parameters ?? [];
-
 export const modelAllowsReasoningOptions = (
 	model: Pick<ResolvedModel, "supportedParameters" | "supportsReasoning">,
 ): boolean => model.supportsReasoning || model.supportedParameters.length === 0;
@@ -652,7 +649,7 @@ const buildResolvedModel = async (
 		baseUrl,
 		isUserCredential,
 	);
-	const supportedParameters = normalizeSupportedParameters(model.supportedParameters);
+	const supportedParameters = model.supportedParameters ?? [];
 
 	return {
 		credentialSource,

@@ -7,7 +7,10 @@ import dynamic from "next/dynamic";
 // Load it on demand like TipTap so editor routes keep a light initial bundle.
 export const TagInspector = dynamic(
 	async () => {
-		const mod = await import("markdoc-md-editor/tag-inspector/tag-inspector");
+		const [mod] = await Promise.all([
+			import("markdoc-md-editor/tag-inspector/tag-inspector"),
+			import("@/features/template-tags/editor/plugin"),
+		]);
 		return mod.TagInspector;
 	},
 	{
@@ -18,7 +21,10 @@ export const TagInspector = dynamic(
 
 export const TagInspectorSheet = dynamic(
 	async () => {
-		const mod = await import("markdoc-md-editor/tag-inspector/tag-inspector-sheet");
+		const [mod] = await Promise.all([
+			import("markdoc-md-editor/tag-inspector/tag-inspector-sheet"),
+			import("@/features/template-tags/editor/plugin"),
+		]);
 		return mod.TagInspectorSheet;
 	},
 	{ ssr: false },

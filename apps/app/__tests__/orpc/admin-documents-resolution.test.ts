@@ -11,7 +11,6 @@ import {
 	startTestServer,
 } from "@/__tests__/setup";
 import type { TestServer } from "@/__tests__/setup";
-import { AI_SCRIBE_STT_EVENT_NAME } from "@/lib/usage-event-names";
 import { scribeHandler } from "@/orpc/admin/scribe";
 import { documentsHandler } from "@/orpc/documents";
 import { appendScribeInputAttachmentsToMessages } from "@/orpc/scribe/handlers/scribe-stream";
@@ -38,13 +37,12 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 		const result = await call(
 			scribeHandler.run,
 			{
-				compiledMessagesOverride: [
+				messages: [
 					{
 						content: "test",
 						role: "user",
 					},
 				],
-				documentType: "anamnese",
 				model: seeded.modelId,
 				parameters: {
 					maxTokens: 512,
@@ -54,7 +52,6 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 					thinkingExplicit: true,
 				},
 				providerId: seeded.providerId,
-				requestId: "req-1",
 			},
 			{ context },
 		);
@@ -143,12 +140,6 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 		const result = await call(
 			scribeHandler.run,
 			{
-				compiledMessagesOverride: [
-					{
-						content: "test",
-						role: "user",
-					},
-				],
 				contextFiles: [
 					{
 						data: Buffer.from("pdf-bytes").toString("base64"),
@@ -157,7 +148,12 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 						size: 9,
 					},
 				],
-				documentType: "anamnese",
+				messages: [
+					{
+						content: "test",
+						role: "user",
+					},
+				],
 				model: seeded.modelRecordId,
 				parameters: {
 					maxTokens: 512,
@@ -166,7 +162,6 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 					thinking: false,
 					thinkingExplicit: false,
 				},
-				requestId: "req-files",
 			},
 			{ context },
 		);
@@ -195,13 +190,12 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 							},
 						},
 					],
-					compiledMessagesOverride: [
+					messages: [
 						{
 							content: "test",
 							role: "user",
 						},
 					],
-					documentType: "anamnese",
 					model: seeded.modelRecordId,
 					parameters: {
 						maxTokens: 512,
@@ -210,62 +204,12 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 						thinking: false,
 						thinkingExplicit: false,
 					},
-					requestId: "req-audio",
 				},
 				{ context },
 			);
 
 			expect(result).toBeDefined();
 			expect(typeof result[Symbol.asyncIterator]).toBe("function");
-		} finally {
-			globalThis.fetch = originalFetch;
-		}
-	});
-
-	test("admin audio model run does not log STT usage events", async () => {
-		const originalFetch = globalThis.fetch;
-		try {
-			globalThis.fetch = (() =>
-				Promise.resolve(
-					Response.json({ text: "Direktes Admin-Transkript" }),
-				)) as unknown as typeof fetch;
-
-			const audioFiles = [
-				{
-					data: Buffer.from("webm-audio").toString("base64"),
-					mimeType: "audio/webm;codecs=opus",
-					wavFallback: {
-						data: Buffer.from("wav-audio").toString("base64"),
-						mimeType: "audio/wav" as const,
-					},
-				},
-			];
-
-			await call(
-				scribeHandler.transcribeAudio,
-				{
-					audioFiles,
-					mode: "native",
-					modelId: seeded.modelRecordId,
-				},
-				{ context },
-			);
-			await call(
-				scribeHandler.transcribeAudio,
-				{
-					audioFiles,
-					mode: "transcription",
-					modelId: seeded.modelRecordId,
-				},
-				{ context },
-			);
-			await Bun.sleep(80);
-
-			const sttEvents = await server.db
-				.select()
-				.from(usageEvent)
-				.where(eq(usageEvent.name, AI_SCRIBE_STT_EVENT_NAME));
-			expect(sttEvents).toEqual([]);
 		} finally {
 			globalThis.fetch = originalFetch;
 		}

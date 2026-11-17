@@ -111,8 +111,6 @@ describe("Optional Stripe", () => {
 			const { enforceScribeUsageLimit } = await import("@/orpc/scribe/handlers/usage-limit");
 			const { usersHandler } = await import("@/orpc/admin/users");
 			const { templatesHandler } = await import("@/orpc/templates");
-			const { scribeFormsHandler } = await import("@/orpc/scribe-forms");
-			const { scribeWorkspacesHandler } = await import("@/orpc/scribe-workspaces");
 			const { documentsHandler } = await import("@/orpc/documents");
 			const { PDFDocument } = await import("pdf-lib");
 			const pdf = await PDFDocument.create();
@@ -124,18 +122,16 @@ describe("Optional Stripe", () => {
 				await createTestSubscription(server.db, user.id);
 				const entitlements = await resolveProductEntitlements({ db: server.db, userId: user.id });
 				expect(entitlements).toEqual({
-					canCreatePrivateAiScribeForms: false, canCreatePrivateDocuments: false, canCreatePrivateTemplates: false,
+					canCreatePrivateDocuments: false, canCreatePrivateTemplates: false,
 					hasActiveSubscription: false, plan: "free", scribeMonthlyCostLimit: 0.3,
 					subscriptionPeriodEnd: null, subscriptionPeriodStart: null,
 				});
 				const context = createTestContext({ db: server.db, session });
-				const publicTemplate = await call(templatesHandler.create, { name: "Public without billing", category: "Test", content: "Hello", visibility: "public" }, { context });
+				const publicTemplate = await call(templatesHandler.create, { name: "Public without billing", content: "Hello", visibility: "public" }, { context });
 				expect(publicTemplate.visibility).toBe("public");
-				await expect(call(templatesHandler.create, { name: "Private without billing", category: "Test", content: "Hello", visibility: "private" }, { context })).rejects.toMatchObject({ code: "FORBIDDEN", message: expect.not.stringMatching(/Plus|Abo|upgrade/i) });
+				await expect(call(templatesHandler.create, { name: "Private without billing", content: "Hello", visibility: "private" }, { context })).rejects.toMatchObject({ code: "FORBIDDEN", message: expect.not.stringMatching(/Plus|Abo|upgrade/i) });
 				for (const [handler, input] of [
-					[scribeFormsHandler.create, { name: "AI form", slug: "audit-form", enabled: true, promptHarness: "diagnosis", templateId: null }],
-					[scribeWorkspacesHandler.create, { name: "Brief workspace" }],
-					[documentsHandler.templates.create, { title: "PDF", category: "Test", fieldDefinitions: { inputs: [], bindings: [] }, pdfBase64 }],
+					[documentsHandler.templates.create, { title: "PDF", fieldDefinitions: { inputs: [], bindings: [] }, pdfBase64 }],
 				]) {
 					const created = await call(handler, { ...input, visibility: "public" }, { context });
 					expect(created.visibility).toBe("public");

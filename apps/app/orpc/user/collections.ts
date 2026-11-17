@@ -53,7 +53,6 @@ const listCollectionsHandler = authed.handler(async ({ context }) => {
 
 	const templates = await context.db
 		.select({
-			category: template.category,
 			collectionId: templateCollectionTemplate.collectionId,
 			id: template.id,
 			title: template.title,
@@ -71,17 +70,12 @@ const listCollectionsHandler = authed.handler(async ({ context }) => {
 	const templatesByCollection: Record<
 		string,
 		{
-			category: string;
 			id: string;
 			title: string;
 		}[]
 	> = {};
 	for (const row of templates) {
-		const entry = {
-			category: row.category,
-			id: row.id,
-			title: row.title,
-		};
+		const entry = { id: row.id, title: row.title };
 		if (templatesByCollection[row.collectionId]) {
 			templatesByCollection[row.collectionId]?.push(entry);
 		} else {

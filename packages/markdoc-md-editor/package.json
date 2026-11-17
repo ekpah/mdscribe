@@ -7,6 +7,8 @@
 	"exports": {
 		"./editor-helpers/get-primary-from-selection": "./editor-helpers/get-primary-from-selection.ts",
 		"./editor-helpers/select-inserted-inline-tag": "./editor-helpers/select-inserted-inline-tag.ts",
+		"./markdown-editor": "./markdown-editor.tsx",
+		"./plugins": "./plugins.ts",
 		"./tag-inspector/tag-inspector": "./tag-inspector/tag-inspector.tsx",
 		"./tag-inspector/tag-inspector-sheet": "./tag-inspector/tag-inspector-sheet.tsx",
 		"./tag-inspector/use-selected-markdoc-tag": "./tag-inspector/use-selected-markdoc-tag.ts",

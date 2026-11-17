@@ -99,6 +99,7 @@ export type OcrUIMessage = UIMessage<
 		citation: ScribeCitation;
 		"citation-sources": ScribeCitationSource[];
 		"citation-status": "adding" | "complete" | "failed";
+		"audio-transcripts": string[];
 		"ocr-results": OcrResult[];
 	}
 >;
