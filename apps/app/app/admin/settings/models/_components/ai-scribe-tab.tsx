@@ -89,6 +89,17 @@ const ConvertAiScribeFormsCard = () => {
 /** Chooses which of the admin's collections `/aiscribe` offers by default. */
 export const AiScribeTab = () => {
 	const queryClient = useQueryClient();
+	const createStandard = useMutation(
+		orpc.admin.templates.createAiScribeStandard.mutationOptions({
+			onError: (error) =>
+				toast.error(error.message || "Standardvorlagen konnten nicht angelegt werden."),
+			onSuccess: async ({ created }) => {
+				// New templates, a new collection and a new AI Scribe collection: refresh them all.
+				await queryClient.invalidateQueries();
+				toast.success(`${created} Standardvorlagen angelegt`);
+			},
+		}),
+	);
 	const current = useQuery(orpc.admin.templates.aiScribeCollection.queryOptions());
 	const collections = useQuery(orpc.user.collections.list.queryOptions());
 	const save = useMutation(
@@ -146,6 +157,18 @@ export const AiScribeTab = () => {
 							))}
 						</SelectContent>
 					</Select>
+					{current.isSuccess && !current.data.collectionId ? (
+						<div className="space-y-2 rounded-md border border-dashed p-3">
+							<p className="text-muted-foreground text-sm">
+								Noch keine Sammlung gewählt. Legt einmalig die Sammlung „AI Scribe Standard“ mit den
+								10 Standardvorlagen an (Briefe und einzelne Abschnitte, öffentlich) und wählt sie
+								hier aus.
+							</p>
+							<Button disabled={createStandard.isPending} onClick={() => createStandard.mutate({})}>
+								Standardvorlagen anlegen
+							</Button>
+						</div>
+					) : null}
 					{selected ? (
 						<ul className="list-inside list-disc text-muted-foreground text-sm">
 							{selected.templates.map((template) => (
