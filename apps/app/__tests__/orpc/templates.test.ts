@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 import { call } from "@orpc/server";
-import { eq, template } from "@repo/database";
+import { eq, template, templateCollection, templateCollectionTemplate } from "@repo/database";
 
 import type { TestServer } from "@/__tests__/setup";
 import {
@@ -568,5 +568,59 @@ describe("Templates oRPC Handlers", () => {
 				).toBeDefined();
 			});
 		});
+	});
+
+	test("import saves pasted templates as the user's own and recreates the collection", async () => {
+		const { user } = await createTestUser(server.db);
+		const { user: other } = await createTestUser(server.db);
+		// The same title as another user's template still creates a new template of this user.
+		await createTestTemplate(server.db, other.id, { content: "Fremd", title: "BGA" });
+		const context = createTestContext({ db: server.db, session: createMockSession(user) });
+		const pasted = [
+			{
+				content: 'pH {% info "ph" /%}',
+				examples: ["pH 7,40", "  "],
+				information: " Hinweis ",
+				title: "BGA",
+			},
+			{
+				content: 'TLC {% info "tlc" /%}',
+				examples: [],
+				information: "",
+				title: "Bodyplethysmographie",
+			},
+		];
+
+		const result = await call(
+			templatesHandler.import,
+			{ collection: { name: "Pneumologie" }, templates: pasted },
+			{ context },
+		);
+
+		const mine = await server.db.select().from(template).where(eq(template.authorId, user.id));
+		expect(mine.map((row) => row.id).toSorted()).toEqual(result.templateIds.toSorted());
+		expect(mine.find((row) => row.title === "BGA")).toMatchObject({
+			content: 'pH {% info "ph" /%}',
+			examples: ["pH 7,40"],
+			information: "Hinweis",
+		});
+		const [collection] = await server.db
+			.select()
+			.from(templateCollection)
+			.where(eq(templateCollection.userId, user.id));
+		expect(collection).toMatchObject({ id: result.collectionId, name: "Pneumologie" });
+		const members = await server.db
+			.select({ templateId: templateCollectionTemplate.templateId })
+			.from(templateCollectionTemplate)
+			.where(eq(templateCollectionTemplate.collectionId, result.collectionId ?? ""));
+		expect(members.map((row) => row.templateId).toSorted()).toEqual(result.templateIds.toSorted());
+
+		// A single template creates no collection.
+		const single = await call(
+			templatesHandler.import,
+			{ collection: null, templates: [pasted[1]] },
+			{ context },
+		);
+		expect(single).toMatchObject({ collectionId: null, templateIds: [expect.any(String)] });
 	});
 });

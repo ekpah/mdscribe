@@ -4,8 +4,13 @@ import { Button } from "@repo/design-system/components/ui/button";
 import { Clock, Copy, Lock, Pencil, Sparkles, User } from "lucide-react";
 import Link from "next/link";
 
+import { CopyTemplateMenu } from "@/app/templates/_components/copy-template-menu";
+import { serializeTemplate } from "@/lib/template-exchange";
+import type { ExchangeTemplate } from "@/lib/template-exchange";
+
 export interface NavActionsProps {
 	author?: string;
+	exportTemplate: ExchangeTemplate;
 	isAuthor: boolean;
 	isLoggedIn: boolean;
 	lastEdited: Date;
@@ -15,6 +20,7 @@ export interface NavActionsProps {
 
 export const NavActions = ({
 	author,
+	exportTemplate,
 	isAuthor,
 	isLoggedIn,
 	lastEdited,
@@ -31,6 +37,12 @@ export const NavActions = ({
 			<Clock className="size-4" />
 			{new Date(lastEdited).toLocaleDateString("de-DE")}
 		</span>
+		<CopyTemplateMenu
+			label="Vorlage kopieren"
+			loadText={() => Promise.resolve(serializeTemplate(exportTemplate))}
+			successMessage="Vorlage kopiert"
+			title={exportTemplate.title}
+		/>
 		{isLoggedIn && (
 			// The case entered here stays in the shared case state and opens with AI Scribe.
 			<Button size="sm" render={<Link href={`/aiscribe/${templateId}`} />}>

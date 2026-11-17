@@ -6,6 +6,7 @@ import {
 	eq,
 	or,
 	template,
+	templateCollection,
 	templateCollectionTemplate,
 	user,
 } from "@repo/database";
@@ -78,6 +79,26 @@ const updateTemplateInput = z.object({
 
 const deleteTemplateInput = z.object({
 	id: z.string(),
+});
+
+const importTemplatesInput = z.object({
+	collection: z
+		.object({
+			description: z.string().max(500).optional(),
+			name: z.string().trim().min(1).max(100),
+		})
+		.nullable(),
+	templates: z
+		.array(
+			z.object({
+				content: z.string(),
+				examples: z.array(z.string()).max(10, "A maximum of 10 examples is allowed"),
+				information: z.string().max(10_000, "Information is too long"),
+				title: z.string().trim().min(1),
+			}),
+		)
+		.min(1)
+		.max(200),
 });
 
 const lexicalSearchInput = z.object({
@@ -353,6 +374,66 @@ const deleteTemplateHandler = authed.input(deleteTemplateInput).handler(({ conte
 );
 
 // ============================================================================
+// Authenticated Handlers - Import
+// ============================================================================
+
+/**
+ * Save pasted templates as new templates of the user, and as a new collection of the user
+ * when they were copied as a collection.
+ */
+const importTemplatesHandler = authed
+	.input(importTemplatesInput)
+	.handler(async ({ context, input }) => {
+		const userId = context.session.user.id;
+		for (const item of input.templates) {
+			ensureValidTemplateContent(item.content);
+		}
+		const entitlements = await resolveProductEntitlements({ db: context.db, userId });
+		// Imports are copies of someone's work, so keep them private where the plan allows it.
+		const visibility: TemplateVisibility = entitlements.canCreatePrivateTemplates
+			? "private"
+			: "public";
+
+		return context.db.transaction(async (tx) => {
+			const created = await tx
+				.insert(template)
+				.values(
+					input.templates.map((item) => ({
+						authorId: userId,
+						content: item.content,
+						examples: item.examples.map((example) => example.trim()).filter(Boolean),
+						information: item.information.trim(),
+						title: item.title,
+						updatedAt: new Date(),
+						visibility,
+					})),
+				)
+				.returning({ id: template.id });
+			const templateIds = created.map((row) => row.id);
+
+			if (!input.collection) {
+				return { collectionId: null, templateIds };
+			}
+			const [collection] = await tx
+				.insert(templateCollection)
+				.values({
+					description: input.collection.description?.trim() || null,
+					name: input.collection.name,
+					updatedAt: new Date(),
+					userId,
+				})
+				.returning({ id: templateCollection.id });
+			if (!collection) {
+				throw new Error("Failed to create collection");
+			}
+			await tx
+				.insert(templateCollectionTemplate)
+				.values(templateIds.map((templateId) => ({ collectionId: collection.id, templateId })));
+			return { collectionId: collection.id, templateIds };
+		});
+	});
+
+// ============================================================================
 // Exports
 // ============================================================================
 
@@ -367,6 +448,9 @@ export const templatesHandler = {
 	editorContext: getEditorContextHandler,
 	// Public
 	get: getTemplateHandler,
+	// Authenticated - Import
+	import: importTemplatesHandler,
+	// Public
 	list: listTemplatesHandler,
 	search: searchTemplatesHandler,
 	update: updateTemplateHandler,

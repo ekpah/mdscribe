@@ -44,7 +44,10 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { orpc } from "@/lib/orpc";
+import { serializeCollection } from "@/lib/template-exchange";
 
+import { CopyTemplateMenu } from "./copy-template-menu";
+import { ImportTemplatesButton } from "./import-templates-dialog";
 import { entryHref, searchEntries, useCollectionMutation, useLibrary } from "./use-library";
 import type { Collection, LibraryEntry } from "./use-library";
 
@@ -196,6 +199,32 @@ const useLibraryState = (view: "collections" | "templates") => {
 
 type LibraryState = ReturnType<typeof useLibraryState>;
 
+/** Copies the open collection in the exchange format, to paste into another installation. */
+const CopyCollectionMenu = ({ collection }: { collection: Collection }) => (
+	<CopyTemplateMenu
+		label="Sammlung kopieren"
+		loadText={async () => {
+			const exported = await orpc.user.collections.export.call({ id: collection.id });
+			return serializeCollection(
+				{ description: exported.description ?? undefined, title: exported.name },
+				exported.templates,
+			);
+		}}
+		size="default"
+		successMessage="Sammlung kopiert"
+		title={collection.name}
+	/>
+);
+
+/** Paste templates into the library, or copy the open collection. */
+const ExchangeActions = ({ state }: { state: LibraryState }) => {
+	const { collection, collectionId, session } = state;
+	if (collection?.entries.length) {
+		return <CopyCollectionMenu collection={collection} />;
+	}
+	return session?.user && !collectionId ? <ImportTemplatesButton /> : null;
+};
+
 const LibraryHeader = ({ state }: { state: LibraryState }) => {
 	const { collection, collectionId, showCollections, session, setDialog } = state;
 	let title = collectionId ? "Sammlung" : "Vorlagen";
@@ -214,6 +243,7 @@ const LibraryHeader = ({ state }: { state: LibraryState }) => {
 				</p>
 			</div>
 			<div className="flex flex-wrap gap-2">
+				<ExchangeActions state={state} />
 				{showCollections && session?.user && (
 					<Button onClick={() => setDialog("create")}>
 						<Plus className="size-4" />

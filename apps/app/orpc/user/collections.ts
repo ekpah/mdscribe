@@ -1,5 +1,6 @@
 import {
 	and,
+	asc,
 	desc,
 	eq,
 	inArray,
@@ -223,10 +224,44 @@ const removeTemplateFromCollectionHandler = authed
 		return { success: true };
 	});
 
+/** Full templates of one of the user's collections, for copying. */
+const exportCollectionHandler = authed
+	.input(collectionIdInput)
+	.handler(async ({ context, input }) => {
+		const userId = context.session.user.id;
+		const [collection] = await context.db
+			.select({ description: templateCollection.description, name: templateCollection.name })
+			.from(templateCollection)
+			.where(and(eq(templateCollection.id, input.id), eq(templateCollection.userId, userId)))
+			.limit(1);
+		if (!collection) {
+			throw new Error("Collection nicht gefunden");
+		}
+
+		const templates = await context.db
+			.select({
+				content: template.content,
+				examples: template.examples,
+				information: template.information,
+				title: template.title,
+			})
+			.from(templateCollectionTemplate)
+			.innerJoin(template, eq(templateCollectionTemplate.templateId, template.id))
+			.where(
+				and(
+					eq(templateCollectionTemplate.collectionId, input.id),
+					or(eq(template.visibility, "public"), eq(template.authorId, userId)),
+				),
+			)
+			.orderBy(asc(template.title));
+		return { ...collection, templates };
+	});
+
 export const collectionsHandler = {
 	addTemplate: addTemplateToCollectionHandler,
 	create: createCollectionHandler,
 	delete: deleteCollectionHandler,
+	export: exportCollectionHandler,
 	list: listCollectionsHandler,
 	removeTemplate: removeTemplateFromCollectionHandler,
 	update: updateCollectionHandler,

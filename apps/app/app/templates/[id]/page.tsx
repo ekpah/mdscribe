@@ -45,6 +45,12 @@ const NotePage = async ({ params, searchParams }: PageProps<"/templates/[id]">) 
 				contentView={contentView}
 				navActions={{
 					author: doc.author?.name ?? undefined,
+					exportTemplate: {
+						content: doc.content,
+						examples: doc.examples,
+						information: doc.information,
+						title: doc.title,
+					},
 					isAuthor,
 					isLoggedIn: !!session?.user?.id,
 					lastEdited: doc.updatedAt,
