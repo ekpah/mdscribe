@@ -118,6 +118,7 @@
 
 ### Fixed
 
+- Letter editor sections (AI Scribe with sections): copying from a section keeps its lines, empty lines, list markers and formatting, both from the editor and from the rendered text (selected text copies like "Brief kopieren"), and pasted plain text keeps its empty lines. A click anywhere in a section starts editing; an empty section shows its text from the template as a muted placeholder; ⌘↵ or Ctrl+↵ in the editor improves the section instead of inserting a line break.
 - Citations of lab documents are no longer dropped by Jev's and Mammoth's word check: a quoted number counts as a word of the claim, and umlauts are compared spelled out, so "Bei Aufnahme zeigte sich ein NT-proBNP von 4200 pg/ml" cites "NT-proBNP: 4200 pg/ml" and "Hämoglobin 11,8" cites OCR's "Haemoglobin: 11,8". Interpretations without the source's words stay uncited.
 - The letter editor locates the document quotes of a finished answer, letter or section, in the background, so opening a document citation no longer waits for the decision model.
 

@@ -7,13 +7,14 @@ import { Check, Loader2, Pencil, Sparkles } from "lucide-react";
 import type { CitationRequest } from "markdoc-md/citations";
 import { DynamicMarkdocRenderer } from "markdoc-md/react";
 import dynamic from "next/dynamic";
-import type { ReactNode } from "react";
+import type { ClipboardEvent, MouseEvent, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { toast } from "sonner";
 
 import { addScribeCitations } from "@/features/response-citations/markup";
 import type { ScribeCitation } from "@/features/response-citations/markup";
+import { getRenderedClipboardContent } from "@/lib/rendered-clipboard";
 import { USER_MESSAGES } from "@/lib/user-messages";
 
 import {
@@ -40,7 +41,10 @@ const SECTION_TEXT_CLASS =
 export interface DoctorsNoteSectionConfig {
 	id: string;
 	label: string;
+	/** Shown while the section is empty when the template has no text for it. */
 	placeholder: string;
+	/** The section's text in the template, shown as its placeholder. */
+	template?: string;
 }
 
 /** Where each cited statement of `evidence` is in `text`; of overlapping ones, the earlier one. */
@@ -105,52 +109,92 @@ const renderCitedRange = (
 
 const NO_EVIDENCE: SectionEvidence[] = [];
 
-/** The section text: rendered with its citations, or in the editor while editing. */
-const SectionText = ({
-	canEdit,
-	citedValue,
-	isEditing,
+/** Copies the selected text as "Brief kopieren" does: its lines, list markers and rich text, without citations. */
+const copySelection = (event: ClipboardEvent<HTMLElement>) => {
+	const selection = window.getSelection();
+	const range = selection && !selection.isCollapsed ? selection.getRangeAt(0) : null;
+	if (!range || !event.currentTarget.contains(range.commonAncestorContainer)) {
+		return;
+	}
+	const selected = document.createElement("div");
+	selected.append(range.cloneContents());
+	const { html, text } = getRenderedClipboardContent(selected);
+	event.clipboardData.setData("text/html", html);
+	event.clipboardData.setData("text/plain", text);
+	event.preventDefault();
+};
+
+/**
+ * A click anywhere in a section starts editing, except on its controls and citations
+ * or when it ends a text selection; the pencil button does the same from the keyboard.
+ */
+const isPlainClick = (event: MouseEvent<HTMLElement>) =>
+	!(event.target instanceof Element && event.target.closest("button, a, [role='button']")) &&
+	window.getSelection()?.isCollapsed !== false;
+
+/** The template's text for an empty section, or a generic prompt, behind the empty editor. */
+const SectionPlaceholder = ({
 	isLoading,
-	onChange,
-	onCitationSelect,
-	onStartEditing,
 	placeholder,
+	template,
 	value,
 }: {
-	canEdit: boolean;
+	isLoading: boolean;
+	placeholder: string;
+	template?: string;
+	value: string;
+}) =>
+	value.trim() ? null : (
+		<div
+			aria-hidden
+			className="pointer-events-none absolute top-2 right-20 left-3 select-none text-muted-foreground opacity-70"
+		>
+			{!isLoading && template?.trim() ? (
+				<DynamicMarkdocRenderer
+					className={cn(SECTION_TEXT_CLASS, "text-muted-foreground [&_*]:text-inherit")}
+					layout="template"
+					markdocContent={template}
+				/>
+			) : (
+				<p className="text-sm">{isLoading ? "Wird generiert..." : placeholder}</p>
+			)}
+		</div>
+	);
+
+/** The section text: rendered with its citations, or in the editor while editing. */
+const SectionText = ({
+	citedValue,
+	isEditing,
+	onChange,
+	onCitationSelect,
+	onSubmit,
+	value,
+}: {
 	citedValue: string;
 	isEditing: boolean;
-	isLoading: boolean;
 	onChange: (value: string) => void;
 	onCitationSelect?: (citations: CitationRequest[]) => void;
-	onStartEditing: () => void;
-	placeholder: string;
+	onSubmit: () => void;
 	value: string;
 }) => {
 	if (isEditing) {
 		return (
 			<MarkdownEditor
-				className={cn(SECTION_TEXT_CLASS, "min-h-20 focus:outline-none")}
+				className={cn(SECTION_TEXT_CLASS, "min-h-20 flex-1 focus:outline-none")}
 				onChange={onChange}
+				onSubmit={onSubmit}
 				value={value}
 			/>
 		);
 	}
 	if (!value.trim()) {
-		// An empty section opens the editor directly.
-		return (
-			<button
-				className="w-full text-left text-muted-foreground text-sm disabled:cursor-not-allowed"
-				disabled={!canEdit}
-				onClick={onStartEditing}
-				type="button"
-			>
-				{isLoading ? "Wird generiert..." : placeholder}
-			</button>
-		);
+		return null;
 	}
 	return (
-		<div className="[&_mark[data-citation-source]]:underline [&_mark[data-citation-source]]:decoration-solarized-blue/50 [&_mark[data-citation-source]]:decoration-dotted [&_mark[data-citation-source]]:underline-offset-4">
+		<div
+			className="[&_mark[data-citation-source]]:underline [&_mark[data-citation-source]]:decoration-solarized-blue/50 [&_mark[data-citation-source]]:decoration-dotted [&_mark[data-citation-source]]:underline-offset-4"
+			onCopy={copySelection}
+		>
 			<DynamicMarkdocRenderer
 				className={SECTION_TEXT_CLASS}
 				layout="template"
@@ -337,6 +381,12 @@ export const DoctorsNoteSection = ({
 		[onCitationSelect, shownEvidence, value],
 	);
 
+	const startEditingOnClick = (event: MouseEvent<HTMLDivElement>) => {
+		if (canEdit && !isEditing && isPlainClick(event)) {
+			setIsEditing(true);
+		}
+	};
+
 	const hotkeyRef = useHotkeys<HTMLDivElement>(
 		["meta+enter", "ctrl+enter"],
 		(event) => {
@@ -374,25 +424,31 @@ export const DoctorsNoteSection = ({
 	}
 
 	return (
+		// oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- the pencil button is the keyboard path
 		<div
 			className={cn(
-				"relative w-full rounded-md border bg-background px-3 py-2 pr-20 shadow-xs",
+				"relative flex w-full flex-col rounded-md border bg-background px-3 py-2 pr-20 shadow-xs",
 				isEditing ? "border-solarized-blue ring-1 ring-solarized-blue/20" : "border-input",
+				canEdit && !isEditing && "cursor-text",
 				disabled && "opacity-50",
 			)}
 			id={`section-${config.id}`}
+			onClick={startEditingOnClick}
 			ref={hotkeyRef}
 			style={{ minHeight }}
 		>
+			<SectionPlaceholder
+				isLoading={isLoading}
+				placeholder={config.placeholder}
+				template={config.template}
+				value={value}
+			/>
 			<SectionText
-				canEdit={canEdit}
 				citedValue={citedValue}
 				isEditing={isEditing}
-				isLoading={isLoading}
 				onChange={onChange}
 				onCitationSelect={onCitationSelect}
-				onStartEditing={() => setIsEditing(true)}
-				placeholder={config.placeholder}
+				onSubmit={handleEnhance}
 				value={value}
 			/>
 			<SectionTools

@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { AiscribeTemplate } from "@/app/aiscribe/_components/aiscribe-template";
 import { DoctorsNoteEditor } from "@/app/aiscribe/_components/doctors-note-editor";
 import { redirectLegacyAiscribePath } from "@/app/aiscribe/_lib/legacy-redirect";
-import { getTemplateSections } from "@/features/template-tags/sections";
+import { getTemplateSections, splitSectionOutput } from "@/features/template-tags/sections";
 import { doctorsNoteAgentFlag, unifiedAiscribeFlag } from "@/flags";
 import { getQueryClient } from "@/lib/get-query-client";
 import { orpc } from "@/lib/orpc";
@@ -45,12 +45,17 @@ export default async function AiscribeTemplatePage(props: AiscribeTemplatePagePr
 		const sections = templateSections.length
 			? templateSections
 			: [{ id: "text", title: template.title }];
+		// Each empty field shows its section of the template; a template without sections is one field.
+		const sectionTemplates = templateSections.length
+			? splitSectionOutput(template.content)
+			: { text: template.content };
 		return (
 			<DoctorsNoteEditor
 				sections={sections.map((section) => ({
 					id: section.id,
 					label: section.title,
 					placeholder: `${section.title} eingeben oder diktieren …`,
+					template: sectionTemplates[section.id],
 				}))}
 				showAgent={await doctorsNoteAgentFlag()}
 				templateId={template.id}
