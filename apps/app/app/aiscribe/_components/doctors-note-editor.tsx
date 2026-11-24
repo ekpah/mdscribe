@@ -357,7 +357,7 @@ export const DoctorsNoteEditor = ({
 						disabled={disabled || isGenerating}
 						notice={
 							<>
-								⚠️ <strong>Datenschutz:</strong> Nur anonymisierte Daten eingeben.
+								<strong>Datenschutz:</strong> Nur anonymisierte Daten eingeben.
 							</>
 						}
 						onSubmit={handleGenerateLetter}

@@ -2,7 +2,7 @@
 
 import { Button } from "@repo/design-system/components/ui/button";
 import { cn } from "@repo/design-system/lib/utils";
-import { ChevronDown, FileText, LoaderCircle, Mic, Paperclip } from "lucide-react";
+import { ChevronDown, FileText, LoaderCircle, Mic, Paperclip, TriangleAlert } from "lucide-react";
 import type { Dispatch, DragEvent, ReactNode, RefObject, SetStateAction } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -831,8 +831,10 @@ export const InputContextControls = ({
 			/>
 			{/* Tabs: the toolbar is the tab row on top, the open panel below it. */}
 			{isTabVariant && notice && openPanel ? (
-				<div className="border-x border-b border-solarized-red/20 bg-solarized-red/5 px-3 py-1.5 text-solarized-red text-xs">
-					{notice}
+				// Theme text on an amber tint reads in light and dark mode; saturated red text did not.
+				<div className="flex items-center gap-1.5 border-x border-b border-solarized-yellow/30 bg-solarized-yellow/10 px-3 py-1.5 text-foreground text-xs">
+					<TriangleAlert aria-hidden className="size-3.5 shrink-0 text-solarized-yellow" />
+					<p>{notice}</p>
 				</div>
 			) : null}
 			{isTabVariant ? renderedActivePanel : null}
