@@ -70,7 +70,10 @@ const LineClipboard = Extension.create({
 									),
 							),
 						),
-					clipboardTextSerializer: (slice) => toLines(slice.content).join("\n"),
+					// Chrome puts a copy event's plain text on the Windows clipboard unchanged, and
+					// Windows text fields, such as those of hospital systems, break lines only at CRLF.
+					clipboardTextSerializer: (slice) =>
+						toLines(slice.content).join(navigator.userAgent.includes("Windows") ? "\r\n" : "\n"),
 				},
 			}),
 		];

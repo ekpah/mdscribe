@@ -83,6 +83,19 @@ void (async () => {
 		throw new Error(`copied HTML loses the empty line or keeps paragraph spacing: ${lines.html}`);
 	}
 
+	// On Windows the lines end in CRLF, which Chrome does not add to a copy event's text.
+	Object.defineProperty(navigator, "userAgent", {
+		configurable: true,
+		value: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/142.0.0.0",
+	});
+	const windowsLines = copy(surface);
+	delete (navigator as { userAgent?: string }).userAgent;
+	expectEqual(
+		windowsLines.text.trimEnd(),
+		"Fieber.\r\n\r\nAllergien: keine",
+		"copied lines on Windows",
+	);
+
 	// ⌘↵ and Ctrl+↵ submit instead of inserting a line break.
 	const before = surface.innerHTML;
 	for (const modifier of [{ metaKey: true }, { ctrlKey: true }]) {
