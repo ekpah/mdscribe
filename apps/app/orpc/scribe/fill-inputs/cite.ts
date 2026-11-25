@@ -16,6 +16,7 @@ export const citeFillInputs = async ({
 	model,
 	onUsage,
 	providerOptions,
+	reasoning,
 	signal,
 	sources,
 	suggestions,
@@ -27,6 +28,7 @@ export const citeFillInputs = async ({
 		usage: LanguageModelUsage;
 	}) => void;
 	providerOptions?: Parameters<typeof generateText>[0]["providerOptions"];
+	reasoning?: Parameters<typeof generateText>[0]["reasoning"];
 	signal?: AbortSignal;
 	sources: FillInputSource[];
 	suggestions: FillInputsResult["suggestions"];
@@ -43,6 +45,7 @@ export const citeFillInputs = async ({
 	}
 	const result = await generateText({
 		abortSignal: signal,
+		allowSystemInMessages: true,
 		messages: [
 			{
 				content:
@@ -60,6 +63,7 @@ export const citeFillInputs = async ({
 		model,
 		output: Output.object({ name: "FillInputsCitations", schema: annotationSchema }),
 		providerOptions,
+		reasoning,
 		temperature: 0,
 	});
 	onUsage?.(result);

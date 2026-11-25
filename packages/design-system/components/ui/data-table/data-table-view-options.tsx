@@ -1,6 +1,5 @@
 "use client";
 
-import type { Table } from "@tanstack/react-table";
 import { Settings2 } from "lucide-react";
 
 import { Button } from "../button";
@@ -12,12 +11,13 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "../dropdown-menu";
+import type { DataTableRenderToolbarProps } from "./data-table";
 
-interface DataTableViewOptionsProps<TData> {
-	table: Table<TData>;
+interface DataTableViewOptionsProps<TData extends object> {
+	table: DataTableRenderToolbarProps<TData>["table"];
 }
 
-function DataTableViewOptions<TData>({
+function DataTableViewOptions<TData extends object>({
 	table,
 }: DataTableViewOptionsProps<TData>) {
 	return (
@@ -29,7 +29,9 @@ function DataTableViewOptions<TData>({
 			<DropdownMenuContent align="end" className="w-[150px]">
 				<DropdownMenuLabel>Spalten anzeigen</DropdownMenuLabel>
 				<DropdownMenuSeparator />
-				{table
+				<table.Subscribe selector={(state) => state.columnVisibility}>
+					{() =>
+						table
 					.getAllColumns()
 					.filter(
 						(column) =>
@@ -46,7 +48,9 @@ function DataTableViewOptions<TData>({
 								{column.id}
 							</DropdownMenuCheckboxItem>
 						);
-					})}
+					})
+					}
+				</table.Subscribe>
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);

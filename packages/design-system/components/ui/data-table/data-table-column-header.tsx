@@ -1,6 +1,8 @@
 "use client";
 
-import type { Column } from "@tanstack/react-table";
+import { type Column, Subscribe } from "@tanstack/react-table";
+
+import type { DataTableFeatures } from "./data-table";
 import { ArrowDown, ArrowUp, ChevronsUpDown, EyeOff } from "lucide-react";
 
 import { cn } from "../../../lib/utils";
@@ -13,13 +15,13 @@ import {
 	DropdownMenuTrigger,
 } from "../dropdown-menu";
 
-interface DataTableColumnHeaderProps<TData, TValue>
+interface DataTableColumnHeaderProps<TData extends object, TValue>
 	extends React.HTMLAttributes<HTMLDivElement> {
-	column: Column<TData, TValue>;
+	column: Column<DataTableFeatures, TData, TValue>;
 	title: string;
 }
 
-function DataTableColumnHeader<TData, TValue>({
+function DataTableColumnHeader<TData extends object, TValue>({
 	column,
 	title,
 	className,
@@ -38,13 +40,18 @@ function DataTableColumnHeader<TData, TValue>({
 						className="-ml-3 h-8 data-open:bg-accent"
 					>
 						<span>{title}</span>
-						{column.getIsSorted() === "desc" ? (
-							<ArrowDown className="ml-2 h-4 w-4" />
-						) : column.getIsSorted() === "asc" ? (
-							<ArrowUp className="ml-2 h-4 w-4" />
-						) : (
-							<ChevronsUpDown className="ml-2 h-4 w-4" />
-						)}
+						{/* Subscribed, so the arrow follows sorting even when this header is memoized. */}
+						<Subscribe source={column.table.atoms.sorting}>
+							{() =>
+								column.getIsSorted() === "desc" ? (
+									<ArrowDown className="ml-2 h-4 w-4" />
+								) : column.getIsSorted() === "asc" ? (
+									<ArrowUp className="ml-2 h-4 w-4" />
+								) : (
+									<ChevronsUpDown className="ml-2 h-4 w-4" />
+								)
+							}
+						</Subscribe>
 					</Button>}
 				/>
 				<DropdownMenuContent align="start">

@@ -91,7 +91,7 @@ const RunCard = ({
 	const payloadRef = useRef<Parameters<typeof orpc.admin.scribe.run.call>[0] | null>(null);
 	const [timing, setTiming] = useState({ finishedAt: 0, startedAt: 0 });
 	const { error, messages, sendMessage, setMessages, status, stop } = useChat({
-		experimental_throttle: 50,
+		throttle: 50,
 		id: `admin-playground-${run.id}`,
 		onFinish: () => setTiming((previous) => ({ ...previous, finishedAt: Date.now() })),
 		transport: {

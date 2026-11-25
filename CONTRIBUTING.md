@@ -6,8 +6,8 @@ Thank you for your interest in contributing to MDScribe! This guide will help yo
 
 ### Prerequisites
 
-- [Bun](https://bun.sh/) 1.4.4 (the pinned package manager)
-- Node.js 24.22.1 recommended (also supported: 22.23.4+ on Node 22, 24.22.1+ on Node 24, or 26.12.1+)
+- [Bun](https://bun.sh/) 1.4.5 (the pinned package manager)
+- Node.js 24.22.3 recommended (also supported: 22.23.4+ on Node 22, 24.22.3+ on Node 24, or 26.13.1+)
 - Git
 
 ### Getting Started
@@ -194,7 +194,7 @@ MDScribe is a monorepo managed with Bun workspaces and Turborepo:
 
 ## Code Style
 
-We use [Ultracite](https://www.ultracite.ai/) v7 with [Oxlint](https://oxc.rs/docs/guide/usage/linter.html) and [Oxfmt](https://oxc.rs/docs/guide/usage/formatter.html) for linting and formatting.
+We use [Ultracite](https://www.ultracite.ai/) v8 with [Oxlint](https://oxc.rs/docs/guide/usage/linter.html) and [Oxfmt](https://oxc.rs/docs/guide/usage/formatter.html) for linting and formatting.
 
 Key conventions:
 

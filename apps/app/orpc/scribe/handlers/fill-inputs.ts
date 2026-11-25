@@ -29,7 +29,7 @@ import {
 import type { FillInputsCitationSource } from "@/orpc/scribe/prompts/core/fill-inputs";
 import { inputName } from "@/orpc/scribe/prompts/template";
 import {
-	buildProviderOptions,
+	buildCallOptions,
 	isGenerationStrategyFullyByok,
 	resolveDecisionModel,
 	resolveGenerationStrategy,
@@ -785,7 +785,7 @@ const addFillInputCitations = async ({
 					zdr,
 				});
 			},
-			providerOptions: buildProviderOptions({
+			...buildCallOptions({
 				includeUsage: true,
 				model: generationSelection.model,
 				reasoningEffort: "none",
@@ -943,12 +943,13 @@ const runFillInputs = async function* runFillInputs({
 
 		const result = await generateText({
 			abortSignal: signal,
+			allowSystemInMessages: true,
 			messages: [
 				{ content: messages[0]?.content ?? "", role: "system" },
 				{ content: userContent, role: "user" },
 			],
 			model:
-				typeof generationModel === "string" || generationModel.specificationVersion !== "v3"
+				typeof generationModel === "string" || generationModel.specificationVersion !== "v4"
 					? generationModel
 					: wrapLanguageModel({
 							middleware: extractJsonMiddleware({ transform: normalizeGeneratedJson }),
@@ -959,7 +960,7 @@ const runFillInputs = async function* runFillInputs({
 				name: "FillInputsResult",
 				schema: outputSchema,
 			}),
-			providerOptions: buildProviderOptions({
+			...buildCallOptions({
 				includeUsage: true,
 				model: generationSelection.model,
 				reasoningEffort: generationSelection.reasoningEffort,

@@ -12,6 +12,7 @@
 
 ### Changed
 
+- Update Markdoc to 0.5.14 without changing the public template or variable contracts.
 - Update Markdoc to 0.5.13 without changing the public template or variable contracts.
 - Update Markdoc to 0.5.11 and FHIRPath to 5.2.3 without changing the public template or variable contracts.
 - `MarkdocComponentMap` types the built-in render names, so a replacement `Info`, `Switch`, `Calc`, … must accept that tag's props. Custom render names still accept any component.

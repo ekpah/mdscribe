@@ -6,7 +6,7 @@ import { AI_SCRIBE_STT_EVENT_NAME } from "@/lib/usage-event-names";
 import type { StandardUsage } from "@/lib/usage-logging";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { SCRIBE_AUDIO_TRANSCRIPTION_PROMPT } from "@/orpc/scribe/prompts/core/audio-transcription";
-import { buildProviderOptions } from "@/orpc/scribe/providers";
+import { buildCallOptions } from "@/orpc/scribe/providers";
 import type { ResolvedModel } from "@/orpc/scribe/providers";
 import type { AudioFile } from "@/orpc/scribe/types";
 
@@ -269,7 +269,7 @@ export const transcribeAudioFilesWithPrompt = async ({
 			},
 		],
 		model: resolvedModel.model,
-		providerOptions: buildProviderOptions({
+		...buildCallOptions({
 			includeUsage: true,
 			model: resolvedModel,
 			userId,

@@ -11,7 +11,7 @@ import { requiredFlagMiddleware } from "@/orpc/middlewares/flags";
 import { enforceScribeUsageLimit } from "@/orpc/scribe/handlers/usage-limit";
 import { scheduleScribeUsageLogging } from "@/orpc/scribe/handlers/usage-logging";
 import {
-	buildProviderOptions,
+	buildCallOptions,
 	isGenerationStrategyFullyByok,
 	resolveAgentGenerationStrategy,
 } from "@/orpc/scribe/providers";
@@ -88,7 +88,7 @@ export const scribeAgentChatHandler = authed
 		});
 		const { generation } = agentStrategy;
 
-		const providerOptions = buildProviderOptions({
+		const callOptions = buildCallOptions({
 			includeUsage: true,
 			model: generation.model,
 			reasoningEffort: generation.reasoningEffort,
@@ -129,7 +129,7 @@ export const scribeAgentChatHandler = authed
 			db: context.db,
 			generation,
 			preparedMedia,
-			providerOptions,
+			providerOptions: callOptions.providerOptions,
 			rootObservationId,
 			sections,
 			session: context.session,
@@ -171,6 +171,9 @@ export const scribeAgentChatHandler = authed
 					event: {
 						...event,
 						reasoningText: event.reasoningText || streamedReasoning || undefined,
+						// AI SDK 7 sums `usage` over all steps; keep logging the final step's
+						// usage as before, like the OpenRouter usage in `providerMetadata`.
+						usage: event.finalStep.usage,
 					},
 					// Clinical text stays out of UsageEvent input; only metadata.
 					inputData: buildAgentUsageInputData({ input, media: preparedMedia }),
@@ -205,7 +208,7 @@ export const scribeAgentChatHandler = authed
 				});
 				void finishUsageTrace({ db: context.db, status: "succeeded", traceId });
 			},
-			providerOptions,
+			...callOptions,
 			stopWhen: stepCountIs(AGENT_MAX_STEPS),
 			system: buildAgentSystemPrompt(sections, personalContext, input.background),
 			temperature: effectiveTemperature,

@@ -1,5 +1,5 @@
 # ---- Base ----
-FROM oven/bun:1.4.4-slim AS base
+FROM oven/bun:1.4.5-slim AS base
 
 # ---- Pruner ----
 FROM base AS pruner
@@ -36,7 +36,7 @@ RUN cd packages/markdoc-md && bun run build
 # ---- Builder ----
 # Use Node for Next.js build compatibility (Next 16 build workers rely on
 # worker_threads options that Bun doesn't fully implement yet).
-FROM node:24.22.1-slim AS builder
+FROM node:24.22.3-slim AS builder
 WORKDIR /app
 
 # Copy the whole deps workspace (see packages stage above).

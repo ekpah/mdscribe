@@ -2,9 +2,11 @@
 
 import { Badge } from "@repo/design-system/components/ui/badge";
 import { Button } from "@repo/design-system/components/ui/button";
-import { DataTableColumnHeader } from "@repo/design-system/components/ui/data-table";
+import {
+	createDataTableColumnHelper,
+	DataTableColumnHeader,
+} from "@repo/design-system/components/ui/data-table";
 import { cn } from "@repo/design-system/lib/utils";
-import { createColumnHelper } from "@tanstack/react-table";
 import { ChevronRight } from "lucide-react";
 
 import { AI_SCRIBE_GENERATION_EVENT_NAME } from "@/lib/usage-event-names";
@@ -237,7 +239,7 @@ export const canOpenInPlayground = (event: Pick<UsageListEvent, "name" | "rowKin
 	return event.name === AI_SCRIBE_GENERATION_EVENT_NAME && rowKind === "event";
 };
 
-const columnHelper = createColumnHelper<UsageListEvent>();
+const columnHelper = createDataTableColumnHelper<UsageListEvent>();
 
 export const createColumns = () => [
 	columnHelper.accessor("timestamp", {

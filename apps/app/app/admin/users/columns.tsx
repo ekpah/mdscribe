@@ -1,8 +1,10 @@
 "use client";
 
 import { Badge } from "@repo/design-system/components/ui/badge";
-import { DataTableColumnHeader } from "@repo/design-system/components/ui/data-table";
-import { createColumnHelper } from "@tanstack/react-table";
+import {
+	createDataTableColumnHelper,
+	DataTableColumnHeader,
+} from "@repo/design-system/components/ui/data-table";
 import { CheckCircle, Mail, Star, User } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -28,7 +30,7 @@ export interface UserData {
 	};
 }
 
-const columnHelper = createColumnHelper<UserData>();
+const columnHelper = createDataTableColumnHelper<UserData>();
 
 export const getSubscriptionLabel = (user: UserData) => {
 	if (user.hasActiveSubscription) {
@@ -135,7 +137,7 @@ export const columns = [
 		},
 		header: ({ column }) => <DataTableColumnHeader column={column} title="Abo" />,
 		id: "subscription",
-		sortingFn: (rowA, rowB) => {
+		sortFn: (rowA, rowB) => {
 			const a = getSubscriptionLabel(rowA.original);
 			const b = getSubscriptionLabel(rowB.original);
 			return a.localeCompare(b);

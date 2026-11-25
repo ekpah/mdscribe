@@ -11,7 +11,7 @@ const execute = async (
 	if (!run) {
 		throw new Error("Missing tool executor");
 	}
-	return await run(input, { messages: [], toolCallId: "test" });
+	return await run(input, { context: {}, messages: [], toolCallId: "test" });
 };
 
 describe("template agent sections", () => {

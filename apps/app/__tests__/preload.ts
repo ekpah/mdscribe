@@ -138,7 +138,7 @@ const createOpenRouterMockModel = (modelId: string) => ({
 		}),
 	modelId,
 	provider: "openrouter",
-	specificationVersion: "v3",
+	specificationVersion: "v4",
 });
 
 const MockStripe = function MockStripe() {
@@ -293,7 +293,7 @@ mock.module("ai", () => ({
 	},
 	createGateway,
 	createUIMessageStream,
-	experimental_transcribe: () =>
+	transcribe: () =>
 		resolveAsync({
 			text: "Transkribierter Testtext",
 		}),

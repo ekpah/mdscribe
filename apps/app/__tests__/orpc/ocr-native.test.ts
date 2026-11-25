@@ -44,13 +44,13 @@ test("native PDF and image rendering feeds the OCR entry point with bounded, upr
 			const rasterSizes = [];
 			mock.module("@/orpc/scribe/providers", () => ({
 				isOcrServiceSelection: () => false,
-				buildProviderOptions: () => ({}),
+				buildCallOptions: () => ({}),
 			}));
 			mock.module("ai", () => ({
 				Output: { object: options => options },
 				generateText: async options => {
 					inferenceCalls++;
-					const image = options.messages[1].content[0].image;
+					const image = options.messages[1].content[0].data;
 					const {width, height, format} = await (await import("sharp")).default(image).metadata();
 					assert.equal(format, "jpeg");
 					assert.equal(options.messages[1].content[0].mediaType, "image/jpeg");

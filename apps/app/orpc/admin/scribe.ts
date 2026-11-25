@@ -14,7 +14,7 @@ import {
 } from "@/orpc/scribe/handlers/media-limits";
 import { appendScribeInputAttachmentsToMessages } from "@/orpc/scribe/handlers/scribe-stream";
 import {
-	buildProviderOptions,
+	buildCallOptions,
 	resolveModelByRecordId,
 	resolveOcrSelection,
 	resolveProviderModel,
@@ -137,7 +137,7 @@ const runHandler = authed
 			});
 			({ messages } = attachmentsResult);
 		}
-		const providerOptions = buildProviderOptions({
+		const callOptions = buildCallOptions({
 			model: resolved,
 			openRouterReasoningEffort: input.parameters.reasoningEffort === "none" ? "none" : undefined,
 			reasoningEffort,
@@ -146,6 +146,8 @@ const runHandler = authed
 
 		let latestMetrics: AdminRunMetrics = {};
 		const result = streamText({
+			// Admins edit the composed prompt, including its system message.
+			allowSystemInMessages: true,
 			frequencyPenalty: input.parameters.frequencyPenalty,
 			maxOutputTokens: input.parameters.maxTokens,
 			messages,
@@ -168,7 +170,6 @@ const runHandler = authed
 					reasoningTokens:
 						asFiniteNumber(openRouterUsage?.completionTokensDetails?.reasoningTokens) ??
 						asFiniteNumber(event.usage.outputTokenDetails?.reasoningTokens) ??
-						asFiniteNumber(event.usage.reasoningTokens) ??
 						latestMetrics.reasoningTokens,
 					totalTokens:
 						asFiniteNumber(openRouterUsage?.totalTokens) ??
@@ -177,7 +178,7 @@ const runHandler = authed
 				};
 			},
 			presencePenalty: input.parameters.presencePenalty,
-			providerOptions,
+			...callOptions,
 			temperature: input.parameters.temperature,
 			topK: input.parameters.topK,
 			topP: input.parameters.topP,
@@ -211,8 +212,7 @@ const runHandler = authed
 
 					const reasoningTokens =
 						latestMetrics.reasoningTokens ??
-						asFiniteNumber(part.totalUsage.outputTokenDetails?.reasoningTokens) ??
-						asFiniteNumber(part.totalUsage.reasoningTokens);
+						asFiniteNumber(part.totalUsage.outputTokenDetails?.reasoningTokens);
 					if (reasoningTokens !== undefined) {
 						metadata.reasoningTokens = reasoningTokens;
 					}

@@ -13,7 +13,7 @@ import {
 import { enforceScribeUsageLimit } from "@/orpc/scribe/handlers/usage-limit";
 import { scheduleScribeUsageLogging } from "@/orpc/scribe/handlers/usage-logging";
 import {
-	buildProviderOptions,
+	buildCallOptions,
 	isGenerationStrategyFullyByok,
 	resolveAgentGenerationStrategy,
 } from "@/orpc/scribe/providers";
@@ -43,7 +43,7 @@ export const templateAgentEditHandler = authed
 			session: context.session,
 		});
 		const { generation } = strategy;
-		const providerOptions = buildProviderOptions({
+		const callOptions = buildCallOptions({
 			includeUsage: true,
 			model: generation.model,
 			reasoningEffort: generation.reasoningEffort,
@@ -75,7 +75,9 @@ export const templateAgentEditHandler = authed
 					activeSubscription: entitlements.hasActiveSubscription,
 					db: context.db,
 					endpoint: "template-agent",
-					event,
+					// AI SDK 7 sums `usage` over all steps; keep logging the final step's
+					// usage as before, like the OpenRouter usage in `providerMetadata`.
+					event: { ...event, usage: event.finalStep.usage },
 					inputData: {
 						audioFiles: preparedMedia.audioSummaries,
 						contextFiles: preparedMedia.fileSummaries,
@@ -97,7 +99,7 @@ export const templateAgentEditHandler = authed
 					userId: context.session.user.id,
 				});
 			},
-			providerOptions,
+			...callOptions,
 			// Room for a few validation retries and the closing summary.
 			stopWhen: stepCountIs(6),
 			system: buildTemplateAgentSystemPrompt({

@@ -6,7 +6,7 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { aiDefaults, aiModel, aiProvider, and, eq, userAiProvider } from "@repo/database";
 import type { Database } from "@repo/database";
 import { database } from "@repo/database/client";
-import { createGateway, experimental_transcribe as transcribe } from "ai";
+import { createGateway, transcribe } from "ai";
 import type { JSONValue, LanguageModel } from "ai";
 import { revalidateTag, unstable_cache } from "next/cache";
 import { SecureClient, TinfoilAI, toFile } from "tinfoil";
@@ -243,9 +243,8 @@ const createTinfoilProvider = async (
 		throw new Error("Tinfoil secure client did not resolve a base URL");
 	}
 
-	// Tinfoil 1.2 uses AI SDK provider protocol v4 internally. MDScribe is
-	// currently on AI SDK 6 (provider protocol v3), so compose Tinfoil's
-	// public verified transport with the matching OpenAI-compatible adapter.
+	// Compose Tinfoil's public verified transport with the OpenAI-compatible
+	// adapter, so Tinfoil models work like other OpenAI-compatible models.
 	return createOpenAICompatible({
 		apiKey: resolvedApiKey,
 		baseURL: secureBaseUrl,
@@ -1053,9 +1052,8 @@ export const isGenerationStrategyFullyByok = (strategy: GenerationStrategy): boo
 };
 
 /**
- * Anthropic expresses reasoning as an absolute thinking-token budget instead
- * of an effort level; these budgets approximate the effort scale used by the
- * other protocols (Anthropic enforces a minimum of 1024).
+ * Thinking-token budgets for Anthropic models that take one, approximating the
+ * effort scale of the other protocols (Anthropic enforces a minimum of 1024).
  */
 const ANTHROPIC_THINKING_BUDGET_TOKENS: Record<Exclude<ReasoningEffort, "none">, number> = {
 	high: 16_384,
@@ -1065,8 +1063,19 @@ const ANTHROPIC_THINKING_BUDGET_TOKENS: Record<Exclude<ReasoningEffort, "none">,
 	xhigh: 32_000,
 };
 
+/**
+ * Reasoning and provider settings for one model call; spread it into
+ * `generateText` or `streamText`. `reasoning` is AI SDK 7's provider-neutral
+ * effort, which each provider maps to its own request (and to the efforts the
+ * model supports); `providerOptions` holds what it cannot express.
+ */
+export interface ModelCallOptions {
+	providerOptions?: Record<string, Record<string, JSONValue>>;
+	reasoning?: Exclude<ReasoningEffort, "none">;
+}
+
 // oxlint-disable-next-line complexity -- each protocol owns its request options
-export const buildProviderOptions = ({
+export const buildCallOptions = ({
 	includeUsage,
 	model,
 	openRouterReasoningEffort,
@@ -1080,44 +1089,52 @@ export const buildProviderOptions = ({
 	reasoningEffort?: ReasoningEffort;
 	userId?: string;
 	zdr?: boolean;
-}): Record<string, Record<string, JSONValue>> | undefined => {
+}): ModelCallOptions => {
 	const normalizedReasoningEffort = normalizeReasoningEffort(reasoningEffort);
 	const effectiveReasoningEffort =
 		modelAllowsReasoningOptions(model) && normalizedReasoningEffort !== "none"
 			? normalizedReasoningEffort
 			: undefined;
+	const reasoning = effectiveReasoningEffort ? { reasoning: effectiveReasoningEffort } : {};
+	// Anthropic models that still take a thinking budget get these fixed budgets;
+	// the SDK's own budget can use most of the output limit and cut the answer
+	// short. Adaptive-thinking models replace the budget and use `reasoning`.
+	const anthropicThinking = effectiveReasoningEffort
+		? {
+				thinking: {
+					budgetTokens: ANTHROPIC_THINKING_BUDGET_TOKENS[effectiveReasoningEffort],
+					type: "enabled" as const,
+				},
+			}
+		: undefined;
 
 	switch (model.providerProtocol) {
 		case "vercel-ai-gateway": {
 			return {
-				gateway: {
-					...(userId ? { user: userId } : {}),
-					...(zdr ? { zeroDataRetention: true } : {}),
+				...reasoning,
+				providerOptions: {
+					gateway: {
+						...(userId ? { user: userId } : {}),
+						...(zdr ? { zeroDataRetention: true } : {}),
+					},
+					...(anthropicThinking && model.modelName.startsWith("anthropic/")
+						? { anthropic: anthropicThinking }
+						: {}),
 				},
-				...(effectiveReasoningEffort && model.modelName.startsWith("openai/")
-					? { openai: { reasoningEffort: effectiveReasoningEffort } }
-					: {}),
-				...(effectiveReasoningEffort && model.modelName.startsWith("anthropic/")
-					? {
-							anthropic: {
-								thinking: {
-									budgetTokens: ANTHROPIC_THINKING_BUDGET_TOKENS[effectiveReasoningEffort],
-									type: "enabled" as const,
-								},
-							},
-						}
-					: {}),
 			};
 		}
 		case "openrouter": {
+			// The OpenRouter provider ignores the top-level `reasoning` option.
 			const providerSort = OPENROUTER_PROVIDER_SORT[model.openRouterRoutingMode];
 			const resolvedReasoningEffort = effectiveReasoningEffort ?? openRouterReasoningEffort;
 			return {
-				openrouter: {
-					...(providerSort ? { provider: { sort: providerSort } } : {}),
-					...(includeUsage ? { usage: { include: true } } : {}),
-					...(userId ? { user: userId } : {}),
-					...(resolvedReasoningEffort ? { reasoning: { effort: resolvedReasoningEffort } } : {}),
+				providerOptions: {
+					openrouter: {
+						...(providerSort ? { provider: { sort: providerSort } } : {}),
+						...(includeUsage ? { usage: { include: true } } : {}),
+						...(userId ? { user: userId } : {}),
+						...(resolvedReasoningEffort ? { reasoning: { effort: resolvedReasoningEffort } } : {}),
+					},
 				},
 			};
 		}
@@ -1125,34 +1142,29 @@ export const buildProviderOptions = ({
 		case "openai-compatible":
 		case "workers-ai":
 		case "openai": {
-			if (!(effectiveReasoningEffort || userId)) {
-				return;
-			}
-			// The generic `openaiCompatible` key applies regardless of the
-			// provider's registered name (`tinfoil`, `custom`, ...).
-			const optionsKey = model.providerProtocol === "openai" ? "openai" : "openaiCompatible";
+			const isOpenAI = model.providerProtocol === "openai";
+			const options = {
+				...(userId ? { user: userId } : {}),
+				// @ai-sdk/openai 4 requests detailed reasoning summaries whenever reasoning
+				// is on; null keeps the earlier behavior of not requesting them.
+				...(effectiveReasoningEffort && isOpenAI ? { reasoningSummary: null } : {}),
+			};
 			return {
-				[optionsKey]: {
-					...(userId ? { user: userId } : {}),
-					...(effectiveReasoningEffort ? { reasoningEffort: effectiveReasoningEffort } : {}),
-				},
+				...reasoning,
+				// The generic `openaiCompatible` key applies regardless of the
+				// provider's registered name (`tinfoil`, `custom`, ...).
+				...(Object.keys(options).length > 0
+					? { providerOptions: { [isOpenAI ? "openai" : "openaiCompatible"]: options } }
+					: {}),
 			};
 		}
 		case "anthropic": {
-			if (!effectiveReasoningEffort) {
-				return;
-			}
-			return {
-				anthropic: {
-					thinking: {
-						budgetTokens: ANTHROPIC_THINKING_BUDGET_TOKENS[effectiveReasoningEffort],
-						type: "enabled" as const,
-					},
-				},
-			};
+			return anthropicThinking
+				? { ...reasoning, providerOptions: { anthropic: anthropicThinking } }
+				: {};
 		}
 		default: {
-			return undefined;
+			return {};
 		}
 	}
 };

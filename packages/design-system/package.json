@@ -24,7 +24,7 @@
 		"react-hook-form": "catalog:",
 		"recharts": "catalog:",
 		"sonner": "catalog:",
-		"tailwind-merge": "^3.7.0"
+		"tailwind-merge": "^3.7.1"
 	},
 	"devDependencies": {
 		"@tailwindcss/postcss": "catalog:",

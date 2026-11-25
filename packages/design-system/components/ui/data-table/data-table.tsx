@@ -2,19 +2,31 @@
 
 import {
 	type ColumnDef,
-	type Row,
-	type Table as TanStackTable,
-	flexRender,
-	getCoreRowModel,
-	getExpandedRowModel,
-	getFilteredRowModel,
-	getPaginationRowModel,
-	getSortedRowModel,
-	useReactTable,
 	type ColumnFiltersState,
+	type ColumnVisibilityState,
 	type ExpandedState,
+	type ReactTable,
+	type Row,
 	type SortingState,
-	type VisibilityState,
+	columnFilteringFeature,
+	columnVisibilityFeature,
+	createExpandedRowModel,
+	createFilteredRowModel,
+	createPaginatedRowModel,
+	createSortedRowModel,
+	createTableHook,
+	filterFn_includesString,
+	flexRender,
+	globalFilteringFeature,
+	rowExpandingFeature,
+	rowPaginationFeature,
+	rowSelectionFeature,
+	rowSortingFeature,
+	sortFn_alphanumeric,
+	sortFn_basic,
+	sortFn_datetime,
+	sortFn_text,
+	tableFeatures,
 } from "@tanstack/react-table";
 import * as React from "react";
 
@@ -27,15 +39,47 @@ import {
 	TableRow,
 } from "../table";
 
-interface DataTableRenderToolbarProps<TData> {
-	table: TanStackTable<TData>;
+// Every feature the props can turn on; the props switch them off per table with
+// `enable*` and `manual*` options, which keeps this feature set stable.
+const dataTableFeatures = tableFeatures({
+	columnFilteringFeature,
+	columnVisibilityFeature,
+	globalFilteringFeature,
+	rowExpandingFeature,
+	rowPaginationFeature,
+	rowSelectionFeature,
+	rowSortingFeature,
+	expandedRowModel: createExpandedRowModel(),
+	filteredRowModel: createFilteredRowModel(),
+	paginatedRowModel: createPaginatedRowModel(),
+	sortedRowModel: createSortedRowModel(),
+	filterFns: { includesString: filterFn_includesString },
+	// The sort functions `sortFn: "auto"` picks from, as in TanStack Table 8.
+	sortFns: {
+		alphanumeric: sortFn_alphanumeric,
+		basic: sortFn_basic,
+		datetime: sortFn_datetime,
+		text: sortFn_text,
+	},
+});
+
+type DataTableFeatures = typeof dataTableFeatures;
+
+// The admin tables' shared conventions: column definitions made with
+// `createDataTableColumnHelper` are typed for exactly these features.
+const { createAppColumnHelper: createDataTableColumnHelper, useAppTable } = createTableHook({
+	features: dataTableFeatures,
+});
+
+interface DataTableRenderToolbarProps<TData extends object> {
+	table: ReactTable<DataTableFeatures, TData>;
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: TanStack Table columns have mixed value types
-interface DataTableProps<TData> {
-	columns: ColumnDef<TData, any>[];
+interface DataTableProps<TData extends object> {
+	columns: ColumnDef<DataTableFeatures, TData, any>[];
 	data: TData[];
-	onRowClick?: (row: TData, tableRow: Row<TData>) => void;
+	onRowClick?: (row: TData, tableRow: Row<DataTableFeatures, TData>) => void;
 	enablePagination?: boolean;
 	enableSorting?: boolean;
 	enableFiltering?: boolean;
@@ -53,7 +97,7 @@ interface DataTableProps<TData> {
 	getSubRows?: (row: TData) => TData[] | undefined;
 }
 
-function DataTable<TData>({
+function DataTable<TData extends object>({
 	columns,
 	data,
 	onRowClick,
@@ -75,31 +119,29 @@ function DataTable<TData>({
 	);
 	const [expanded, setExpanded] = React.useState<ExpandedState>({});
 	const [columnVisibility, setColumnVisibility] =
-		React.useState<VisibilityState>({});
+		React.useState<ColumnVisibilityState>({});
 	const [internalGlobalFilter, setInternalGlobalFilter] = React.useState("");
 
 	// Use controlled global filter if provided, otherwise use internal state
 	const actualGlobalFilter = globalFilter ?? internalGlobalFilter;
 	const setActualGlobalFilter = onGlobalFilterChange ?? setInternalGlobalFilter;
 
-	const table = useReactTable({
+	const table = useAppTable({
 		data,
 		columns,
-		getCoreRowModel: getCoreRowModel(),
-		...(getSubRows && { getExpandedRowModel: getExpandedRowModel(), getSubRows }),
-		...(enablePagination && { getPaginationRowModel: getPaginationRowModel() }),
-		...(enableSorting && {
-			onSortingChange: setSorting,
-			getSortedRowModel: getSortedRowModel(),
-		}),
-		...(enableFiltering && {
-			onColumnFiltersChange: setColumnFilters,
-			getFilteredRowModel: getFilteredRowModel(),
-		}),
-		...(getSubRows && { onExpandedChange: setExpanded }),
+		// Without these, the v8 table had no row model for the stage.
+		manualExpanding: !getSubRows,
+		manualFiltering: !(enableFiltering || enableGlobalFilter),
+		manualPagination: !enablePagination,
+		enableSorting,
+		enableColumnFilters: enableFiltering,
+		enableGlobalFilter,
+		enableHiding: enableColumnVisibility,
+		...(getSubRows && { getSubRows, onExpandedChange: setExpanded }),
+		...(enableSorting && { onSortingChange: setSorting }),
+		...(enableFiltering && { onColumnFiltersChange: setColumnFilters }),
 		...(enableGlobalFilter && {
 			onGlobalFilterChange: setActualGlobalFilter,
-			getFilteredRowModel: getFilteredRowModel(),
 			globalFilterFn: "includesString",
 		}),
 		...(enableColumnVisibility && {
@@ -172,4 +214,9 @@ function DataTable<TData>({
 	);
 }
 
-export { DataTable,  type DataTableRenderToolbarProps };
+export {
+	createDataTableColumnHelper,
+	DataTable,
+	type DataTableFeatures,
+	type DataTableRenderToolbarProps,
+};

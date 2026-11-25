@@ -27,7 +27,7 @@ import { scribeEntitlementsMiddleware } from "@/orpc/middlewares/entitlements";
 import { extractContextFileText } from "@/orpc/scribe/handlers/context-file-input";
 import { enforceScribeUsageLimit } from "@/orpc/scribe/handlers/usage-limit";
 import {
-	buildProviderOptions,
+	buildCallOptions,
 	isOcrServiceSelection,
 	resolveGenerationStrategy,
 	resolveProviderModel,
@@ -344,7 +344,7 @@ const parseFormHandler = adminDocumentProcedure
 							},
 				],
 				model: modelSelection.model.model,
-				providerOptions: buildProviderOptions({
+				...buildCallOptions({
 					includeUsage: true,
 					model: modelSelection.model,
 					reasoningEffort: modelSelection.reasoningEffort,
@@ -461,7 +461,7 @@ const enhanceDefinitionHandler = authed
 			],
 			model: modelSelection.model.model,
 			output: "no-schema",
-			providerOptions: buildProviderOptions({
+			...buildCallOptions({
 				includeUsage: true,
 				model: modelSelection.model,
 				reasoningEffort: modelSelection.reasoningEffort,

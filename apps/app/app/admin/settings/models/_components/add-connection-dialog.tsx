@@ -50,7 +50,7 @@ const BASE_URL_PLACEHOLDERS: Record<string, string> = {
 	"openai-compatible": "http://localhost:11434/v1",
 	"privatemode-ocr": "https://api.privatemode.ai",
 	tinfoil: "https://inference.tinfoil.sh/v1",
-	"vercel-ai-gateway": "https://ai-gateway.vercel.sh/v3/ai",
+	"vercel-ai-gateway": "https://ai-gateway.vercel.sh/v4/ai",
 	"workers-ai": "Cloudflare Account-ID (32 Zeichen)",
 };
 

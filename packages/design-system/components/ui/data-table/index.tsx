@@ -1,6 +1,6 @@
 export {
+	createDataTableColumnHelper,
 	DataTable,
-	
 	type DataTableRenderToolbarProps,
 } from "./data-table";
 export { DataTableColumnHeader } from "./data-table-column-header";

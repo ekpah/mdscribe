@@ -1,6 +1,5 @@
 "use client";
 
-import type { Table } from "@tanstack/react-table";
 import {
 	ChevronLeft,
 	ChevronRight,
@@ -16,17 +15,29 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "../select";
+import type { DataTableRenderToolbarProps } from "./data-table";
 
-interface DataTablePaginationProps<TData> {
-	table: Table<TData>;
+interface DataTablePaginationProps<TData extends object> {
+	table: DataTableRenderToolbarProps<TData>["table"];
 	pageSizeOptions?: number[];
 }
 
-function DataTablePagination<TData>({
+function DataTablePagination<TData extends object>({
 	table,
 	pageSizeOptions = [10, 20, 30, 40, 50],
 }: DataTablePaginationProps<TData>) {
+	// Subscribed to the slices that change the page, selection and row counts, so
+	// the controls stay current even when this component is memoized.
 	return (
+		<table.Subscribe
+			selector={(state) => ({
+				columnFilters: state.columnFilters,
+				globalFilter: state.globalFilter,
+				pagination: state.pagination,
+				rowSelection: state.rowSelection,
+			})}
+		>
+			{({ pagination }) => (
 		<div className="flex items-center justify-between px-2">
 			<div className="text-muted-foreground flex-1 text-sm">
 				{table.getFilteredSelectedRowModel().rows.length > 0 && (
@@ -40,13 +51,13 @@ function DataTablePagination<TData>({
 				<div className="flex items-center space-x-2">
 					<p className="text-sm font-medium">Zeilen pro Seite</p>
 					<Select
-						value={`${table.getState().pagination.pageSize}`}
+						value={`${pagination.pageSize}`}
 						onValueChange={(value) => {
 							table.setPageSize(Number(value));
 						}}
 					>
 						<SelectTrigger className="h-8 w-[70px]">
-							<SelectValue placeholder={table.getState().pagination.pageSize} />
+							<SelectValue placeholder={pagination.pageSize} />
 						</SelectTrigger>
 						<SelectContent side="top">
 							{pageSizeOptions.map((pageSize) => (
@@ -58,7 +69,7 @@ function DataTablePagination<TData>({
 					</Select>
 				</div>
 				<div className="flex w-[100px] items-center justify-center text-sm font-medium">
-					Seite {table.getState().pagination.pageIndex + 1} von{" "}
+					Seite {pagination.pageIndex + 1} von{" "}
 					{table.getPageCount()}
 				</div>
 				<div className="flex items-center space-x-2">
@@ -101,6 +112,8 @@ function DataTablePagination<TData>({
 				</div>
 			</div>
 		</div>
+			)}
+		</table.Subscribe>
 	);
 }
 

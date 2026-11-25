@@ -61,6 +61,7 @@ interface CiteOptions {
 		model: LanguageModel;
 		onFinish: (event: Parameters<LlmFinish>[0], durationMs: number) => void;
 		providerOptions?: Parameters<typeof streamText>[0]["providerOptions"];
+		reasoning?: Parameters<typeof streamText>[0]["reasoning"];
 	};
 	signal?: AbortSignal;
 	sources: readonly CitationSource[];
@@ -119,6 +120,7 @@ const citeResponse = async function* citeResponse({
 		model: llm.model,
 		onFinish: (event) => llm.onFinish(event, Date.now() - startedAt),
 		providerOptions: llm.providerOptions,
+		reasoning: llm.reasoning,
 		signal,
 		sources,
 	});

@@ -73,7 +73,7 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@markdoc/markdoc": "^0.5.13",
+		"@markdoc/markdoc": "^0.5.14",
 		"fhirpath": "^5.2.3",
 		"fparser": "^4.2.0"
 	},

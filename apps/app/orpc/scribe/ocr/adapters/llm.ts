@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import type { StandardUsage } from "@/lib/usage-logging";
 import type { OcrAdapter } from "@/orpc/scribe/ocr/adapter";
-import { buildProviderOptions } from "@/orpc/scribe/providers";
+import { buildCallOptions } from "@/orpc/scribe/providers";
 import type { ResolvedDefaultModelSelection } from "@/orpc/scribe/providers";
 import type { ReasoningEffort } from "@/orpc/scribe/types";
 
@@ -112,14 +112,15 @@ export const createLlmOcrAdapter = ({
 			abortSignal: signal
 				? AbortSignal.any([signal, AbortSignal.timeout(120_000)])
 				: AbortSignal.timeout(120_000),
+			allowSystemInMessages: true,
 			maxOutputTokens: 24_000,
 			messages: [
 				{ content: OCR_PROMPT, role: "system" },
-				{ content: [{ image, mediaType: "image/jpeg", type: "image" }], role: "user" },
+				{ content: [{ data: image, mediaType: "image/jpeg", type: "file" }], role: "user" },
 			],
 			model: modelSelection.model.model,
 			output: Output.object({ name: "OcrResult", schema: ocrModelResultSchema }),
-			providerOptions: buildProviderOptions({
+			...buildCallOptions({
 				includeUsage: true,
 				model: modelSelection.model,
 				openRouterReasoningEffort,

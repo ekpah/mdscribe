@@ -6,7 +6,7 @@ import { aiDefaults, aiModel, aiProvider, eq } from "@repo/database";
 import { ADMIN_EMAIL, createTestContext, createTestUser, startTestServer } from "@/__tests__/setup";
 import type { TestServer } from "@/__tests__/setup";
 import { providersHandler } from "@/orpc/admin/providers";
-import { buildProviderOptions, resolveModelByRecordId } from "@/orpc/scribe/providers";
+import { buildCallOptions, resolveModelByRecordId } from "@/orpc/scribe/providers";
 
 describe("Admin Providers Handler", () => {
 	let server: TestServer;
@@ -138,13 +138,13 @@ describe("Admin Providers Handler", () => {
 						],
 					});
 				}
-				case "https://ai-gateway.vercel.sh/v3/ai/language-model": {
+				case "https://ai-gateway.vercel.sh/v4/ai/language-model": {
 					expect(headers.get("ai-language-model-id")).toBe("openai/gpt-5");
 					const body = JSON.parse(String(init?.body));
 					expect(body.providerOptions).toEqual({
 						gateway: { user: "gateway-user", zeroDataRetention: true },
-						openai: { reasoningEffort: "high" },
 					});
+					expect(body.reasoning).toBe("high");
 					return Response.json({
 						content: [{ text: "Gateway response", type: "text" }],
 						warnings: [],
@@ -183,7 +183,7 @@ describe("Admin Providers Handler", () => {
 		}
 		const response = await resolved.model.doGenerate({
 			prompt: [{ content: [{ text: "Hello", type: "text" }], role: "user" }],
-			providerOptions: buildProviderOptions({
+			...buildCallOptions({
 				model: resolved,
 				reasoningEffort: "high",
 				userId: "gateway-user",

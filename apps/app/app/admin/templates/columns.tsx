@@ -1,7 +1,9 @@
 "use client";
 
-import { DataTableColumnHeader } from "@repo/design-system/components/ui/data-table";
-import { createColumnHelper } from "@tanstack/react-table";
+import {
+	createDataTableColumnHelper,
+	DataTableColumnHeader,
+} from "@repo/design-system/components/ui/data-table";
 
 import { USER_MESSAGES } from "@/lib/user-messages";
 
@@ -38,7 +40,7 @@ export const formatTimestamp = (value: Date | string): string => {
 	});
 };
 
-const columnHelper = createColumnHelper<AdminTemplateRow>();
+const columnHelper = createDataTableColumnHelper<AdminTemplateRow>();
 
 export const columns = [
 	columnHelper.accessor("title", {

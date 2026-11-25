@@ -44,6 +44,7 @@ export const streamResponseCitations = async function* streamResponseCitations({
 	model,
 	onFinish,
 	providerOptions,
+	reasoning,
 	signal,
 	sources,
 }: {
@@ -51,6 +52,7 @@ export const streamResponseCitations = async function* streamResponseCitations({
 	model: LanguageModel;
 	onFinish?: Parameters<typeof streamText>[0]["onFinish"];
 	providerOptions?: Parameters<typeof streamText>[0]["providerOptions"];
+	reasoning?: Parameters<typeof streamText>[0]["reasoning"];
 	signal?: AbortSignal;
 	sources: readonly ScribeCitationSource[];
 }): AsyncGenerator<ScribeCitation> {
@@ -99,6 +101,7 @@ export const streamResponseCitations = async function* streamResponseCitations({
 		output: Output.array({ element: annotationSchema }),
 		prompt: JSON.stringify({ draft, passages, sources, units }),
 		providerOptions,
+		reasoning,
 		system: CITATION_PROMPT,
 		temperature: 0.3,
 	});

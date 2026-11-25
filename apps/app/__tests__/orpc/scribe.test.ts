@@ -38,7 +38,7 @@ import type { FillInputsEvent } from "@/orpc/scribe/handlers/fill-inputs";
 import { DEFAULT_SCRIBE_MODEL_CONFIG } from "@/orpc/scribe/handlers/scribe-stream";
 import { composeFillInputsPrompt } from "@/orpc/scribe/prompts/core/fill-inputs";
 import {
-	buildProviderOptions,
+	buildCallOptions,
 	resolveAgentGenerationStrategy,
 	resolveDefaultModel,
 	resolveGenerationStrategy,
@@ -722,9 +722,9 @@ describe("audio input preparation", () => {
 	});
 });
 
-describe("buildProviderOptions", () => {
+describe("buildCallOptions", () => {
 	test("openrouter does not enforce ZDR for subscribed users", () => {
-		const options = buildProviderOptions({
+		const options = buildCallOptions({
 			includeUsage: true,
 			model: createResolvedModel({ isOpenRouter: true, providerProtocol: "openrouter" }),
 			reasoningEffort: "high",
@@ -732,11 +732,14 @@ describe("buildProviderOptions", () => {
 			zdr: true,
 		});
 
+		// The OpenRouter provider ignores top-level `reasoning`, so it stays in its options.
 		expect(options).toEqual({
-			openrouter: {
-				reasoning: { effort: "high" },
-				usage: { include: true },
-				user: "user-1",
+			providerOptions: {
+				openrouter: {
+					reasoning: { effort: "high" },
+					usage: { include: true },
+					user: "user-1",
+				},
 			},
 		});
 	});
@@ -746,7 +749,7 @@ describe("buildProviderOptions", () => {
 		["floor", "price"],
 		["exacto", "exacto"],
 	] as const)("sends %s routing mode as the %s provider sort", (openRouterRoutingMode, sort) => {
-		const options = buildProviderOptions({
+		const options = buildCallOptions({
 			model: createResolvedModel({
 				isOpenRouter: true,
 				openRouterRoutingMode,
@@ -755,68 +758,67 @@ describe("buildProviderOptions", () => {
 		});
 
 		expect(options).toEqual({
-			openrouter: { provider: { sort } },
+			providerOptions: { openrouter: { provider: { sort } } },
 		});
 	});
 
-	test("tinfoil receives reasoning effort and user via openaiCompatible options", () => {
-		const options = buildProviderOptions({
+	test("tinfoil receives top-level reasoning and user via openaiCompatible options", () => {
+		const options = buildCallOptions({
 			model: createResolvedModel({ providerProtocol: "tinfoil" }),
 			reasoningEffort: "medium",
 			userId: "user-1",
 		});
 
 		expect(options).toEqual({
-			openaiCompatible: {
-				reasoningEffort: "medium",
-				user: "user-1",
-			},
+			providerOptions: { openaiCompatible: { user: "user-1" } },
+			reasoning: "medium",
 		});
 	});
 
-	test("openai-compatible receives reasoning effort via openaiCompatible options", () => {
-		const options = buildProviderOptions({
+	test("openai-compatible receives only top-level reasoning", () => {
+		const options = buildCallOptions({
 			model: createResolvedModel({ providerProtocol: "openai-compatible" }),
 			reasoningEffort: "low",
 		});
 
-		expect(options).toEqual({
-			openaiCompatible: {
-				reasoningEffort: "low",
-			},
-		});
+		expect(options).toEqual({ reasoning: "low" });
 	});
 
-	test("openai receives reasoning effort and user via openai options", () => {
-		const options = buildProviderOptions({
+	test("openai receives top-level reasoning and user via openai options", () => {
+		const options = buildCallOptions({
 			model: createResolvedModel({ providerProtocol: "openai" }),
 			reasoningEffort: "xhigh",
 			userId: "user-1",
 		});
 
 		expect(options).toEqual({
-			openai: {
-				reasoningEffort: "xhigh",
-				user: "user-1",
+			providerOptions: {
+				openai: {
+					// Not `undefined`: only null stops @ai-sdk/openai 4 from requesting summaries.
+					reasoningSummary: null,
+					user: "user-1",
+				},
 			},
+			reasoning: "xhigh",
 		});
 	});
 
-	test("anthropic maps reasoning effort to a thinking budget", () => {
-		const options = buildProviderOptions({
+	test("anthropic keeps a fixed thinking budget alongside top-level reasoning", () => {
+		const options = buildCallOptions({
 			model: createResolvedModel({ providerProtocol: "anthropic" }),
 			reasoningEffort: "medium",
 		});
 
 		expect(options).toEqual({
-			anthropic: {
-				thinking: { budgetTokens: 8192, type: "enabled" },
+			providerOptions: {
+				anthropic: { thinking: { budgetTokens: 8192, type: "enabled" } },
 			},
+			reasoning: "medium",
 		});
 	});
 
 	test("sends reasoning when support is unknown", () => {
-		const options = buildProviderOptions({
+		const options = buildCallOptions({
 			model: createResolvedModel({
 				providerProtocol: "openai-compatible",
 				supportedParameters: [],
@@ -825,15 +827,11 @@ describe("buildProviderOptions", () => {
 			reasoningEffort: "high",
 		});
 
-		expect(options).toEqual({
-			openaiCompatible: {
-				reasoningEffort: "high",
-			},
-		});
+		expect(options).toEqual({ reasoning: "high" });
 	});
 
 	test("omits reasoning when the model explicitly does not support it", () => {
-		const options = buildProviderOptions({
+		const options = buildCallOptions({
 			model: createResolvedModel({
 				providerProtocol: "openai-compatible",
 				supportedParameters: ["temperature"],
@@ -842,20 +840,20 @@ describe("buildProviderOptions", () => {
 			reasoningEffort: "high",
 		});
 
-		expect(options).toBeUndefined();
+		expect(options).toEqual({});
 	});
 
 	test("omits reasoning when effort is none", () => {
-		const options = buildProviderOptions({
+		const options = buildCallOptions({
 			model: createResolvedModel({ providerProtocol: "anthropic" }),
 			reasoningEffort: "none",
 		});
 
-		expect(options).toBeUndefined();
+		expect(options).toEqual({});
 	});
 
 	test("passes explicit off to OpenRouter when effort is none", () => {
-		const options = buildProviderOptions({
+		const options = buildCallOptions({
 			model: createResolvedModel({
 				isOpenRouter: true,
 				providerProtocol: "openrouter",
@@ -864,11 +862,13 @@ describe("buildProviderOptions", () => {
 			reasoningEffort: "none",
 		});
 
-		expect(options).toEqual({ openrouter: { reasoning: { effort: "none" } } });
+		expect(options).toEqual({
+			providerOptions: { openrouter: { reasoning: { effort: "none" } } },
+		});
 	});
 
 	test("keeps production-style OpenRouter none omitted without the playground flag", () => {
-		const options = buildProviderOptions({
+		const options = buildCallOptions({
 			model: createResolvedModel({
 				isOpenRouter: true,
 				providerProtocol: "openrouter",
@@ -876,18 +876,45 @@ describe("buildProviderOptions", () => {
 			reasoningEffort: "none",
 		});
 
-		expect(options).toEqual({ openrouter: {} });
+		expect(options).toEqual({ providerOptions: { openrouter: {} } });
+	});
+
+	test("gateway sends top-level reasoning for any model family, with an Anthropic budget", () => {
+		const google = buildCallOptions({
+			model: createResolvedModel({
+				modelName: "google/gemini-3-pro",
+				providerProtocol: "vercel-ai-gateway",
+			}),
+			reasoningEffort: "high",
+			userId: "user-1",
+		});
+		const anthropic = buildCallOptions({
+			model: createResolvedModel({
+				modelName: "anthropic/claude-opus-4-1",
+				providerProtocol: "vercel-ai-gateway",
+			}),
+			reasoningEffort: "low",
+		});
+
+		expect(google).toEqual({ providerOptions: { gateway: { user: "user-1" } }, reasoning: "high" });
+		expect(anthropic).toEqual({
+			providerOptions: {
+				anthropic: { thinking: { budgetTokens: 4096, type: "enabled" } },
+				gateway: {},
+			},
+			reasoning: "low",
+		});
 	});
 
 	test("omits OpenRouter reasoning when no effort was provided", () => {
-		const options = buildProviderOptions({
+		const options = buildCallOptions({
 			model: createResolvedModel({
 				isOpenRouter: true,
 				providerProtocol: "openrouter",
 			}),
 		});
 
-		expect(options).toEqual({ openrouter: {} });
+		expect(options).toEqual({ providerOptions: { openrouter: {} } });
 	});
 });
 

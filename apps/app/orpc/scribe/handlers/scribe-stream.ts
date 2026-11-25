@@ -43,7 +43,7 @@ import {
 } from "@/orpc/scribe/prompts/template";
 import type { NamedInput } from "@/orpc/scribe/prompts/template";
 import {
-	buildProviderOptions,
+	buildCallOptions,
 	isGenerationStrategyFullyByok,
 	modelAllowsReasoningOptions,
 	resolveGenerationStrategy,
@@ -713,7 +713,7 @@ export const runScribeGeneration = async ({
 		resolvedRequest.config.modelConfig,
 		generationSelection,
 	);
-	const providerOptions = buildProviderOptions({
+	const callOptions = buildCallOptions({
 		includeUsage: true,
 		model: generationSelection.model,
 		reasoningEffort,
@@ -734,6 +734,8 @@ export const runScribeGeneration = async ({
 
 	const result = streamText({
 		abortSignal: signal,
+		// `composeTemplatePrompt` puts the core prompt in a system message.
+		allowSystemInMessages: true,
 		maxOutputTokens: resolvedRequest.config.modelConfig.maxTokens ?? 20_000,
 		messages,
 		model: generationSelection.model.model,
@@ -783,7 +785,7 @@ export const runScribeGeneration = async ({
 				userId: context.session.user.id,
 			});
 		},
-		providerOptions,
+		...callOptions,
 		temperature: effectiveTemperature,
 	});
 
@@ -859,7 +861,7 @@ export const runScribeGeneration = async ({
 							},
 							userId: context.session.user.id,
 						}),
-					providerOptions,
+					...callOptions,
 				},
 				signal,
 				sources: citationSources,
